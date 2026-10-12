@@ -99,17 +99,18 @@ def main_keyboard(admin: bool = False):
     """Grid keyboard like utility-duniya-bot - 2 columns"""
     rows = [row[:] for row in KB_BTNS]
     # Admin gets extra row if needed
-    if admin and config.is_admin:
-        try:
-            if config.is_admin(0):  # dummy check, admin always gets same
-                pass
-        except:
-            pass
-    return ReplyKeyboardMarkup(
-        [[KeyboardButton(t) for t in row] for row in rows],
-        resize_keyboard=True,
-        input_field_placeholder="Select a tool from grid 👇",
-    )
+    try:
+        return ReplyKeyboardMarkup(
+            [[KeyboardButton(t) for t in row] for row in rows],
+            resize_keyboard=True,
+        )
+    except Exception as e:
+        print(f"Keyboard create failed: {e}")
+        # Fallback simple keyboard
+        return ReplyKeyboardMarkup(
+            [[KeyboardButton(t) for t in row] for row in rows[:4]],
+            resize_keyboard=True,
+        )
 
 def kb_for(uid: int):
     is_admin_user = False
@@ -330,16 +331,21 @@ async def check_joined_callback(update: Update, context: ContextTypes.DEFAULT_TY
 
 # ========== START & HELP ==========
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Force join check
-    if not await check_force_join(update, context):
-        return
+    try:
+        # Force join check
+        if not await check_force_join(update, context):
+            return
 
-    user = update.effective_user
-    
-    # Send grid keyboard first (like utility-duniya-bot)
-    reply_kb = kb_for(user.id)
-    
-    txt = f"""
+        user = update.effective_user
+        
+        # Try to get grid keyboard, fallback to None if fails
+        try:
+            reply_kb = kb_for(user.id)
+        except Exception as e:
+            print(f"kb_for failed: {e}")
+            reply_kb = None
+        
+        txt = f"""
 ╔══════════════════════════════════════╗
 ║  🚀 <b>OSINT Hunter Hub</b> - Advanced  ║
 ║  @osint_hunter_hub_bot               ║
@@ -382,71 +388,103 @@ Ye bot aisa hai jaisa kisi ke paas nahi — har tool me max data + beautiful des
 👇 <b>Neeche grid se tool select karo!</b>
 """
 
-    # First send with reply keyboard (grid)
-    await update.message.reply_text(txt, parse_mode=ParseMode.HTML, reply_markup=reply_kb)
+        # First send with reply keyboard (grid) - with fallback
+        try:
+            if reply_kb:
+                await update.message.reply_text(txt, parse_mode=ParseMode.HTML, reply_markup=reply_kb)
+            else:
+                await update.message.reply_text(txt, parse_mode=ParseMode.HTML)
+        except Exception as e:
+            print(f"First reply failed: {e}, trying without markup")
+            await update.message.reply_text(txt, parse_mode=ParseMode.HTML)
+        
+        # Then send inline keyboard for extra options
+        try:
+            kb = [
+                [InlineKeyboardButton("📢 Join Channel", url=config.FORCE_CHANNEL_LINK), InlineKeyboardButton("💬 Support", url="https://t.me/Supermannn_x")],
+                [InlineKeyboardButton("📜 All Commands", callback_data="help_all"), InlineKeyboardButton("🔧 Tools Grid", callback_data="tools")],
+                [InlineKeyboardButton("👑 Owner", url="https://t.me/Supermannn_x")]
+            ]
+            await update.message.reply_text(
+                "👆 <b>Grid Menu Active!</b> Neeche 4-dots wale icon pe click karke saare tools dekho.\n\nYa upar ke buttons se direct use karo.",
+                parse_mode=ParseMode.HTML,
+                reply_markup=InlineKeyboardMarkup(kb)
+            )
+        except Exception as e:
+            print(f"Second reply failed: {e}")
+            # Even if inline fails, first message already sent, so ok
     
-    # Then send inline keyboard for extra options
-    kb = [
-        [InlineKeyboardButton("📢 Join Channel", url=config.FORCE_CHANNEL_LINK), InlineKeyboardButton("💬 Support", url="https://t.me/Supermannn_x")],
-        [InlineKeyboardButton("📜 All Commands", callback_data="help_all"), InlineKeyboardButton("🔧 Tools Grid", callback_data="tools")],
-        [InlineKeyboardButton("👑 Owner", url="https://t.me/Supermannn_x")]
-    ]
-    await update.message.reply_text(
-        "👆 <b>Grid Menu Active!</b> Neeche 4-dots wale icon pe click karke saare tools dekho.\n\nYa upar ke buttons se direct use karo.",
-        parse_mode=ParseMode.HTML,
-        reply_markup=InlineKeyboardMarkup(kb)
-    )
+    except Exception as e:
+        print(f"START CRASHED: {e}")
+        traceback.print_exc()
+        try:
+            await update.message.reply_text(
+                f"🚀 <b>OSINT Hunter Hub LIVE!</b>\n\n"
+                f"👋 Hello {update.effective_user.first_name}!\n\n"
+                f"11 Tools Ready:\n"
+                f"/numinfo 9876543210\n"
+                f"/scrape @channel 50\n"
+                f"/insta @username\n"
+                f"/ip 8.8.8.8\n"
+                f"/domain google.com\n\n"
+                f"Grid menu loading... /help for all commands\n\n"
+                f"👑 @Supermannn_x | 📢 @osint_xpert",
+                parse_mode=ParseMode.HTML
+            )
+        except Exception as e2:
+            print(f"Fallback also failed: {e2}")
 
 async def handle_grid_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle grid button presses like utility-duniya-bot"""
-    if not await check_force_join(update, context):
-        return
-    
-    text = update.message.text.strip()
-    # Clean emoji and get mode
-    clean_text = text
-    # Remove emoji prefix
-    for emoji in ["📡 ", "📸 ", "📧 ", "🌐 ", "🖼️ ", "🔒 ", "📱 ", "🆔 ", "📝 ", "📊 ", "📜 ", "👑 ", "📢 "]:
-        if clean_text.startswith(emoji):
-            clean_text = clean_text[len(emoji):].strip()
-            break
-    
-    mode = BTN_MODE_MAP.get(clean_text.upper())
-    if not mode:
-        # Try without cleaning
-        mode = BTN_MODE_MAP.get(text.upper())
-    
-    if not mode:
-        return  # Not a grid button
-    
-    # Handle each mode
-    if mode == "help":
-        await help_cmd(update, context)
-        return
-    
-    if mode == "owner":
-        await update.message.reply_text(
-            "👑 <b>Owner:</b> @Supermannn_x\n📢 <b>Channel:</b> @osint_xpert\n🤖 <b>Bot:</b> @osint_hunter_hub_bot",
-            parse_mode=ParseMode.HTML
-        )
-        return
-    
-    if mode == "channel":
-        kb = [[InlineKeyboardButton("📢 Join Channel", url=config.FORCE_CHANNEL_LINK)]]
-        await update.message.reply_text(
-            f"📢 <b>Channel:</b> {config.FORCE_CHANNEL_LINK}\n\nJoin karke bot use karo!",
-            parse_mode=ParseMode.HTML,
-            reply_markup=InlineKeyboardMarkup(kb)
-        )
-        return
-    
-    # For tool modes, show prompt card
-    prompt = GRID_PROMPTS.get(mode)
-    if not prompt:
-        return
-    
-    pc_mid = "━━━━━━━━━━━━━━━━━━━━━━"
-    txt = f"""
+    try:
+        if not await check_force_join(update, context):
+            return
+        
+        text = update.message.text.strip()
+        # Clean emoji and get mode
+        clean_text = text
+        # Remove emoji prefix
+        for emoji in ["📡 ", "📸 ", "📧 ", "🌐 ", "🖼️ ", "🔒 ", "📱 ", "🆔 ", "📝 ", "📊 ", "📜 ", "👑 ", "📢 "]:
+            if clean_text.startswith(emoji):
+                clean_text = clean_text[len(emoji):].strip()
+                break
+        
+        mode = BTN_MODE_MAP.get(clean_text.upper())
+        if not mode:
+            # Try without cleaning
+            mode = BTN_MODE_MAP.get(text.upper())
+        
+        if not mode:
+            return  # Not a grid button
+        
+        # Handle each mode
+        if mode == "help":
+            await help_cmd(update, context)
+            return
+        
+        if mode == "owner":
+            await update.message.reply_text(
+                "👑 <b>Owner:</b> @Supermannn_x\n📢 <b>Channel:</b> @osint_xpert\n🤖 <b>Bot:</b> @osint_hunter_hub_bot",
+                parse_mode=ParseMode.HTML
+            )
+            return
+        
+        if mode == "channel":
+            kb = [[InlineKeyboardButton("📢 Join Channel", url=config.FORCE_CHANNEL_LINK)]]
+            await update.message.reply_text(
+                f"📢 <b>Channel:</b> {config.FORCE_CHANNEL_LINK}\n\nJoin karke bot use karo!",
+                parse_mode=ParseMode.HTML,
+                reply_markup=InlineKeyboardMarkup(kb)
+            )
+            return
+        
+        # For tool modes, show prompt card
+        prompt = GRID_PROMPTS.get(mode)
+        if not prompt:
+            return
+        
+        pc_mid = "━━━━━━━━━━━━━━━━━━━━━━"
+        txt = f"""
 ╔══════════════════════════════════════╗
 ║  {prompt['head']}  ║
 ╚══════════════════════════════════════╝
@@ -467,7 +505,10 @@ async def handle_grid_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 🔥 <b>Powered by @Supermannn_x</b>
 """
-    await update.message.reply_text(txt, parse_mode=ParseMode.HTML)
+        await update.message.reply_text(txt, parse_mode=ParseMode.HTML)
+    except Exception as e:
+        print(f"Grid handler error: {e}")
+        traceback.print_exc()
 
 async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_force_join(update, context):
