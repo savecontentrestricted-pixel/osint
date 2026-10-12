@@ -38,6 +38,7 @@ from modules.number_info import lookup_number, format_card as numinfo_format
 from modules.telegram_tools import lookup_tg, lookup_pak, format_tg_card, format_pak_card
 from modules.ocr_extractor import ocr_image
 from modules.website_extractor import website_extractor
+from modules.file_converter import excel_to_pdf, csv_to_excel, excel_to_csv, images_to_pdf, pdf_to_text
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -765,6 +766,119 @@ async def website_extract_cmd(update, context):
     except Exception as e:
         await status.edit_text(f"❌ Error: {str(e)}", parse_mode=ParseMode.HTML)
 
+
+async def excel2pdf_cmd(update, context):
+    await update.message.reply_text(
+        "📊 <b>Excel to PDF Converter</b>\n\n"
+        "Excel file (.xlsx, .xls, .csv) ko <b>Document ke roop me bhejo</b> with caption <code>excel2pdf</code> ya <code>pdf</code>\n\n"
+        "Bot usko PDF me convert karke de dega (100 rows, 15 cols per sheet, landscape A4).\n\n"
+        "Supported: .xlsx, .xls, .csv → PDF\n"
+        "Commands: /excel2pdf, /csv2excel, /excel2csv, /img2pdf",
+        parse_mode=ParseMode.HTML
+    )
+
+async def handle_file_converter(update, context):
+    # Handle Excel/CSV/Image/PDF documents
+    if not update.message.document:
+        return
+    
+    doc = update.message.document
+    file_name = doc.file_name or "file"
+    mime = doc.mime_type or ""
+    caption = (update.message.caption or "").lower()
+
+    # Check what conversion requested
+    is_excel = file_name.lower().endswith(('.xlsx','.xls')) or 'excel' in mime or 'spreadsheet' in mime
+    is_csv = file_name.lower().endswith('.csv')
+    is_image = file_name.lower().endswith(('.jpg','.jpeg','.png','.webp')) or mime.startswith('image/')
+    is_pdf = file_name.lower().endswith('.pdf')
+
+    # Determine conversion type from caption
+    convert_type = None
+    if 'excel2pdf' in caption or 'xlsx2pdf' in caption or 'pdf' in caption and (is_excel or is_csv):
+        convert_type = 'excel2pdf'
+    elif 'csv2excel' in caption or 'csv to excel' in caption:
+        convert_type = 'csv2excel'
+    elif 'excel2csv' in caption:
+        convert_type = 'excel2csv'
+    elif 'img2pdf' in caption or 'image2pdf' in caption or 'images2pdf' in caption:
+        convert_type = 'img2pdf'
+    elif 'pdf2text' in caption or 'pdf to text' in caption:
+        convert_type = 'pdf2text'
+    elif is_excel or is_csv:
+        # Default for Excel/CSV is to PDF
+        convert_type = 'excel2pdf'
+    elif is_pdf and 'text' in caption:
+        convert_type = 'pdf2text'
+    else:
+        return  # Not a conversion request
+
+    import tempfile, os
+    status = await update.message.reply_text(f"⏳ Converting {file_name} → {convert_type}...", parse_mode=ParseMode.HTML)
+    
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            input_path = os.path.join(tmpdir, file_name)
+            file_obj = await doc.get_file()
+            await file_obj.download_to_drive(input_path)
+
+            if convert_type == 'excel2pdf':
+                output_path = os.path.join(tmpdir, os.path.splitext(file_name)[0] + ".pdf")
+                result = excel_to_pdf(input_path, output_path)
+                if not result.get("ok"):
+                    await status.edit_text(f"❌ {result.get('error')}", parse_mode=ParseMode.HTML)
+                    return
+                await status.edit_text(f"✅ Excel to PDF Done - {result.get('total_rows')} rows, {result.get('sheets')} sheets", parse_mode=ParseMode.HTML)
+                await update.message.reply_document(document=open(output_path,'rb'), filename=os.path.basename(output_path), caption=f"📄 PDF - {result.get('total_rows')} rows")
+
+            elif convert_type == 'csv2excel':
+                output_path = os.path.join(tmpdir, os.path.splitext(file_name)[0] + ".xlsx")
+                result = csv_to_excel(input_path, output_path)
+                if not result.get("ok"):
+                    await status.edit_text(f"❌ {result.get('error')}", parse_mode=ParseMode.HTML)
+                    return
+                await status.edit_text(f"✅ CSV to Excel Done - {result.get('rows')} rows", parse_mode=ParseMode.HTML)
+                await update.message.reply_document(document=open(output_path,'rb'), filename=os.path.basename(output_path))
+
+            elif convert_type == 'excel2csv':
+                output_path = os.path.join(tmpdir, os.path.splitext(file_name)[0] + ".csv")
+                result = excel_to_csv(input_path, output_path)
+                if not result.get("ok"):
+                    await status.edit_text(f"❌ {result.get('error')}", parse_mode=ParseMode.HTML)
+                    return
+                await status.edit_text(f"✅ Excel to CSV Done - {result.get('rows')} rows", parse_mode=ParseMode.HTML)
+                await update.message.reply_document(document=open(output_path,'rb'), filename=os.path.basename(output_path))
+
+            elif convert_type == 'img2pdf':
+                # For single image, convert to PDF
+                output_path = os.path.join(tmpdir, os.path.splitext(file_name)[0] + ".pdf")
+                result = images_to_pdf([input_path], output_path)
+                if not result.get("ok"):
+                    await status.edit_text(f"❌ {result.get('error')}", parse_mode=ParseMode.HTML)
+                    return
+                await status.edit_text(f"✅ Image to PDF Done", parse_mode=ParseMode.HTML)
+                await update.message.reply_document(document=open(output_path,'rb'), filename=os.path.basename(output_path))
+
+            elif convert_type == 'pdf2text':
+                result = pdf_to_text(input_path)
+                if not result.get("ok"):
+                    await status.edit_text(f"❌ {result.get('error')}", parse_mode=ParseMode.HTML)
+                    return
+                text = result.get("text","")
+                if len(text) > 4000:
+                    txt_path = os.path.join(tmpdir, os.path.splitext(file_name)[0] + "_text.txt")
+                    with open(txt_path, 'w', encoding='utf-8') as f:
+                        f.write(text)
+                    await status.edit_text(f"✅ PDF to Text Done - {result.get('chars')} chars\n\n{text[:1000]}...", parse_mode=ParseMode.HTML)
+                    await update.message.reply_document(document=open(txt_path,'rb'), filename=os.path.basename(txt_path))
+                else:
+                    await status.edit_text(f"✅ PDF to Text ({result.get('chars')} chars):\n\n<pre>{text[:3500]}</pre>", parse_mode=ParseMode.HTML)
+
+    except Exception as e:
+        import logging
+        logging.exception(e)
+        await status.edit_text(f"❌ Conversion Error: {str(e)[:300]}", parse_mode=ParseMode.HTML)
+
 async def igsecure_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
         await update.message.reply_text("❌ Use: <code>/igsecure @username</code> ya <code>/security @username</code>\nExample: <code>/igsecure @instagram</code>", parse_mode=ParseMode.HTML)
@@ -820,6 +934,11 @@ def main():
     app.add_handler(CommandHandler("telegram", tg_number_cmd))
     app.add_handler(CommandHandler("paknum", pak_number_cmd))
     app.add_handler(CommandHandler("pak", pak_number_cmd))
+    app.add_handler(CommandHandler("excel2pdf", excel2pdf_cmd))
+    app.add_handler(CommandHandler("csv2excel", excel2pdf_cmd))
+    app.add_handler(CommandHandler("excel2csv", excel2pdf_cmd))
+    app.add_handler(CommandHandler("img2pdf", excel2pdf_cmd))
+    app.add_handler(CommandHandler("pdf2text", excel2pdf_cmd))
     app.add_handler(CommandHandler("wextract", website_extract_cmd))
     app.add_handler(CommandHandler("emailextract", website_extract_cmd))
     app.add_handler(CommandHandler("linkextract", website_extract_cmd))
@@ -842,6 +961,7 @@ def main():
     # Tool 5: EXIF
     app.add_handler(CommandHandler("exif", exif_cmd))
     app.add_handler(MessageHandler(filters.PHOTO | filters.Document.IMAGE, handle_photo))
+    app.add_handler(MessageHandler(filters.Document.ALL, handle_file_converter))
     app.add_handler(MessageHandler(filters.Document.IMAGE, handle_ocr_photo))
 
     print("🚀 OSINT Hacker Hub Bot started with 5 tools...")
