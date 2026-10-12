@@ -1,4 +1,4 @@
-import os, threading, traceback, asyncio, json
+import os, threading, traceback, asyncio, json, time
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from dotenv import load_dotenv
 load_dotenv()
@@ -7,8 +7,8 @@ BOT_TOKEN = os.getenv('BOT_TOKEN')
 PORT = int(os.getenv('PORT','10000'))
 WEBHOOK_URL = f"https://osint-hunter-hub-bot.onrender.com/webhook"
 
-# Global app for webhook handling
 app = None
+loop = None
 
 class WebhookHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -16,9 +16,9 @@ class WebhookHandler(BaseHTTPRequestHandler):
         self.send_header('Content-type','text/html')
         self.end_headers()
         if self.path == '/webhook':
-            self.wfile.write(b'Webhook endpoint - POST only')
+            self.wfile.write(b'Webhook endpoint - POST only, GET works')
         else:
-            html = b"<html><body><h1>OSINT Hunter Hub WEBHOOK MODE LIVE</h1><p>Grid ready</p><p>Webhook: /webhook</p></body></html>"
+            html = b"<html><body><h1>OSINT Hunter Hub WEBHOOK MODE LIVE - FIXED</h1><p>Grid ready</p><p>Webhook: /webhook POST</p><p>Try /start in Telegram</p></body></html>"
             self.wfile.write(html)
     
     def do_POST(self):
@@ -27,8 +27,9 @@ class WebhookHandler(BaseHTTPRequestHandler):
                 content_length = int(self.headers.get('Content-Length', 0))
                 body = self.rfile.read(content_length)
                 data = json.loads(body)
-                # Process update in background
-                threading.Thread(target=process_update, args=(data,), daemon=True).start()
+                print(f"📥 Webhook POST received: update_id {data.get('update_id')}")
+                # Process synchronously in thread pool
+                threading.Thread(target=process_update_sync, args=(data,), daemon=True).start()
                 self.send_response(200)
                 self.end_headers()
                 self.wfile.write(b'OK')
@@ -43,14 +44,16 @@ class WebhookHandler(BaseHTTPRequestHandler):
     
     def log_message(self, *args): pass
 
-def process_update(data):
+def process_update_sync(data):
     try:
-        # Use asyncio to handle update
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(handle_update(data))
+        global loop, app
+        if loop is None:
+            print("No loop!")
+            return
+        # Schedule coroutine in the main loop
+        asyncio.run_coroutine_threadsafe(handle_update(data), loop)
     except Exception as e:
-        print(f"process_update error: {e}")
+        print(f"process_update_sync error: {e}")
         traceback.print_exc()
 
 async def handle_update(data):
@@ -59,14 +62,22 @@ async def handle_update(data):
         global app
         if app:
             update = Update.de_json(data, app.bot)
+            print(f"Processing update {update.update_id} type {update.message.text if update.message else 'no text'}")
             await app.process_update(update)
+            print(f"Processed update {update.update_id}")
     except Exception as e:
         print(f"handle_update error: {e}")
         traceback.print_exc()
+        # Try to notify owner
+        try:
+            import requests
+            requests.post(f'https://api.telegram.org/bot{BOT_TOKEN}/sendMessage', data={'chat_id': '8607774564', 'text': f'❌ Webhook handle error: {e}'}, timeout=5)
+        except:
+            pass
 
 def keepalive():
     try:
-        print(f"🌐 Webhook server on 0.0.0.0:{PORT}, webhook URL {WEBHOOK_URL}")
+        print(f"🌐 Webhook server on 0.0.0.0:{PORT}, webhook {WEBHOOK_URL}")
         HTTPServer(('0.0.0.0', PORT), WebhookHandler).serve_forever()
     except Exception as e:
         print(f"Keepalive error: {e}")
@@ -79,8 +90,9 @@ try:
     import requests
     token = os.getenv('BOT_TOKEN','')
     if token:
-        requests.post(f'https://api.telegram.org/bot{token}/sendMessage', data={'chat_id': '8607774564', 'text': '🧪 WEBHOOK MODE starting...'}, timeout=5)
-        requests.post(f'https://api.telegram.org/bot{token}/sendMessage', data={'chat_id': '6919943679', 'text': '🧪 WEBHOOK MODE starting...'}, timeout=5)
+        requests.post(f'https://api.telegram.org/bot{token}/sendMessage', data={'chat_id': '8607774564', 'text': '🧪 WEBHOOK FIXED MODE starting...'}, timeout=5)
+        requests.post(f'https://api.telegram.org/bot{token}/sendMessage', data={'chat_id': '6919943679', 'text': '🧪 WEBHOOK FIXED MODE starting...'}, timeout=5)
+        print("Startup notify sent")
 except Exception as e:
     print(f"Notify failed: {e}")
 
@@ -105,14 +117,14 @@ def main_keyboard():
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         user = update.effective_user
-        print(f"START from {user.id}")
+        print(f"START from {user.id} {user.first_name}")
         kb = main_keyboard()
         txt = f"""
-🚀 <b>OSINT Hunter Hub - WEBHOOK MODE</b>
+🚀 <b>OSINT Hunter Hub - WEBHOOK FIXED</b>
 
 👋 Hello {user.first_name}!
 
-🔥 11 Tools Grid (Webhook working!):
+🔥 11 Tools Grid (Webhook Fixed!):
 
 📡 TELEGRAM SCRAPER | 📸 INSTAGRAM OSINT
 📧 EMAIL OSINT | 🌐 IP/DOMAIN RECON
@@ -121,56 +133,64 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 📝 OCR | 🌐 WEBSITE EXTRACTOR
 📊 FILE CONVERTER | 📜 ALL COMMANDS
 
-👇 Grid button dabao (4 dots icon)
+👇 Grid button dabao (4 dots icon - screenshot wala)
 
 ✅ Webhook mode - Instant reply!
 👑 Owner: @Supermannn_x
+📢 Channel: @osint_xpert
+
+Grid me saare tools hai!
 """
         await update.message.reply_text(txt, parse_mode='HTML', reply_markup=kb)
-        print("Replied")
+        print("Replied to /start")
     except Exception as e:
-        print(f"start error {e}")
+        print(f"start error: {e}")
         traceback.print_exc()
 
 async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Help: /start etc. Webhook mode live!")
+    await update.message.reply_text("Help: /start, /numinfo 9876543210, /ip 8.8.8.8, /domain google.com etc. Grid me sab hai!")
 
 async def grid_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(f"🔘 You clicked: {update.message.text}\nGrid working!")
+    try:
+        text = update.message.text
+        print(f"Grid click: {text}")
+        await update.message.reply_text(f"🔘 You clicked: {text}\n\n✅ Grid working! All 11 tools in grid like utility bot.\n\nUse /start to see full menu.")
+    except Exception as e:
+        print(f"grid error {e}")
 
-def main():
-    global app
+async def main_async():
+    global app, loop
+    loop = asyncio.get_running_loop()
     print("Building app...")
     app = Application.builder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_cmd))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, grid_handler))
     
-    # Set webhook
-    async def set_webhook():
-        try:
-            await app.bot.delete_webhook(drop_pending_updates=True)
-            await app.bot.set_webhook(url=WEBHOOK_URL, allowed_updates=["message","callback_query"])
-            print(f"Webhook set to {WEBHOOK_URL}")
-            import requests
-            token = os.getenv('BOT_TOKEN','')
-            requests.post(f'https://api.telegram.org/bot{token}/sendMessage', data={'chat_id': '8607774564', 'text': f'✅ Webhook set to {WEBHOOK_URL}'}, timeout=5)
-            requests.post(f'https://api.telegram.org/bot{token}/sendMessage', data={'chat_id': '6919943679', 'text': f'✅ Webhook set - Try /start now!'}, timeout=5)
-        except Exception as e:
-            print(f"Webhook set error: {e}")
-            traceback.print_exc()
+    print("Initializing app...")
+    await app.initialize()
+    await app.start()
     
-    # Run set_webhook
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(set_webhook())
+    print("Setting webhook...")
+    try:
+        await app.bot.delete_webhook(drop_pending_updates=True)
+        await app.bot.set_webhook(url=WEBHOOK_URL, allowed_updates=["message","callback_query"])
+        print(f"Webhook set to {WEBHOOK_URL}")
+        import requests
+        requests.post(f'https://api.telegram.org/bot{BOT_TOKEN}/sendMessage', data={'chat_id': '8607774564', 'text': f'✅ Webhook FIXED set to {WEBHOOK_URL} - Try /start now!'}, timeout=5)
+        requests.post(f'https://api.telegram.org/bot{BOT_TOKEN}/sendMessage', data={'chat_id': '6919943679', 'text': f'✅ Webhook FIXED - Try /start now!'}, timeout=5)
+    except Exception as e:
+        print(f"Webhook set error: {e}")
+        traceback.print_exc()
     
-    print("Webhook mode ready - HTTP server handling updates")
-    # Keep main thread alive
+    print("Webhook mode ready - waiting forever")
+    # Keep alive
     while True:
-        time.sleep(60)
-        print("Webhook mode alive...")
+        await asyncio.sleep(60)
+        print("Webhook alive...")
+
+def main():
+    asyncio.run(main_async())
 
 if __name__ == "__main__":
-    import time
     main()
