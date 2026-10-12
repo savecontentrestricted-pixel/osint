@@ -33,6 +33,7 @@ from modules.ip_domain_recon import ip_lookup, dns_lookup, whois_lookup, ssl_che
 from modules.image_exif import analyze_exif, exif_to_text
 from modules.instagram_osint import instagram_osint
 from modules.email_osint import email_osint
+from modules.social_security_checker import social_security_check, security_report_text
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -631,7 +632,27 @@ async def exif_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text("❌ Photo bhejo as <b>Document/File</b> (compressed nahi), ya kisi photo pe reply karke /exif likho.\n\nTip: Telegram photo ko compress karta hai aur EXIF hata deta hai, isliye hamesha <b>File ke roop me bhejo</b> (📎 → File → Gallery se select).", parse_mode=ParseMode.HTML)
 
+
+async def igsecure_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text("❌ Use: <code>/igsecure @username</code> ya <code>/security @username</code>\nExample: <code>/igsecure @instagram</code>", parse_mode=ParseMode.HTML)
+        return
+    username = context.args[0]
+    status = await update.message.reply_text(f"🔒 Security check for {username}...", parse_mode=ParseMode.HTML)
+    try:
+        result = social_security_check(username)
+        if not result.get("ok"):
+            await status.edit_text(f"❌ {result.get('error')}", parse_mode=ParseMode.HTML)
+            return
+        txt = security_report_text(result)
+        await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
+    except Exception as e:
+        import logging
+        logging.exception(e)
+        await status.edit_text(f"❌ Error: {str(e)}", parse_mode=ParseMode.HTML)
+
 def main():
+
     # Telegram scraper needs API_ID etc, but other tools work without it
     # So we don't hard fail if missing, just warn
     missing = config.validate()
@@ -659,6 +680,9 @@ def main():
     # Tool 2: Instagram
     app.add_handler(CommandHandler("insta", insta_cmd))
     app.add_handler(CommandHandler("instagram", insta_cmd))
+    app.add_handler(CommandHandler("igsecure", igsecure_cmd))
+    app.add_handler(CommandHandler("security", igsecure_cmd))
+    app.add_handler(CommandHandler("sec", igsecure_cmd))
 
     # Tool 3: Email
     app.add_handler(CommandHandler("email", email_cmd))
