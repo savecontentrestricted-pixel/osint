@@ -1,7 +1,4 @@
-# OSINT Hunter Hub - Slim version for Render Free (512MB)
-# Heavy libs like easyocr removed - uses pytesseract fallback which is lighter
-# If you need easyocr locally, pip install easyocr separately
-
+# SUPER SLIM for Render Free - 100% build in 1-2 min
 python-telegram-bot==21.6
 telethon==1.41.2
 python-dotenv==1.0.1
@@ -10,12 +7,3 @@ Pillow==11.1.0
 beautifulsoup4==4.12.3
 python-whois==0.9.5
 dnspython==2.7.0
-openpyxl==3.1.5
-pandas==2.2.3
-reportlab==4.2.0
-aiofiles==24.1.0
-pytesseract==0.3.13
-# Optional heavy libs - install only if needed locally:
-# easyocr==1.7.1
-# PyMuPDF==1.24.9
-# pdfplumber==0.11.4
