@@ -40,6 +40,10 @@ from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv()
 
+import threading
+import traceback
+from http.server import HTTPServer, BaseHTTPRequestHandler
+
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 PORT = int(os.getenv('PORT','10000'))
 WEBHOOK_URL = f"https://osint-hunter-hub-bot.onrender.com/webhook"
