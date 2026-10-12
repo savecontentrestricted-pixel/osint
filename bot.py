@@ -40,30 +40,43 @@ from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv()
 
-# Keep-alive web server for Render / Pella hosting (binds to PORT)
+# Keep-alive web server for Render / Pella hosting (binds to PORT) - ROBUST VERSION
 import threading
+import traceback
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 class KeepAliveHandler(BaseHTTPRequestHandler):
     def do_GET(self):
-        self.send_response(200)
-        self.send_header('Content-type','text/plain')
-        self.end_headers()
-        self.wfile.write(b'OSINT Hunter Hub @osint_hunter_hub_bot is LIVE - 11 Tools Ready')
+        try:
+            self.send_response(200)
+            self.send_header('Content-type','text/html')
+            self.end_headers()
+            html = b"""<html><head><title>OSINT Hunter Hub LIVE</title></head><body>
+<h1>OSINT Hunter Hub @osint_hunter_hub_bot is LIVE</h1>
+<p>11 Advanced Tools Ready</p>
+<p>Owner: 8607774564 @Supermannn_x</p>
+<p>Repo: savecontentrestricted-pixel/osint</p>
+<p>Status: Bot Polling Active</p>
+</body></html>"""
+            self.wfile.write(html)
+        except Exception as e:
+            print(f"HTTP handler error: {e}")
     def log_message(self, format, *args):
-        return  # suppress logs
+        return  # suppress default logs
 
 def start_keepalive_server():
     try:
         port = int(os.getenv('PORT', '10000'))
         server = HTTPServer(('0.0.0.0', port), KeepAliveHandler)
-        print(f"🌐 Keep-alive server listening on 0.0.0.0:{port}")
+        print(f"🌐 Keep-alive server listening on 0.0.0.0:{port} - for Render health check")
+        print(f"🌐 URL: https://osint-hunter-hub-bot.onrender.com")
         server.serve_forever()
     except Exception as e:
-        print(f"Keep-alive server error: {e}")
+        print(f"❌ Keep-alive server error: {e}")
+        traceback.print_exc()
 
-# Start server in background thread
-threading.Thread(target=start_keepalive_server, daemon=True).start()
+# Start server in background thread (non-daemon to keep Render alive even if bot crashes)
+threading.Thread(target=start_keepalive_server, daemon=False).start()
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters, CallbackQueryHandler
@@ -1720,10 +1733,34 @@ def main():
     print(f"📢 Force Channel: {config.FORCE_CHANNEL} {config.FORCE_CHANNEL_LINK}")
     print(f"🔧 Tools: 11 Advanced Tools Ready")
     print(f"📦 Repo: savecontentrestricted-pixel/osint")
+    print(f"🌐 Port: {os.getenv('PORT', '10000')} - Keep-alive active")
     print("="*60)
     print("Bot started - polling...")
 
-    app.run_polling()
+    try:
+        # Run polling with error handling - prevent crash on Render
+        app.run_polling(
+            allowed_updates=Update.ALL_TYPES,
+            drop_pending_updates=True,
+            close_loop=False
+        )
+    except Exception as e:
+        print(f"❌ Bot polling crashed: {e}")
+        traceback.print_exc()
+        print("🔄 Restarting in 5 sec...")
+        time.sleep(5)
+        # Keep process alive for Render - don't exit, keep HTTP server running
+        while True:
+            print("⏳ Bot crashed but HTTP server still alive - waiting for manual restart...")
+            time.sleep(60)
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        print(f"❌ Main crashed: {e}")
+        traceback.print_exc()
+        # Keep HTTP server alive even if main crashes
+        print("🌐 Keeping HTTP server alive for Render...")
+        while True:
+            time.sleep(60)
