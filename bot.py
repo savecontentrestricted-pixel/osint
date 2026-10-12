@@ -36,6 +36,8 @@ from modules.email_osint import email_osint
 from modules.social_security_checker import social_security_check, security_report_text
 from modules.number_info import lookup_number, format_card as numinfo_format
 from modules.telegram_tools import lookup_tg, lookup_pak, format_tg_card, format_pak_card
+from modules.ocr_extractor import ocr_image
+from modules.website_extractor import website_extractor
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -675,6 +677,94 @@ async def pak_number_cmd(update, context):
     except Exception as e:
         await status.edit_text(f"❌ Error: {str(e)}", parse_mode=ParseMode.HTML)
 
+
+async def ocr_cmd(update, context):
+    await update.message.reply_text("📸 OCR ke liye photo ko <b>File/Document</b> ke roop me bhejo (compressed nahi), ya photo pe reply karke /ocr likho.\n\nBot us image se text nikal dega (Hindi+English).", parse_mode=ParseMode.HTML)
+
+async def handle_ocr_photo(update, context):
+    # Check if already handled by EXIF handler - we will handle both
+    file = None
+    if update.message.document:
+        if not update.message.document.mime_type or not update.message.document.mime_type.startswith('image/'):
+            return
+        file = await update.message.document.get_file()
+        file_name = update.message.document.file_name
+    elif update.message.photo:
+        photo = update.message.photo[-1]
+        file = await photo.get_file()
+        file_name = f"{photo.file_id}.jpg"
+    else:
+        return
+
+    # Only process if caption contains ocr or user explicitly wants OCR? For now auto if document
+    # To avoid conflict with EXIF, we check if user sent as document with caption ocr
+    caption = (update.message.caption or "").lower()
+    if "ocr" not in caption and not update.message.document:
+        return  # Let EXIF handler handle photos without ocr keyword
+
+    import tempfile, os
+    status = await update.message.reply_text("🔍 OCR - Image se text nikal raha hu...", parse_mode=ParseMode.HTML)
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            file_path = os.path.join(tmpdir, file_name)
+            await file.download_to_drive(file_path)
+            result = ocr_image(file_path, lang="hi")
+            if not result.get("ok"):
+                await status.edit_text(f"❌ {result.get('error')}", parse_mode=ParseMode.HTML)
+                return
+            text = result.get("text","").strip()
+            if not text:
+                await status.edit_text("❌ Koi text nahi mila image me. Clear image bhejo.", parse_mode=ParseMode.HTML)
+                return
+            # Send text
+            if len(text) > 4000:
+                # Send as file
+                txt_path = os.path.join(tmpdir, f"{file_name}_ocr.txt")
+                with open(txt_path, 'w', encoding='utf-8') as f:
+                    f.write(text)
+                await status.edit_text(f"✅ OCR Done - {result.get('chars')} chars, method: {result.get('method')}\n\n{text[:1000]}...\n\nFull text file me hai:", parse_mode=ParseMode.HTML)
+                await update.message.reply_document(document=open(txt_path,'rb'), filename=os.path.basename(txt_path), caption="📝 OCR Text")
+            else:
+                await status.edit_text(f"✅ OCR Done ({result.get('method')}) - {result.get('chars')} chars:\n\n<pre>{text[:3500]}</pre>", parse_mode=ParseMode.HTML)
+    except Exception as e:
+        await status.edit_text(f"❌ OCR Error: {str(e)}", parse_mode=ParseMode.HTML)
+
+async def website_extract_cmd(update, context):
+    if not context.args:
+        await update.message.reply_text("❌ Use: <code>/wextract https://example.com</code> ya <code>/emailextract https://site.com</code>\nExample: <code>/wextract https://google.com</code>", parse_mode=ParseMode.HTML)
+        return
+    url = context.args[0]
+    status = await update.message.reply_text(f"🔍 Extracting from {url}...", parse_mode=ParseMode.HTML)
+    try:
+        result = website_extractor(url)
+        if not result.get("ok"):
+            await status.edit_text(f"❌ {result.get('error')}", parse_mode=ParseMode.HTML)
+            return
+        
+        meta = result.get("meta",{})
+        links = result.get("links",{})
+        txt = f"""
+🌐 <b>Website Extractor: {result.get('url')}</b>
+
+📄 <b>Title:</b> {meta.get('title') or 'N/A'}
+📝 <b>Description:</b> {meta.get('description')[:200] or 'N/A'}
+🔑 <b>Keywords:</b> {meta.get('keywords')[:150] or 'N/A'}
+🖼️ <b>OG Image:</b> {meta.get('og_image') or 'N/A'}
+
+📧 <b>Emails Found ({len(result.get('emails',[]))}):</b>
+{', '.join(result.get('emails',[])[:10]) or 'None'}
+
+📱 <b>Phones Found ({len(result.get('phones',[]))}):</b>
+{', '.join(result.get('phones',[])[:10]) or 'None'}
+
+🔗 <b>Links:</b> Total {links.get('total')} | Internal {len(links.get('internal',[]))} | External {len(links.get('external',[]))}
+
+📊 <b>Size:</b> HTML {result.get('html_length')} chars | Text {result.get('text_length')} chars
+"""
+        await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
+    except Exception as e:
+        await status.edit_text(f"❌ Error: {str(e)}", parse_mode=ParseMode.HTML)
+
 async def igsecure_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
         await update.message.reply_text("❌ Use: <code>/igsecure @username</code> ya <code>/security @username</code>\nExample: <code>/igsecure @instagram</code>", parse_mode=ParseMode.HTML)
@@ -730,6 +820,10 @@ def main():
     app.add_handler(CommandHandler("telegram", tg_number_cmd))
     app.add_handler(CommandHandler("paknum", pak_number_cmd))
     app.add_handler(CommandHandler("pak", pak_number_cmd))
+    app.add_handler(CommandHandler("wextract", website_extract_cmd))
+    app.add_handler(CommandHandler("emailextract", website_extract_cmd))
+    app.add_handler(CommandHandler("linkextract", website_extract_cmd))
+    app.add_handler(CommandHandler("ocr", ocr_cmd))
     app.add_handler(CommandHandler("igsecure", igsecure_cmd))
     app.add_handler(CommandHandler("security", igsecure_cmd))
     app.add_handler(CommandHandler("sec", igsecure_cmd))
@@ -748,6 +842,7 @@ def main():
     # Tool 5: EXIF
     app.add_handler(CommandHandler("exif", exif_cmd))
     app.add_handler(MessageHandler(filters.PHOTO | filters.Document.IMAGE, handle_photo))
+    app.add_handler(MessageHandler(filters.Document.IMAGE, handle_ocr_photo))
 
     print("🚀 OSINT Hacker Hub Bot started with 5 tools...")
     print(f"Repo: savecontentrestricted-pixel/osint")
