@@ -40,6 +40,31 @@ from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv()
 
+# Keep-alive web server for Render / Pella hosting (binds to PORT)
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
+
+class KeepAliveHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header('Content-type','text/plain')
+        self.end_headers()
+        self.wfile.write(b'OSINT Hunter Hub @osint_hunter_hub_bot is LIVE - 11 Tools Ready')
+    def log_message(self, format, *args):
+        return  # suppress logs
+
+def start_keepalive_server():
+    try:
+        port = int(os.getenv('PORT', '10000'))
+        server = HTTPServer(('0.0.0.0', port), KeepAliveHandler)
+        print(f"🌐 Keep-alive server listening on 0.0.0.0:{port}")
+        server.serve_forever()
+    except Exception as e:
+        print(f"Keep-alive server error: {e}")
+
+# Start server in background thread
+threading.Thread(target=start_keepalive_server, daemon=True).start()
+
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters, CallbackQueryHandler
 from telegram.constants import ParseMode

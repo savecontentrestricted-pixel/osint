@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Bot Token - Provided by user: @osint_hunter_hub_bot
-BOT_TOKEN = os.getenv("BOT_TOKEN", "8877252485:AAH9pE0gMvR_aPahpq2VAdswuhyfSUNcS5k").strip()
+BOT_TOKEN = os.getenv("BOT_TOKEN", "8877252485:AAFA17x1puWA_maPksJs3RWaPIySmlxpTUg").strip()
 
 # Telegram API - my.telegram.org
 API_ID = int(os.getenv("API_ID", "0") or 0)
