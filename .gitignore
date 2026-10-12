@@ -1,0 +1,15 @@
+.env
+*.session
+*.session-journal
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.env
+botdata.db
+*.log
+downloads/
+exports/
+*.zip
+.vscode/
+.idea/
