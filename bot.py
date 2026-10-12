@@ -1896,6 +1896,17 @@ async def help_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await check_joined_callback(update, context)
 
 def main():
+    # Direct startup notification via requests (bypass PTB to confirm Render start)
+    try:
+        import requests
+        token = os.getenv('BOT_TOKEN','')
+        admin = os.getenv('ADMIN_ID','8607774564')
+        if token and admin:
+            requests.post(f'https://api.telegram.org/bot{token}/sendMessage', 
+                         data={'chat_id': admin, 'text': f'🚀 Bot starting on Render! Commit {os.getenv("RENDER_GIT_COMMIT","unknown")[:7]} - Grid fix d0bbd6e - Attempting polling...'}, timeout=5)
+    except Exception as e:
+        print(f"Startup notify failed: {e}")
+    
     missing = config.validate()
     if missing:
         print(f"⚠️ Missing (Telegram scraper will fail, other tools work): {', '.join(missing)}")
