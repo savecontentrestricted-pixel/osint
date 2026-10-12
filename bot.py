@@ -34,6 +34,8 @@ from modules.image_exif import analyze_exif, exif_to_text
 from modules.instagram_osint import instagram_osint
 from modules.email_osint import email_osint
 from modules.social_security_checker import social_security_check, security_report_text
+from modules.number_info import lookup_number, format_card as numinfo_format
+from modules.telegram_tools import lookup_tg, lookup_pak, format_tg_card, format_pak_card
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -633,6 +635,46 @@ async def exif_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Photo bhejo as <b>Document/File</b> (compressed nahi), ya kisi photo pe reply karke /exif likho.\n\nTip: Telegram photo ko compress karta hai aur EXIF hata deta hai, isliye hamesha <b>File ke roop me bhejo</b> (📎 → File → Gallery se select).", parse_mode=ParseMode.HTML)
 
 
+
+async def number_info_cmd(update, context):
+    if not context.args:
+        await update.message.reply_text("❌ Use: <code>/numinfo 9876543210</code> ya <code>/number 9876543210</code>\nExample: <code>/numinfo 9204507743</code>", parse_mode=ParseMode.HTML)
+        return
+    number = context.args[0]
+    status = await update.message.reply_text(f"🔍 Number info for <code>{number}</code>...", parse_mode=ParseMode.HTML)
+    try:
+        result = lookup_number(number)
+        txt = numinfo_format(result)
+        await status.edit_text(txt, parse_mode=ParseMode.HTML)
+    except Exception as e:
+        await status.edit_text(f"❌ Error: {str(e)}", parse_mode=ParseMode.HTML)
+
+async def tg_number_cmd(update, context):
+    if not context.args:
+        await update.message.reply_text("❌ Use: <code>/tginfo @username</code> ya <code>/tgnum @username</code>", parse_mode=ParseMode.HTML)
+        return
+    username = context.args[0]
+    status = await update.message.reply_text(f"🔍 Telegram lookup for {username}...", parse_mode=ParseMode.HTML)
+    try:
+        result = lookup_tg(username)
+        txt = format_tg_card(result)
+        await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
+    except Exception as e:
+        await status.edit_text(f"❌ Error: {str(e)}", parse_mode=ParseMode.HTML)
+
+async def pak_number_cmd(update, context):
+    if not context.args:
+        await update.message.reply_text("❌ Use: <code>/paknum 03001234567</code> ya CNIC", parse_mode=ParseMode.HTML)
+        return
+    num = context.args[0]
+    status = await update.message.reply_text(f"🔍 Pak lookup for {num}...", parse_mode=ParseMode.HTML)
+    try:
+        result = lookup_pak(num)
+        txt = format_pak_card(result)
+        await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
+    except Exception as e:
+        await status.edit_text(f"❌ Error: {str(e)}", parse_mode=ParseMode.HTML)
+
 async def igsecure_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
         await update.message.reply_text("❌ Use: <code>/igsecure @username</code> ya <code>/security @username</code>\nExample: <code>/igsecure @instagram</code>", parse_mode=ParseMode.HTML)
@@ -680,6 +722,14 @@ def main():
     # Tool 2: Instagram
     app.add_handler(CommandHandler("insta", insta_cmd))
     app.add_handler(CommandHandler("instagram", insta_cmd))
+    app.add_handler(CommandHandler("numinfo", number_info_cmd))
+    app.add_handler(CommandHandler("number", number_info_cmd))
+    app.add_handler(CommandHandler("num", number_info_cmd))
+    app.add_handler(CommandHandler("tginfo", tg_number_cmd))
+    app.add_handler(CommandHandler("tgnum", tg_number_cmd))
+    app.add_handler(CommandHandler("telegram", tg_number_cmd))
+    app.add_handler(CommandHandler("paknum", pak_number_cmd))
+    app.add_handler(CommandHandler("pak", pak_number_cmd))
     app.add_handler(CommandHandler("igsecure", igsecure_cmd))
     app.add_handler(CommandHandler("security", igsecure_cmd))
     app.add_handler(CommandHandler("sec", igsecure_cmd))
