@@ -1989,22 +1989,47 @@ def main():
     print("="*60)
     print("Bot started - polling...")
 
-    try:
-        # Run polling with error handling - prevent crash on Render
-        app.run_polling(
-            allowed_updates=Update.ALL_TYPES,
-            drop_pending_updates=True,
-            close_loop=False
-        )
-    except Exception as e:
-        print(f"❌ Bot polling crashed: {e}")
-        traceback.print_exc()
-        print("🔄 Restarting in 5 sec...")
-        time.sleep(5)
-        # Keep process alive for Render - don't exit, keep HTTP server running
-        while True:
-            print("⏳ Bot crashed but HTTP server still alive - waiting for manual restart...")
-            time.sleep(60)
+    # Retry loop for polling - if crashes, restart automatically
+    retry_count = 0
+    while True:
+        try:
+            print(f"🔄 Starting polling attempt {retry_count+1}...")
+            # Run polling with error handling - prevent crash on Render
+            app.run_polling(
+                allowed_updates=Update.ALL_TYPES,
+                drop_pending_updates=False,  # Don't drop pending - process them
+                close_loop=False,
+                stop_signals=None  # Don't handle signals, let Render handle
+            )
+            print("⚠️ Polling stopped normally, restarting in 5 sec...")
+            time.sleep(5)
+            retry_count += 1
+        except Exception as e:
+            print(f"❌ Bot polling crashed (attempt {retry_count+1}): {e}")
+            traceback.print_exc()
+            retry_count += 1
+            print(f"🔄 Restarting in 5 sec... (retry {retry_count})")
+            time.sleep(5)
+            if retry_count > 10:
+                print("❌ Too many retries, keeping HTTP alive for Render...")
+                # Keep HTTP server alive but continue trying polling every 60 sec
+                for _ in range(12):  # Try for 12 more times with 60 sec gap
+                    time.sleep(60)
+                    try:
+                        print(f"🔄 Retrying polling after 60 sec sleep...")
+                        app.run_polling(
+                            allowed_updates=Update.ALL_TYPES,
+                            drop_pending_updates=False,
+                            close_loop=False,
+                            stop_signals=None
+                        )
+                    except Exception as e2:
+                        print(f"❌ Retry failed: {e2}")
+                        continue
+                # If still failing, keep alive loop
+                while True:
+                    print("⏳ Bot crashed but HTTP server still alive - waiting...")
+                    time.sleep(60)
 
 if __name__ == "__main__":
     try:
@@ -2012,7 +2037,14 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"❌ Main crashed: {e}")
         traceback.print_exc()
-        # Keep HTTP server alive even if main crashes
-        print("🌐 Keeping HTTP server alive for Render...")
-        while True:
-            time.sleep(60)
+        # Keep HTTP server alive even if main crashes, but also try to restart
+        print("🌐 Keeping HTTP server alive for Render, will retry main in 10 sec...")
+        time.sleep(10)
+        try:
+            main()
+        except Exception as e2:
+            print(f"❌ Second main crash: {e2}")
+            traceback.print_exc()
+            while True:
+                print("🌐 HTTP server alive, bot down - manual restart needed")
+                time.sleep(60)
