@@ -1,23 +1,33 @@
-# OSINT Bot - Render config
-# NOTE: User said NOT to deploy on Render yet, only GitHub. This file is for future.
 services:
   - type: web
-    name: osint-telegram-scraper
+    name: osint-hunter-hub-bot
     runtime: python
     region: singapore
     plan: free
     branch: main
     buildCommand: pip install -r requirements.txt
     startCommand: python bot.py
-    autoDeploy: false  # User said manual later
+    autoDeploy: true
     envVars:
       - key: BOT_TOKEN
+        value: 8877252485:AAH9pE0gMvR_aPahpq2VAdswuhyfSUNcS5k
+      - key: ADMIN_ID
+        value: 8607774564
+      - key: FORCE_CHANNEL
+        value: -1004393596502
+      - key: FORCE_CHANNEL_LINK
+        value: https://t.me/osint_xpert
+      - key: OWNER_USERNAME
+        value: "@Supermannn_x"
+      - key: BRAND_TAG
+        value: "@Supermannn_x"
+      - key: MYNUM_API_URL
+        value: https://utility-api-vu83.onrender.com/api
+      - key: MYNUM_API_KEY
         sync: false
       - key: API_ID
         sync: false
       - key: API_HASH
         sync: false
       - key: SESSION_STRING
-        sync: false
-      - key: ADMIN_ID
         sync: false

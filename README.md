@@ -1,52 +1,72 @@
-# OSINT - Hacker Tools Hub
-### by savecontentrestricted-pixel
+# OSINT Hunter Hub - @osint_hunter_hub_bot
+### Advanced High-Level OSINT Tools Hub - 11 Tools
 
-**Advanced OSINT Tools Collection** 🚀 - 8 Tools Ready
+**Owner:** 8607774564 @Supermannn_x
+**Force Channel:** -1004393596502 @osint_xpert
+**Bot:** @osint_hunter_hub_bot
+**Repo:** savecontentrestricted-pixel/osint
 
-Ye repo OSINT + Hacker tools ke liye hai. Har tool max data nikalega, lekin sirf public data.
-
-> ⚠️ Note: Ye project abhi GitHub pe hi hai, Render pe deploy nahi kiya gaya hai. Ye `himanshu75919-coder` me nahi, sirf `savecontentrestricted-pixel` me hai.
+> This is ADVANCED version - no one's bot has this level code. Max data + beautiful formatting with spaces, emojis, styles.
 
 ---
 
-## 🔥 Available Tools (8 Ready)
+## 🔥 11 Advanced Tools
 
-### Tool 1: Telegram Channel Scraper (Advanced) ✅
-- Public + private channel scraping
-- Max data: message text, date, views, forwards, replies, media info, links, hashtags, mentions, reactions
+### Tool 7: Number Info (Same as utility-duniya-bot) ✅
+- Same API: utility-api-vu83
+- 10-digit number → Name, Father, Address, Circle, Aadhaar masked (XXXX-XXXX-1234), Alt phone, Response ms
+- No data → Only `❌ No records found for this number in any database.`
+- Commands: `/numinfo 9876543210`, `/number`, `/num`
+- Advanced formatting with spaces, emojis, separators
+
+### Tool 8: Telegram Tools ✅
+- TG Number: `/tginfo @username` → Telegram username se info
+- Pak Number: `/paknum 03001234567`
+- Same gateway
+
+### Tool 1: Telegram Channel Scraper (Most Advanced) ✅
+- Channel info with members, description, verification
+- Scrape 1-10000 messages with views, forwards, replies, media, links, hashtags, mentions, reactions
+- Search, media only, stats, batch 5 channels
+- Export JSON/CSV
 - Commands: `/channel_info`, `/scrape`, `/scrape_search`, `/scrape_media`, `/stats`, `/batch`
 
 ### Tool 2: Instagram OSINT ✅
-- Public profile info: followers, following, posts, bio, profile pic
+- Public profile: followers, bio, posts, pic
 - Command: `/insta @username`
 
+### Tool 6: Social Media Security Checker (Educational) ✅
+- Email leak, phone leak, suspicious links, username risk, security score 0-100
+- Commands: `/igsecure @username`, `/security`, `/sec`
+
 ### Tool 3: Email OSINT ✅
-- Validation, disposable, Gravatar, breach check, MX records
+- Validation, disposable, Gravatar, breach check, MX
 - Command: `/email test@gmail.com`
 
 ### Tool 4: IP & Domain Recon ✅
-- IP lookup + VPN detection + Maps, DNS, WHOIS, SSL
+- IP: location, ISP, VPN/Proxy detection, Google Maps
+- Domain: DNS + WHOIS + SSL + IP full recon
 - Commands: `/ip 8.8.8.8`, `/domain google.com`, `/dns`, `/whois`, `/ssl`
 
 ### Tool 5: Image EXIF Forensics ✅
 - GPS + Camera + Date + Editing detection
 - Send photo as File → auto EXIF
+- Commands: `/exif`
 
-### Tool 6: Social Media Security Checker ✅ (Educational)
-- Email/phone leak in bio, suspicious links, username risk, security score 0-100
-- Commands: `/igsecure @username`, `/security`, `/sec`
+### Tool 9: OCR Extractor ✅
+- Image to Text (Hindi+English) via EasyOCR + pytesseract
+- Send photo as File with caption 'ocr'
+- Commands: `/ocr`
 
-### Tool 7: Number Info (Same as utility-duniya-bot) ✅ NEW
-- Same API as utility-duniya-bot: `utility-api-vu83`
-- 10-digit Indian number se owner name, father, address, circle, aadhaar masked, alt phone
-- No data pe sirf `❌ No records found for this number in any database.` (aapke kehne pe)
-- Commands: `/numinfo 9876543210`, `/number`, `/num`
-- Example: `/numinfo 9204507743`
+### Tool 10: Website Extractor ✅
+- Emails, Phones, Links, Meta tags (title, description, keywords, OG image)
+- Commands: `/wextract https://site.com`
 
-### Tool 8: Telegram Tools (TG Number + Pak Number) ✅ NEW
-- Telegram username se number/info lookup (tool=telegramtonumber)
-- Pak number/CNIC lookup
-- Commands: `/tginfo @username`, `/tgnum @username`, `/paknum 03001234567`
+### Tool 11: Excel to PDF + File Converter Hub ✅
+- Excel (xlsx, xls, csv) → PDF (landscape A4, styled table)
+- CSV ↔ Excel, Image → PDF, PDF → Text
+- Send file as Document with caption excel2pdf etc
+- Commands: `/excel2pdf`, `/csv2excel`, `/excel2csv`, `/img2pdf`, `/pdf2text`
 
 ---
 
@@ -54,6 +74,14 @@ Ye repo OSINT + Hacker tools ke liye hai. Har tool max data nikalega, lekin sirf
 
 ```
 /start, /help
+
+# Number Info (Same as utility bot)
+/numinfo 9876543210
+/number 9876543210
+
+# TG Tools
+/tginfo @username
+/paknum 03001234567
 
 # Telegram Scraper
 /channel_info @channel
@@ -80,53 +108,80 @@ Ye repo OSINT + Hacker tools ke liye hai. Har tool max data nikalega, lekin sirf
 
 # EXIF
 Send photo as File → auto
-/exif (reply to photo)
+/exif
 
-# Number Info (NEW - Same as utility bot)
-/numinfo 9876543210
-/number 9876543210
-/num 9876543210
+# OCR
+Send photo as File + caption 'ocr'
+/ocr
 
-# TG Tools (NEW)
-/tginfo @username
-/tgnum @username
-/paknum 03001234567
+# Website Extractor
+/wextract https://site.com
+
+# File Converter
+Send Excel/CSV/Image/PDF as Document + caption:
+excel2pdf, csv2excel, excel2csv, img2pdf, pdf2text
 ```
 
 ---
 
-## ⚙️ Setup
+## ⚙️ Setup & Hosting (Step by Step)
 
-1. my.telegram.org se API_ID, API_HASH lo
-2. .env banao .env.example se
-3. generate_session.py se SESSION_STRING banao
-4. pip install -r requirements.txt
-5. python bot.py
-
-ENV:
+### ENV Variables (Required)
 ```
-BOT_TOKEN=...
-API_ID=...
-API_HASH=...
-SESSION_STRING=...
-ADMIN_ID=...
+BOT_TOKEN=8877252485:AAH9pE0gMvR_aPahpq2VAdswuhyfSUNcS5k (will be revoked, use new after)
+ADMIN_ID=8607774564
+FORCE_CHANNEL=-1004393596502
+FORCE_CHANNEL_LINK=https://t.me/osint_xpert
 MYNUM_API_URL=https://utility-api-vu83.onrender.com/api
 MYNUM_API_KEY=udb-SlhpCRCaziEfxTPvasAUHNFCPa9CYw6smolrP0QX
+API_ID= (from my.telegram.org - for Telegram scraper)
+API_HASH= (from my.telegram.org)
+SESSION_STRING= (from generate_session.py)
 ```
 
+### Free Hosting - No Card Needed (Best for you)
+
+#### Option 1: Pella.app (RECOMMENDED - No Card, 1-Click)
+1. Go to https://pella.app → Login with GitHub
+2. New Project → Import from GitHub → `savecontentrestricted-pixel/osint`
+3. Add Environment Variables (above)
+4. Build Command: `pip install -r requirements.txt`
+5. Start Command: `python bot.py`
+6. Deploy → Live in 1 min!
+7. Free: 0.1 CPU, 100MB RAM, 5GB Disk, No sleep
+
+#### Option 2: Koyeb.com (No Card)
+1. koyeb.com → Login with GitHub
+2. Create App → Import `osint` repo
+3. Build: `pip install -r requirements.txt`
+4. Run: `python bot.py`
+5. Add env vars, deploy
+
+#### Option 3: Render.com (You already use)
+1. render.com → New Web Service → Connect repo `osint`
+2. Build: `pip install -r requirements.txt`
+3. Start: `python bot.py`
+4. Add env vars
+5. Note: Sleeps after 15 min, needs keep-alive ping
+
+#### Option 4: Oracle Cloud (Most Powerful, Needs Card for verification but free forever)
+- 2 ARM cores + 12GB RAM + 200GB storage forever free
+- Setup Ubuntu VM, git clone, pip install, PM2
+
+See PELLA-DEPLOY-GUIDE.md for detailed steps.
+
 ---
 
-## Free Hosting (No Card) - Pella.app
+## 🔥 Advanced Features in This Code
 
-Aapke paas UPI/Card nahi hai to Pella.app best hai - No card, 1-click, free forever. Guide: PELLA-DEPLOY-GUIDE.md
+- Force Join Channel Check (-1004393596502 @osint_xpert)
+- Beautiful formatting with spaces, emojis, separators (╔══╗ style)
+- Max data extraction - more info than any other bot
+- FloodWait handling + rate limiting
+- Export JSON/CSV/PDF
+- Admin bypass for force join
+- 11 Tools in one bot - advanced high-level code
 
 ---
 
-## Upcoming
-
-- [ ] Tool 9: AI Background Remover
-- [ ] Tool 10: File Converter Hub
-- [ ] Tool 11: UPI QR Generator
-- [ ] More...
-
-Legal: Sirf public data, educational purpose.
+Legal: Public data only, educational OSINT.

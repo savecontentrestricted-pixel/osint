@@ -1,6 +1,18 @@
 """
-OSINT Hacker Tools Hub - Main Bot
+🚀 OSINT Hunter Hub - @osint_hunter_hub_bot
+Advanced High-Level OSINT Tools Hub - 11 Tools
+
+Owner: 8607774564 @Supermannn_x
+Force Channel: -1004393596502 @osint_xpert
 Repo: savecontentrestricted-pixel/osint
+
+This is ADVANCED version - no one's bot has this level code:
+- Max data extraction
+- Beautiful formatting with spaces, emojis, styles
+- Force join channel
+- FloodWait protection
+- Export JSON/CSV/PDF
+- 11 Tools in one bot
 
 Tools:
 1. Telegram Channel Scraper (Advanced)
@@ -8,8 +20,12 @@ Tools:
 3. Email OSINT
 4. IP & Domain Recon
 5. Image EXIF Forensics
-
-Note: Render pe abhi deploy nahi karna hai, sirf GitHub pe rakha hai as per user.
+6. Social Media Security Checker
+7. Number Info (Same as utility-duniya-bot)
+8. TG Tools (Telegram + Pak Number)
+9. OCR Extractor (Image to Text)
+10. Website Extractor (Email/Phone/Links/Meta)
+11. Excel to PDF + File Converter Hub
 """
 
 import os
@@ -17,6 +33,7 @@ import asyncio
 import logging
 import json
 import tempfile
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -24,8 +41,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
+from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters, CallbackQueryHandler
 from telegram.constants import ParseMode
+from telegram.error import BadRequest
 
 import config
 from modules.telegram_scraper import TelegramScraper
@@ -50,139 +68,520 @@ def get_scraper() -> TelegramScraper:
     global scraper
     if scraper is None:
         if not config.API_ID or not config.API_HASH or not config.SESSION_STRING:
-            raise Exception("API_ID/API_HASH/SESSION_STRING missing in .env - Telegram scraper ke liye zaruri hai")
+            raise Exception("API_ID/API_HASH/SESSION_STRING missing - Telegram scraper ke liye my.telegram.org se lo aur generate_session.py chalao")
         scraper = TelegramScraper(config.API_ID, config.API_HASH, config.SESSION_STRING)
     return scraper
 
+# ========== FORCE JOIN CHECK ==========
+async def check_force_join(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    """Check if user joined force channel, if not ask to join"""
+    if not config.FORCE_CHANNEL:
+        return True
+    
+    user_id = update.effective_user.id
+    if config.is_admin(user_id):
+        return True  # Admin bypass
+
+    try:
+        # Try to check membership
+        channel_id = config.FORCE_CHANNEL
+        # Convert username to id if needed? We have ID -1004393596502
+        try:
+            member = await context.bot.get_chat_member(chat_id=channel_id, user_id=user_id)
+            if member.status in ['member', 'administrator', 'creator']:
+                return True
+        except BadRequest as e:
+            # If bot not admin in channel, skip check
+            logger.warning(f"Force join check failed (bot not admin in channel?): {e}")
+            return True
+        except Exception as e:
+            logger.warning(f"Force join error: {e}")
+            return True
+
+        # Not joined - ask to join
+        kb = [
+            [InlineKeyboardButton("📢 Join Channel", url=config.FORCE_CHANNEL_LINK)],
+            [InlineKeyboardButton("✅ Joined - Check Again", callback_data="check_joined")]
+        ]
+        await update.message.reply_text(
+            f"⚠️ <b>Access Denied!</b>\n\n"
+            f"Bot use karne ke liye aapko hamara channel join karna hoga.\n\n"
+            f"📢 Channel: {config.FORCE_CHANNEL_LINK}\n\n"
+            f"Join karke 'Joined - Check Again' pe click karo.",
+            parse_mode=ParseMode.HTML,
+            reply_markup=InlineKeyboardMarkup(kb)
+        )
+        return False
+    except Exception as e:
+        logger.warning(f"Force join check exception: {e}")
+        return True
+
+async def check_joined_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = query.from_user.id
+    try:
+        member = await context.bot.get_chat_member(chat_id=config.FORCE_CHANNEL, user_id=user_id)
+        if member.status in ['member', 'administrator', 'creator']:
+            await query.edit_message_text(
+                "✅ <b>Verified! Ab aap bot use kar sakte ho.</b>\n\n/start pe click karo.",
+                parse_mode=ParseMode.HTML
+            )
+        else:
+            await query.answer("❌ Abhi bhi join nahi kiya! Pehle channel join karo.", show_alert=True)
+    except Exception as e:
+        await query.edit_message_text(f"✅ Check done! /start se shuru karo.\n\nNote: {str(e)[:100]}", parse_mode=ParseMode.HTML)
+
+# ========== START & HELP ==========
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Force join check
+    if not await check_force_join(update, context):
+        return
+
     user = update.effective_user
     txt = f"""
-🚀 <b>OSINT Hacker Hub - 5 Tools Ready</b>
-👋 Hello {user.first_name}!
+╔══════════════════════════════════════╗
+║  🚀 <b>OSINT Hunter Hub</b> - Advanced  ║
+║  @osint_hunter_hub_bot               ║
+╚══════════════════════════════════════╝
 
-<b>Repo: savecontentrestricted-pixel/osint</b>
+👋 <b>Hello {user.first_name}!</b>
 
-<b>🔥 Available Tools:</b>
+🔥 <b>11 Advanced Tools - Ek hi Bot me!</b>
+Ye bot aisa hai jaisa kisi ke paas nahi — har tool me max data + beautiful design
 
-<b>1. Telegram Scraper (Advanced)</b>
-/channel_info @channel - Channel info
-/scrape @channel 100 - Messages scrape
-/scrape_search @channel keyword 100
-/scrape_media @channel 50
-/stats @channel
-/batch @ch1 @ch2 30
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-<b>2. Instagram OSINT</b>
-/insta @username - Public profile info
+<b>📱 Tool 7: Number Info (Utility Wala)</b>
+   /numinfo 9876543210 → Name, Father, Address, Circle, Aadhaar masked
+   Same as @utility_duniya_bot
 
-<b>3. Email OSINT</b>
-/email test@gmail.com - Breach + Gravatar + Validation
+<b>🆔 Tool 8: Telegram Tools</b>
+   /tginfo @username → TG se number/info
+   /paknum 0300... → Pak number info
 
-<b>4. IP & Domain Recon</b>
-/ip 8.8.8.8 - IP lookup + VPN detection + Maps
-/domain google.com - Full domain recon
-/dns google.com - DNS records
-/whois google.com - WHOIS info
-/ssl google.com - SSL certificate
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-<b>5. Image EXIF Forensics</b>
-Photo bhejo (as file/document) → EXIF + GPS + Camera info
-/exif - Reply to photo
+<b>📢 Tool 1: Telegram Channel Scraper (Most Advanced)</b>
+   /channel_info @channel → Full info + members + description
+   /scrape @channel 100 → 10k tak messages + views + media + links + reactions
+   /scrape_search @channel keyword 100 → Keyword search inside channel
+   /scrape_media @channel 50 → Sirf media wale
+   /stats @channel → Top 10 most viewed + avg views
+   /batch @ch1 @ch2 30 → 5 channels ek saath
+
+<b>📸 Tool 2: Instagram OSINT</b>
+   /insta @username → Followers, bio, posts, profile pic, full name
+
+<b>🔒 Tool 6: Social Security Checker (Educational)</b>
+   /igsecure @username → Email leak? Phone leak? Suspicious links? Security Score 0-100
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+<b>📧 Tool 3: Email OSINT</b>
+   /email test@gmail.com → Validation + Disposable + Gravatar + Breach check + MX
+
+<b>🌐 Tool 4: IP & Domain Recon</b>
+   /ip 8.8.8.8 → Location + ISP + VPN/Proxy + Google Maps
+   /domain google.com → DNS + WHOIS + SSL + IP full recon
+   /dns, /whois, /ssl alag se bhi
+
+<b>📸 Tool 5: Image EXIF Forensics</b>
+   Photo ko File ke roop me bhejo → GPS location + Camera + Date + Photoshop edited?
+
+<b>📝 Tool 9: OCR Extractor</b>
+   Photo bhejo + caption me 'ocr' → Image se Hindi+English text nikalega
+
+<b>🌐 Tool 10: Website Extractor</b>
+   /wextract https://site.com → Emails + Phones + Links + Meta tags
+
+<b>📊 Tool 11: Excel to PDF Hub</b>
+   Excel file bhejo as Document + caption 'excel2pdf' → PDF me convert
+   /excel2pdf, /csv2excel, /excel2csv, /img2pdf, /pdf2text
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 <b>📌 Examples:</b>
+<code>/numinfo 9204507743</code>
 <code>/scrape @durov 50</code>
 <code>/insta @instagram</code>
-<code>/email test@gmail.com</code>
 <code>/ip 1.1.1.1</code>
 <code>/domain github.com</code>
 
-<b>⚠️ Note:</b> Sirf public data, educational OSINT ke liye.
+<b>👑 Owner:</b> @Supermannn_x
+<b>📢 Channel:</b> @osint_xpert
 
-Upcoming: Website Tech Detector, Link Scanner, Crypto Wallet OSINT etc.
+⚠️ <i>Sirf public data, educational OSINT ke liye. Private data ka misuse mat karo.</i>
+
+🔥 <b>Powered by @Supermannn_x</b>
 """
+
     kb = [
-        [InlineKeyboardButton("📢 Channel", url="https://t.me/osint_xpert"), InlineKeyboardButton("💬 Support", url="https://t.me/Supermannn_x")],
-        [InlineKeyboardButton("📜 Help", callback_data="help"), InlineKeyboardButton("🔧 All Tools", callback_data="tools")]
+        [InlineKeyboardButton("📢 Join Channel", url=config.FORCE_CHANNEL_LINK), InlineKeyboardButton("💬 Support", url="https://t.me/Supermannn_x")],
+        [InlineKeyboardButton("📜 All Commands", callback_data="help_all"), InlineKeyboardButton("🔧 Tools List", callback_data="tools")],
+        [InlineKeyboardButton("👑 Owner", url="https://t.me/Supermannn_x")]
     ]
     await update.message.reply_text(txt, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(kb))
 
 async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_force_join(update, context):
+        return
+
     txt = """
-<b>📖 OSINT Hub - Full Guide</b>
+╔══════════════════════════════════════╗
+║  📖 <b>OSINT Hunter Hub - Full Guide</b>  ║
+╚══════════════════════════════════════╝
 
-<b>--- Tool 1: Telegram Scraper ---</b>
-/channel_info @username - Full channel info
-/scrape @channel [limit] - Last N messages (max 10000)
-/scrape_search @channel keyword [limit] - Search inside channel
-/scrape_media @channel [limit] - Only media messages
-/stats @channel - Top posts + stats
-/batch @ch1 @ch2 [limit] - Multiple channels
+<b>━━━━━━━━ Tool 7: Number Info ━━━━━━━━</b>
+/numinfo 9876543210
+/number 9876543210
+/num 9876543210
+→ Name, Father, Address, Circle, Aadhaar masked, Alt phone, Response ms
+→ No data pe: ❌ No records found...
 
-<b>--- Tool 2: Instagram OSINT ---</b>
-/insta @username - Public profile: followers, bio, posts, pic
+<b>━━━━━━━━ Tool 8: TG Tools ━━━━━━━━</b>
+/tginfo @username
+/tgnum @username
+/telegram @username
+→ Telegram username se info
 
-<b>--- Tool 3: Email OSINT ---</b>
-/email test@gmail.com - Validation, disposable check, Gravatar, breach check (xposedornot), MX records
+/paknum 03001234567
+/pak 0300...
+→ Pak number / CNIC info
 
-<b>--- Tool 4: IP & Domain Recon ---</b>
-/ip 8.8.8.8 or /ip google.com - IP location, ISP, VPN/Proxy detection, Maps link
-/domain google.com - Full recon: DNS + WHOIS + SSL + IP
-/dns google.com - A, MX, NS, TXT records
-/whois google.com - WHOIS info
-/ssl google.com - SSL cert info
+<b>━━━━━━━━ Tool 1: Telegram Scraper ━━━━━━━━</b>
+/channel_info @username → Full channel info
+/scrape @channel [limit] → Last N messages (max 10000)
+/scrape_search @channel keyword [limit] → Search inside
+/scrape_media @channel [limit] → Only media
+/stats @channel → Stats + Top 10
+/batch @ch1 @ch2 [limit] → Multiple
 
-<b>--- Tool 5: Image EXIF ---</b>
-Koi bhi photo ko <b>File/Document ke roop me bhejo</b> (compressed nahi), bot EXIF nikal dega: GPS location, camera model, date, editing info
-Ya photo pe reply karke /exif likho
+<b>━━━━━━━━ Tool 2: Instagram ━━━━━━━━</b>
+/insta @username → Public profile
+
+<b>━━━━━━━━ Tool 6: Security Checker ━━━━━━━━</b>
+/igsecure @username
+/security @username
+/sec @username
+→ Security Score 0-100 + Email/Phone leak + Recommendations
+
+<b>━━━━━━━━ Tool 3: Email ━━━━━━━━</b>
+/email test@gmail.com → Validation + Breach + Gravatar + MX
+
+<b>━━━━━━━━ Tool 4: IP/Domain ━━━━━━━━</b>
+/ip 8.8.8.8 → IP + VPN detection + Maps
+/domain google.com → Full recon
+/dns google.com → DNS records
+/whois google.com → WHOIS
+/ssl google.com → SSL cert
+
+<b>━━━━━━━━ Tool 5: EXIF ━━━━━━━━</b>
+Photo ko File/Document ke roop me bhejo → EXIF + GPS
+/exif (reply to photo)
+
+<b>━━━━━━━━ Tool 9: OCR ━━━━━━━━</b>
+Photo bhejo + caption 'ocr' → Text extraction (Hindi+English)
+/ocr (reply to photo with ocr)
+
+<b>━━━━━━━━ Tool 10: Website Extractor ━━━━━━━━</b>
+/wextract https://site.com → Emails + Phones + Links + Meta
+
+<b>━━━━━━━━ Tool 11: File Converter ━━━━━━━━</b>
+Excel/CSV/Image/PDF ko Document ke roop me bhejo:
+- Caption 'excel2pdf' → Excel to PDF
+- 'csv2excel' → CSV to Excel
+- 'excel2csv' → Excel to CSV
+- 'img2pdf' → Image to PDF
+- 'pdf2text' → PDF to Text
 
 <b>🛡️ Safety:</b>
-• Telegram scraper me FloodWait auto handle + delay
-• IP/Domain free APIs (ip-api.com, hackertarget)
-• EXIF sirf jo photo me hai wahi dikhega, stripped photo me nahi
+• FloodWait auto handle
+• Force join: @osint_xpert
+• Owner: @Supermannn_x
 
-<b>Setup:</b> .env.example dekho, generate_session.py se SESSION_STRING banao
+/start se wapas jao
 """
+
     await update.message.reply_text(txt, parse_mode=ParseMode.HTML)
 
-# ========== TELEGRAM SCRAPER COMMANDS ==========
+# ========== NUMBER INFO ==========
+async def number_info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_force_join(update, context):
+        return
+    if not context.args:
+        await update.message.reply_text(
+            "❌ <b>Use:</b> <code>/numinfo 9876543210</code>\n\n"
+            "📌 Example:\n"
+            "<code>/numinfo 9204507743</code>\n"
+            "<code>/number 9876543210</code>",
+            parse_mode=ParseMode.HTML
+        )
+        return
 
+    number = context.args[0]
+    status = await update.message.reply_text(
+        f"🔍 <b>Number Info Searching...</b>\n\n"
+        f"📱 Number: <code>{number}</code>\n"
+        f"⏳ Please wait 5-15 seconds...",
+        parse_mode=ParseMode.HTML
+    )
+
+    try:
+        result = lookup_number(number)
+        
+        # Advanced formatting with spaces and emojis
+        if not result.get("ok"):
+            # No records case - only short message as per user request
+            await status.edit_text(
+                f"❌ No records found for this number in any database.",
+                parse_mode=ParseMode.HTML
+            )
+            return
+
+        owner = result.get("owner", {})
+        num = result.get("number")
+        circle = result.get("circle") or owner.get("circle","")
+        ms = result.get("ms",0)
+        rec = result.get("records",1)
+
+        txt = f"""
+╔══════════════════════════════════════╗
+║  📱 <b>NUMBER INFO - OSINT</b>           ║
+╚══════════════════════════════════════╝
+
+📞 <b>Phone:</b> <code>{num}</code>
+
+"""
+
+        if circle:
+            txt += f"🌐 <b>Circle:</b> {circle}\n\n"
+
+        if owner.get("name"):
+            txt += f"👤 <b>Name:</b> {owner.get('name')}\n\n"
+
+        if owner.get("father"):
+            txt += f"👨‍👦 <b>Father Name:</b> {owner.get('father')}\n\n"
+
+        if owner.get("phone"):
+            txt += f"📱 <b>Mobile:</b> <code>{owner.get('phone')}</code>\n\n"
+
+        if owner.get("alt_phone"):
+            txt += f"📱 <b>Alt Mobile:</b> <code>{owner.get('alt_phone')}</code>\n\n"
+
+        if owner.get("address"):
+            txt += f"🏠 <b>Address:</b>\n{owner.get('address')[:300]}\n\n"
+
+        if owner.get("aadhaar"):
+            txt += f"🆔 <b>Aadhaar:</b> <code>{owner.get('aadhaar')}</code> (masked)\n\n"
+
+        txt += f"""
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📡 <b>Source:</b> utility-api-vu83
+
+⚡ <b>Response:</b> {ms}ms
+"""
+
+        if rec > 1:
+            txt += f"📑 <b>Records:</b> {rec} records found\n"
+
+        txt += f"""
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔥 <b>Powered by @Supermannn_x</b>
+📢 <b>Channel:</b> @osint_xpert
+"""
+
+        await status.edit_text(txt, parse_mode=ParseMode.HTML)
+
+    except Exception as e:
+        logger.exception(e)
+        await status.edit_text(f"❌ Error: {str(e)[:200]}", parse_mode=ParseMode.HTML)
+
+# ========== TG TOOLS ==========
+async def tg_number_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_force_join(update, context):
+        return
+    if not context.args:
+        await update.message.reply_text(
+            "❌ <b>Use:</b> <code>/tginfo @username</code>\n\n"
+            "📌 Example:\n"
+            "<code>/tginfo @durov</code>\n"
+            "<code>/tgnum @username</code>",
+            parse_mode=ParseMode.HTML
+        )
+        return
+
+    username = context.args[0]
+    status = await update.message.reply_text(
+        f"🔍 <b>Telegram OSINT Searching...</b>\n\n"
+        f"👤 Username: <code>{username}</code>\n"
+        f"⏳ Please wait...",
+        parse_mode=ParseMode.HTML
+    )
+
+    try:
+        result = lookup_tg(username)
+        
+        if not result.get("ok"):
+            await status.edit_text(f"❌ No records found for this username in any database.", parse_mode=ParseMode.HTML)
+            return
+
+        data = result.get("data", {})
+        ms = result.get("ms",0)
+
+        txt = f"""
+╔══════════════════════════════════════╗
+║  🆔 <b>TELEGRAM OSINT</b>                ║
+╚══════════════════════════════════════╝
+
+👤 <b>Username:</b> <code>{result.get('term')}</code>
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+"""
+
+        if isinstance(data, dict):
+            for k,v in list(data.items())[:15]:
+                if v and str(v).lower() not in ("na","none","null",""):
+                    txt += f"🔹 <b>{k}:</b> {str(v)[:200]}\n\n"
+        else:
+            txt += f"{str(data)[:1000]}\n\n"
+
+        txt += f"""
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚡ <b>Response:</b> {ms}ms
+
+🔥 <b>Powered by @Supermannn_x</b>
+"""
+
+        await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
+
+    except Exception as e:
+        await status.edit_text(f"❌ Error: {str(e)[:200]}", parse_mode=ParseMode.HTML)
+
+async def pak_number_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_force_join(update, context):
+        return
+    if not context.args:
+        await update.message.reply_text("❌ Use: <code>/paknum 03001234567</code>", parse_mode=ParseMode.HTML)
+        return
+
+    num = context.args[0]
+    status = await update.message.reply_text(f"🔍 Pak lookup for {num}...", parse_mode=ParseMode.HTML)
+
+    try:
+        result = lookup_pak(num)
+        if not result.get("ok"):
+            await status.edit_text(f"❌ No records found for this number in any database.", parse_mode=ParseMode.HTML)
+            return
+
+        data = result.get("data", {})
+        ms = result.get("ms",0)
+
+        txt = f"""
+╔══════════════════════════════════════╗
+║  🇵🇰 <b>PAK NUMBER INFO</b>               ║
+╚══════════════════════════════════════╝
+
+📱 <b>Number:</b> <code>{num}</code>
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+"""
+
+        if isinstance(data, dict):
+            for k,v in list(data.items())[:15]:
+                if v and str(v).lower() not in ("na","none","null",""):
+                    txt += f"🔹 <b>{k}:</b> {str(v)[:200]}\n\n"
+
+        txt += f"""
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚡ <b>Response:</b> {ms}ms
+🔥 <b>Powered by @Supermannn_x</b>
+"""
+
+        await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
+
+    except Exception as e:
+        await status.edit_text(f"❌ Error: {str(e)[:200]}", parse_mode=ParseMode.HTML)
+
+# ========== TELEGRAM SCRAPER ==========
 async def channel_info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_force_join(update, context):
+        return
     if not context.args:
         await update.message.reply_text("❌ Use: <code>/channel_info @channelusername</code>", parse_mode=ParseMode.HTML)
         return
+
     channel = context.args[0]
-    await update.message.reply_text(f"🔍 Fetching info for <code>{channel}</code>...", parse_mode=ParseMode.HTML)
+    status = await update.message.reply_text(
+        f"🔍 <b>Fetching Channel Info...</b>\n\n"
+        f"📢 Channel: <code>{channel}</code>\n"
+        f"⏳ Please wait...",
+        parse_mode=ParseMode.HTML
+    )
+
     try:
         scr = get_scraper()
         info = await scr.get_channel_info(channel)
         if not info.get("ok"):
-            await update.message.reply_text(f"❌ Error: {info.get('error')}", parse_mode=ParseMode.HTML)
+            await status.edit_text(f"❌ Error: {info.get('error')}", parse_mode=ParseMode.HTML)
             return
+
         txt = f"""
-📊 <b>Channel Info: {info.get('title')}</b>
+╔══════════════════════════════════════╗
+║  📊 <b>CHANNEL INFO</b>                  ║
+╚══════════════════════════════════════╝
+
+📛 <b>Title:</b> {info.get('title')}
 
 🆔 <b>ID:</b> <code>{info.get('id')}</code>
-👤 <b>Username:</b> @{info.get('username') or 'None'}
-📛 <b>Title:</b> {info.get('title')}
-🔰 <b>Type:</b> {info.get('type')} | Broadcast: {info.get('is_broadcast')} | Megagroup: {info.get('is_megagroup')}
-👥 <b>Members:</b> {info.get('participants_count') or 'N/A'} | Online: {info.get('online_count') or 'N/A'}
-✅ <b>Verified:</b> {info.get('is_verified')} | Scam: {info.get('is_scam')} | Fake: {info.get('is_fake')}
+
+👤 <b>Username:</b> @{info.get('username') or 'None (Private)'}
+
+🔰 <b>Type:</b> {info.get('type')}
+
+📡 <b>Broadcast:</b> {info.get('is_broadcast')} | <b>Megagroup:</b> {info.get('is_megagroup')}
+
+👥 <b>Members:</b> {info.get('participants_count') or 'N/A'}
+
+🟢 <b>Online:</b> {info.get('online_count') or 'N/A'}
+
+✅ <b>Verified:</b> {info.get('is_verified')} | <b>Scam:</b> {info.get('is_scam')} | <b>Fake:</b> {info.get('is_fake')}
+
 📅 <b>Created:</b> {info.get('creation_date') or 'N/A'}
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 📝 <b>Description:</b>
-{info.get('description')[:1000] or 'No description'}
+
+{info.get('description')[:800] or 'No description'}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 🔗 <b>Link:</b> https://t.me/{info.get('username') or ''}
+
+🔥 <b>Powered by @Supermannn_x</b>
 """
-        await update.message.reply_text(txt, parse_mode=ParseMode.HTML)
+
+        await status.edit_text(txt, parse_mode=ParseMode.HTML)
+
     except Exception as e:
         logger.exception(e)
-        await update.message.reply_text(f"❌ Error: {str(e)}", parse_mode=ParseMode.HTML)
+        await status.edit_text(f"❌ Error: {str(e)[:200]}", parse_mode=ParseMode.HTML)
 
 async def scrape_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_force_join(update, context):
+        return
     if not context.args:
         await update.message.reply_text("❌ Use: <code>/scrape @channel [limit]</code>", parse_mode=ParseMode.HTML)
         return
+
     channel = context.args[0]
     limit = 50
     if len(context.args) > 1:
@@ -191,45 +590,89 @@ async def scrape_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except:
             pass
     limit = max(1, min(limit, 10000))
-    status_msg = await update.message.reply_text(f"⏳ Scraping <code>{channel}</code> — {limit} messages...", parse_mode=ParseMode.HTML)
+
+    status = await update.message.reply_text(
+        f"⏳ <b>Scraping Channel...</b>\n\n"
+        f"📢 Channel: <code>{channel}</code>\n"
+        f"📊 Limit: {limit} messages\n"
+        f"⏳ This may take 10-60 seconds...",
+        parse_mode=ParseMode.HTML
+    )
+
     try:
         scr = get_scraper()
         result = await scr.scrape_messages(channel, limit=limit)
+
         if not result.get("ok"):
-            await status_msg.edit_text(f"❌ Error: {result.get('error')}", parse_mode=ParseMode.HTML)
+            await status.edit_text(f"❌ Error: {result.get('error')}", parse_mode=ParseMode.HTML)
             return
+
         messages = result.get("messages", [])
         stats = result.get("stats", {})
+
         with tempfile.TemporaryDirectory() as tmpdir:
             json_path = os.path.join(tmpdir, f"{channel.strip('@')}_{limit}.json")
             csv_path = os.path.join(tmpdir, f"{channel.strip('@')}_{limit}.csv")
             scr.export_json(result, json_path)
             scr.export_csv(messages, csv_path)
+
             summary = f"""
-✅ <b>Scraped {len(messages)} messages from {channel}</b>
+╔══════════════════════════════════════╗
+║  ✅ <b>SCRAPED {len(messages)} MESSAGES</b>  ║
+╚══════════════════════════════════════╝
+
+📢 <b>Channel:</b> {channel}
 
 📊 <b>Stats:</b>
-• Total: {stats.get('total')}
-• Total Views: {stats.get('total_views')}
-• Avg Views: {stats.get('avg_views')}
-• Media: {stats.get('media_count')} ({stats.get('media_ratio')}%)
-• Links: {stats.get('link_count')} | Hashtags: {stats.get('hashtag_count')}
 
-🔝 <b>Top 3:</b>
+• 📝 Total: {stats.get('total')}
+
+• 👀 Total Views: {stats.get('total_views')}
+
+• 📈 Avg Views: {stats.get('avg_views')}
+
+• 🔁 Total Forwards: {stats.get('total_forwards')}
+
+• 🎬 Media Count: {stats.get('media_count')} ({stats.get('media_ratio')}%)
+
+• 🔗 Links: {stats.get('link_count')}
+
+• #️⃣ Hashtags: {stats.get('hashtag_count')}
+
+• @️⃣ Mentions: {stats.get('mention_count')}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔝 <b>Top 3 Most Viewed:</b>
+
 """
+
             for i, tp in enumerate(stats.get('top_posts', [])[:3], 1):
-                summary += f"{i}. {tp.get('views')} views - {tp.get('link')}\n"
-            await status_msg.edit_text(summary, parse_mode=ParseMode.HTML)
-            await update.message.reply_document(document=open(json_path, 'rb'), filename=os.path.basename(json_path), caption="📄 Full JSON")
-            await update.message.reply_document(document=open(csv_path, 'rb'), filename=os.path.basename(csv_path), caption="📊 CSV")
+                summary += f"{i}. 👀 {tp.get('views')} views\n   🔗 {tp.get('link')}\n   📝 {tp.get('text','')[:60]}...\n\n"
+
+            summary += f"""
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📁 <b>Files:</b> JSON (full) + CSV (Excel)
+
+🔥 <b>Powered by @Supermannn_x</b>
+"""
+
+            await status.edit_text(summary, parse_mode=ParseMode.HTML)
+            await update.message.reply_document(document=open(json_path, 'rb'), filename=os.path.basename(json_path), caption="📄 Full JSON data - Max info")
+            await update.message.reply_document(document=open(csv_path, 'rb'), filename=os.path.basename(csv_path), caption="📊 CSV for Excel")
+
     except Exception as e:
         logger.exception(e)
-        await status_msg.edit_text(f"❌ Error: {str(e)}", parse_mode=ParseMode.HTML)
+        await status.edit_text(f"❌ Error: {str(e)[:200]}", parse_mode=ParseMode.HTML)
 
 async def scrape_search_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_force_join(update, context):
+        return
     if len(context.args) < 2:
         await update.message.reply_text("❌ Use: <code>/scrape_search @channel keyword [limit]</code>", parse_mode=ParseMode.HTML)
         return
+
     channel = context.args[0]
     keyword = context.args[1]
     limit = 50
@@ -238,33 +681,43 @@ async def scrape_search_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             limit = int(context.args[2])
         except:
             pass
-    status_msg = await update.message.reply_text(f"🔍 Searching '{keyword}' in {channel}...", parse_mode=ParseMode.HTML)
+
+    status = await update.message.reply_text(f"🔍 Searching '{keyword}' in {channel} - {limit} results...", parse_mode=ParseMode.HTML)
+
     try:
         scr = get_scraper()
         result = await scr.scrape_messages(channel, limit=limit, search_query=keyword)
         if not result.get("ok"):
-            await status_msg.edit_text(f"❌ Error: {result.get('error')}", parse_mode=ParseMode.HTML)
+            await status.edit_text(f"❌ Error: {result.get('error')}", parse_mode=ParseMode.HTML)
             return
+
         messages = result.get("messages", [])
         if not messages:
-            await status_msg.edit_text(f"❌ No results for '{keyword}'", parse_mode=ParseMode.HTML)
+            await status.edit_text(f"❌ No results for '{keyword}' in {channel}", parse_mode=ParseMode.HTML)
             return
+
         with tempfile.TemporaryDirectory() as tmpdir:
-            json_path = os.path.join(tmpdir, f"{channel.strip('@')}_search_{keyword}.json")
+            json_path = os.path.join(tmpdir, f"{channel.strip('@')}_search_{keyword}_{limit}.json")
             scr.export_json(result, json_path)
-            summary = f"✅ Found {len(messages)} messages for '{keyword}'\n\n"
+
+            summary = f"✅ Found {len(messages)} messages for '{keyword}' in {channel}\n\n"
             for m in messages[:5]:
-                summary += f"• {m['id']} | {m['views']} views | {m['link']}\n{m['text'][:80]}...\n\n"
-            await status_msg.edit_text(summary[:4000], parse_mode=ParseMode.HTML)
-            await update.message.reply_document(document=open(json_path, 'rb'), filename=os.path.basename(json_path))
+                summary += f"• ID {m['id']} | {m['views']} views | {m['date'][:10]}\n{m['text'][:100]}...\nLink: {m['link']}\n\n"
+
+            await status.edit_text(summary[:4000], parse_mode=ParseMode.HTML)
+            await update.message.reply_document(document=open(json_path, 'rb'), filename=os.path.basename(json_path), caption=f"🔍 Search results for {keyword}")
+
     except Exception as e:
         logger.exception(e)
-        await status_msg.edit_text(f"❌ Error: {str(e)}", parse_mode=ParseMode.HTML)
+        await status.edit_text(f"❌ Error: {str(e)}", parse_mode=ParseMode.HTML)
 
 async def scrape_media_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_force_join(update, context):
+        return
     if not context.args:
         await update.message.reply_text("❌ Use: <code>/scrape_media @channel [limit]</code>", parse_mode=ParseMode.HTML)
         return
+
     channel = context.args[0]
     limit = 50
     if len(context.args) > 1:
@@ -272,52 +725,86 @@ async def scrape_media_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             limit = int(context.args[1])
         except:
             pass
-    status_msg = await update.message.reply_text(f"🎬 Scraping media from {channel}...", parse_mode=ParseMode.HTML)
+
+    status = await update.message.reply_text(f"🎬 Scraping media only from {channel} - {limit}...", parse_mode=ParseMode.HTML)
+
     try:
         scr = get_scraper()
         result = await scr.scrape_messages(channel, limit=limit, media_only=True)
         if not result.get("ok"):
-            await status_msg.edit_text(f"❌ Error: {result.get('error')}", parse_mode=ParseMode.HTML)
+            await status.edit_text(f"❌ Error: {result.get('error')}", parse_mode=ParseMode.HTML)
             return
+
         messages = result.get("messages", [])
-        summary = f"✅ Found {len(messages)} media messages\n"
+        summary = f"✅ Found {len(messages)} media messages in {channel}\n\n"
         for m in messages[:10]:
-            summary += f"• {m['id']} | {m.get('media',{}).get('type')} | {m['link']}\n"
-        await status_msg.edit_text(summary[:4000], parse_mode=ParseMode.HTML)
+            summary += f"• ID {m['id']} | {m.get('media',{}).get('type')} | {m['views']} views | {m['link']}\n\n"
+
+        await status.edit_text(summary[:4000], parse_mode=ParseMode.HTML)
+
     except Exception as e:
-        await status_msg.edit_text(f"❌ Error: {str(e)}", parse_mode=ParseMode.HTML)
+        await status.edit_text(f"❌ Error: {str(e)}", parse_mode=ParseMode.HTML)
 
 async def stats_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_force_join(update, context):
+        return
     if not context.args:
         await update.message.reply_text("❌ Use: <code>/stats @channel</code>", parse_mode=ParseMode.HTML)
         return
+
     channel = context.args[0]
-    status_msg = await update.message.reply_text(f"📊 Stats for {channel} (200 sample)...", parse_mode=ParseMode.HTML)
+    status = await update.message.reply_text(f"📊 Calculating stats for {channel} (200 messages sample)...", parse_mode=ParseMode.HTML)
+
     try:
         scr = get_scraper()
         result = await scr.scrape_messages(channel, limit=200)
         if not result.get("ok"):
-            await status_msg.edit_text(f"❌ Error: {result.get('error')}", parse_mode=ParseMode.HTML)
+            await status.edit_text(f"❌ Error: {result.get('error')}", parse_mode=ParseMode.HTML)
             return
+
         stats = result.get("stats", {})
         txt = f"""
-📊 <b>Stats for {channel}</b>
+╔══════════════════════════════════════╗
+║  📊 <b>STATS FOR {channel}</b>           ║
+╚══════════════════════════════════════╝
 
-• Total: {stats.get('total')}
-• Views: {stats.get('total_views')} | Avg: {stats.get('avg_views')}
-• Media: {stats.get('media_count')} ({stats.get('media_ratio')}%)
-• Top 10:
+📝 <b>Total Sampled:</b> {stats.get('total')}
+
+👀 <b>Total Views:</b> {stats.get('total_views')}
+
+📈 <b>Avg Views:</b> {stats.get('avg_views')}
+
+🔁 <b>Total Forwards:</b> {stats.get('total_forwards')}
+
+🎬 <b>Media:</b> {stats.get('media_count')} ({stats.get('media_ratio')}%)
+
+🔗 <b>Links:</b> {stats.get('link_count')}
+
+#️⃣ <b>Hashtags:</b> {stats.get('hashtag_count')}
+
+@️⃣ <b>Mentions:</b> {stats.get('mention_count')}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔝 <b>Top 10 Most Viewed Posts:</b>
+
 """
+
         for i, tp in enumerate(stats.get('top_posts', [])[:10], 1):
-            txt += f"{i}. {tp.get('views')} views - {tp.get('link')}\n"
-        await status_msg.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
+            txt += f"{i}. 👀 {tp.get('views')} views\n   🆔 ID {tp.get('id')}\n   🔗 {tp.get('link')}\n   📝 {tp.get('text','')[:60]}...\n\n"
+
+        await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
+
     except Exception as e:
-        await status_msg.edit_text(f"❌ Error: {str(e)}", parse_mode=ParseMode.HTML)
+        await status.edit_text(f"❌ Error: {str(e)}", parse_mode=ParseMode.HTML)
 
 async def batch_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if len(context.args) < 2:
-        await update.message.reply_text("❌ Use: <code>/batch @ch1 @ch2 [limit]</code>", parse_mode=ParseMode.HTML)
+    if not await check_force_join(update, context):
         return
+    if len(context.args) < 2:
+        await update.message.reply_text("❌ Use: <code>/batch @ch1 @ch2 @ch3 [limit]</code>", parse_mode=ParseMode.HTML)
+        return
+
     channels = []
     limit = 30
     for arg in context.args:
@@ -328,208 +815,351 @@ async def batch_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 limit = int(arg)
             except:
                 pass
+
     channels = channels[:5]
-    status_msg = await update.message.reply_text(f"⏳ Batch {len(channels)} channels...", parse_mode=ParseMode.HTML)
+    status = await update.message.reply_text(f"⏳ Batch scraping {len(channels)} channels - {limit} each...\n{', '.join(channels)}", parse_mode=ParseMode.HTML)
+
     try:
         scr = get_scraper()
         results = await scr.batch_scrape(channels, limit_per_channel=limit)
-        txt = f"✅ Batch done:\n\n"
+
+        txt = f"✅ Batch done - {len(channels)} channels:\n\n"
         for ch, res in results.items():
             if res.get("ok"):
-                txt += f"• {ch}: {res.get('scraped')} msgs\n"
+                txt += f"• {ch}: {res.get('scraped')} msgs, {res.get('stats',{}).get('total_views',0)} views\n\n"
             else:
-                txt += f"• {ch}: ❌ {res.get('error')}\n"
-        await status_msg.edit_text(txt, parse_mode=ParseMode.HTML)
-    except Exception as e:
-        await status_msg.edit_text(f"❌ Error: {str(e)}", parse_mode=ParseMode.HTML)
+                txt += f"• {ch}: ❌ {res.get('error')}\n\n"
 
-# ========== TOOL 2: INSTAGRAM ==========
+        await status.edit_text(txt, parse_mode=ParseMode.HTML)
+
+    except Exception as e:
+        await status.edit_text(f"❌ Error: {str(e)}", parse_mode=ParseMode.HTML)
+
+# ========== INSTAGRAM ==========
 async def insta_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_force_join(update, context):
+        return
     if not context.args:
         await update.message.reply_text("❌ Use: <code>/insta @username</code>", parse_mode=ParseMode.HTML)
         return
+
     username = context.args[0]
     status = await update.message.reply_text(f"🔍 Instagram OSINT for {username}...", parse_mode=ParseMode.HTML)
+
     try:
         result = instagram_osint(username)
         if not result.get("ok"):
             await status.edit_text(f"❌ {result.get('error')}", parse_mode=ParseMode.HTML)
             return
-        txt = f"""
-📸 <b>Instagram OSINT: @{result.get('username')}</b>
 
-👤 <b>Name:</b> {result.get('full_name') or 'N/A'}
-📝 <b>Bio:</b> {result.get('bio')[:500] or 'N/A'}
+        txt = f"""
+╔══════════════════════════════════════╗
+║  📸 <b>INSTAGRAM OSINT</b>               ║
+╚══════════════════════════════════════╝
+
+👤 <b>Username:</b> @{result.get('username')}
+
+📛 <b>Full Name:</b> {result.get('full_name') or 'N/A'}
+
+📝 <b>Bio:</b>
+
+{result.get('bio')[:500] or 'N/A'}
+
 👥 <b>Followers:</b> {result.get('followers') or 'N/A'}
+
 👤 <b>Following:</b> {result.get('following') or 'N/A'}
+
 📸 <b>Posts:</b> {result.get('posts') or 'N/A'}
-🔗 <b>URL:</b> {result.get('profile_url')}
-🖼️ <b>Pic:</b> {result.get('profile_pic') or 'N/A'}
+
+🔗 <b>Profile URL:</b> {result.get('profile_url')}
+
+🖼️ <b>Profile Pic:</b> {result.get('profile_pic') or 'N/A'}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ⚠️ Note: Instagram blocks heavily, data limited to public OG tags
+
+🔥 Powered by @Supermannn_x
 """
+
         await status.edit_text(txt, parse_mode=ParseMode.HTML)
+
     except Exception as e:
         await status.edit_text(f"❌ Error: {str(e)}", parse_mode=ParseMode.HTML)
 
-# ========== TOOL 3: EMAIL ==========
+# ========== EMAIL ==========
 async def email_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_force_join(update, context):
+        return
     if not context.args:
         await update.message.reply_text("❌ Use: <code>/email test@gmail.com</code>", parse_mode=ParseMode.HTML)
         return
+
     email = context.args[0]
     status = await update.message.reply_text(f"📧 Email OSINT for {email}...", parse_mode=ParseMode.HTML)
+
     try:
         result = email_osint(email)
         if not result.get("ok"):
             await status.edit_text(f"❌ {result.get('error')}", parse_mode=ParseMode.HTML)
             return
-        
+
         v = result.get("validation", {})
         g = result.get("gravatar", {})
         b = result.get("breach", {})
-        
+
         txt = f"""
-📧 <b>Email OSINT: {email}</b>
+╔══════════════════════════════════════╗
+║  📧 <b>EMAIL OSINT</b>                   ║
+╚══════════════════════════════════════╝
+
+📧 <b>Email:</b> <code>{email}</code>
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ✅ <b>Validation:</b>
+
 • Valid Format: {v.get('is_valid_format')}
+
 • Domain: {v.get('domain')}
+
 • Disposable: {v.get('is_disposable')}
+
 • Free Provider: {v.get('is_free_provider')}
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 🖼️ <b>Gravatar:</b>
+
 • Has Gravatar: {g.get('has_gravatar')}
+
 • Hash: <code>{g.get('hash')}</code>
+
 • URL: {g.get('gravatar_url') or 'N/A'}
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 🔓 <b>Breach Check (xposedornot):</b>
+
 • Breached: {b.get('breached')}
+
 • Count: {b.get('breach_count')}
+
 • Breaches: {', '.join(b.get('breaches', [])[:5]) or 'None'}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 📡 <b>MX Records:</b> {', '.join(result.get('mx_records', [])[:3]) or 'N/A'}
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 💡 <b>Notes:</b>
+
 {chr(10).join(result.get('suggestions', [])) or 'No issues'}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔥 Powered by @Supermannn_x
 """
+
         await status.edit_text(txt, parse_mode=ParseMode.HTML)
+
     except Exception as e:
         logger.exception(e)
         await status.edit_text(f"❌ Error: {str(e)}", parse_mode=ParseMode.HTML)
 
-# ========== TOOL 4: IP & DOMAIN ==========
+# ========== IP & DOMAIN ==========
 async def ip_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_force_join(update, context):
+        return
     if not context.args:
         await update.message.reply_text("❌ Use: <code>/ip 8.8.8.8</code> or <code>/ip google.com</code>", parse_mode=ParseMode.HTML)
         return
+
     target = context.args[0]
     status = await update.message.reply_text(f"🌐 IP lookup for {target}...", parse_mode=ParseMode.HTML)
+
     try:
         result = ip_lookup(target)
         if not result.get("ok"):
             await status.edit_text(f"❌ {result.get('error')}", parse_mode=ParseMode.HTML)
             return
-        txt = f"""
-🌐 <b>IP Recon: {result.get('ip')}</b>
 
-📍 <b>Location:</b> {result.get('city')}, {result.get('region')}, {result.get('country')} ({result.get('continent')})
+        txt = f"""
+╔══════════════════════════════════════╗
+║  🌐 <b>IP RECON</b>                      ║
+╚══════════════════════════════════════╝
+
+🌐 <b>IP:</b> <code>{result.get('ip')}</code>
+
+📍 <b>Location:</b>
+
+• City: {result.get('city')}
+
+• Region: {result.get('region')}
+
+• Country: {result.get('country')} ({result.get('continent')})
+
+• Zip: {result.get('zip')}
+
+• Timezone: {result.get('timezone')}
+
 🗺️ <b>Coords:</b> {result.get('lat')}, {result.get('lon')}
-🔗 <b>Maps:</b> {result.get('google_maps')}
-🏙️ <b>Zip:</b> {result.get('zip')} | ⏰ <b>TZ:</b> {result.get('timezone')}
+
+🔗 <b>Google Maps:</b> {result.get('google_maps')}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 🏢 <b>ISP:</b> {result.get('isp')}
+
 🏛️ <b>Org:</b> {result.get('org')}
+
 🔢 <b>AS:</b> {result.get('as')}
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 🛡️ <b>Security:</b>
+
 • Is Proxy: {result.get('is_proxy')}
+
 • Is Hosting: {result.get('is_hosting')}
+
 • VPN/Proxy Detected: {result.get('is_vpn_proxy')}
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 🔁 <b>Reverse DNS:</b> {result.get('reverse_dns') or 'N/A'}
+
+🔥 Powered by @Supermannn_x
 """
+
         await status.edit_text(txt, parse_mode=ParseMode.HTML)
+
     except Exception as e:
         await status.edit_text(f"❌ Error: {str(e)}", parse_mode=ParseMode.HTML)
 
 async def domain_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_force_join(update, context):
+        return
     if not context.args:
         await update.message.reply_text("❌ Use: <code>/domain google.com</code>", parse_mode=ParseMode.HTML)
         return
+
     target = context.args[0]
     status = await update.message.reply_text(f"🌐 Full recon for {target}...", parse_mode=ParseMode.HTML)
+
     try:
         result = full_recon(target)
         if result.get("type") == "ip":
-            # It's IP
             ip_info = result.get("ip_info", {})
             await status.edit_text(f"IP detected, use /ip command. Info: {ip_info}", parse_mode=ParseMode.HTML)
             return
-        
+
         dns_info = result.get("dns", {})
         whois_info = result.get("whois", {})
         ssl_info = result.get("ssl", {})
         ip_info = result.get("ip_info", {})
 
         txt = f"""
-🌐 <b>Domain Recon: {result.get('target')}</b>
+╔══════════════════════════════════════╗
+║  🌐 <b>DOMAIN RECON</b>                  ║
+╚══════════════════════════════════════╝
+
+🌐 <b>Domain:</b> {result.get('target')}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 <b>--- DNS ---</b>
+
 • A: {', '.join(dns_info.get('records',{}).get('A',[])[:2]) if isinstance(dns_info.get('records',{}).get('A'), list) else dns_info.get('records',{}).get('A')}
+
 • MX: {', '.join(dns_info.get('records',{}).get('MX',[])[:2]) if isinstance(dns_info.get('records',{}).get('MX'), list) else 'N/A'}
+
 • NS: {', '.join(dns_info.get('records',{}).get('NS',[])[:2]) if isinstance(dns_info.get('records',{}).get('NS'), list) else 'N/A'}
+
 • IP: {dns_info.get('ip') or 'N/A'}
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 <b>--- WHOIS ---</b>
+
 • Registrar: {whois_info.get('registrar') or 'N/A'}
+
 • Created: {whois_info.get('creation_date') or 'N/A'}
+
 • Expires: {whois_info.get('expiration_date') or 'N/A'}
+
 • NS: {', '.join(whois_info.get('name_servers',[])[:2]) if whois_info.get('name_servers') else 'N/A'}
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 <b>--- SSL ---</b>
+
 • Issuer: {ssl_info.get('issuer') or 'N/A'}
+
 • Subject: {ssl_info.get('subject') or 'N/A'}
-• Valid From: {ssl_info.get('not_before') or 'N/A'}
-• Valid To: {ssl_info.get('not_after') or 'N/A'}
-• SAN: {', '.join(ssl_info.get('san',[])[:3]) if ssl_info.get('san') else 'N/A'}
+
+• From: {ssl_info.get('not_before') or 'N/A'}
+
+• To: {ssl_info.get('not_after') or 'N/A'}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 <b>--- IP Info ---</b>
+
 • IP: {ip_info.get('ip') if ip_info and ip_info.get('ok') else 'N/A'}
+
 • Location: {ip_info.get('city') if ip_info and ip_info.get('ok') else 'N/A'}, {ip_info.get('country') if ip_info and ip_info.get('ok') else ''}
+
 • ISP: {ip_info.get('isp') if ip_info and ip_info.get('ok') else 'N/A'}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔥 Powered by @Supermannn_x
 """
+
         await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
+
     except Exception as e:
         logger.exception(e)
         await status.edit_text(f"❌ Error: {str(e)}", parse_mode=ParseMode.HTML)
 
 async def dns_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_force_join(update, context):
+        return
     if not context.args:
         await update.message.reply_text("❌ Use: <code>/dns google.com</code>", parse_mode=ParseMode.HTML)
         return
+
     target = context.args[0]
     status = await update.message.reply_text(f"🔍 DNS lookup for {target}...", parse_mode=ParseMode.HTML)
+
     try:
         result = dns_lookup(target)
         txt = f"🌐 <b>DNS for {result.get('domain')}</b>\n\n"
         for k, v in result.get("records", {}).items():
-            txt += f"<b>{k}:</b> {', '.join(v) if isinstance(v, list) else v}\n"
+            txt += f"<b>{k}:</b> {', '.join(v) if isinstance(v, list) else v}\n\n"
         await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
+
     except Exception as e:
         await status.edit_text(f"❌ Error: {str(e)}", parse_mode=ParseMode.HTML)
 
 async def whois_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_force_join(update, context):
+        return
     if not context.args:
         await update.message.reply_text("❌ Use: <code>/whois google.com</code>", parse_mode=ParseMode.HTML)
         return
+
     target = context.args[0]
     status = await update.message.reply_text(f"🔍 WHOIS for {target}...", parse_mode=ParseMode.HTML)
+
     try:
         result = whois_lookup(target)
         if not result.get("ok"):
             await status.edit_text(f"❌ {result.get('error')}", parse_mode=ParseMode.HTML)
             return
+
         if result.get("raw_whois"):
             txt = f"📜 <b>WHOIS {target}</b>\n\n<pre>{result.get('raw_whois')[:3000]}</pre>"
         else:
@@ -537,52 +1167,83 @@ async def whois_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 📜 <b>WHOIS {target}</b>
 
 • Registrar: {result.get('registrar')}
+
 • Created: {result.get('creation_date')}
+
 • Expires: {result.get('expiration_date')}
+
 • Updated: {result.get('updated_date')}
+
 • NS: {result.get('name_servers')}
+
 • Status: {result.get('status')}
+
 • Org: {result.get('org')}
+
 • Country: {result.get('country')}
 """
+
         await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
+
     except Exception as e:
         await status.edit_text(f"❌ Error: {str(e)}", parse_mode=ParseMode.HTML)
 
 async def ssl_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_force_join(update, context):
+        return
     if not context.args:
         await update.message.reply_text("❌ Use: <code>/ssl google.com</code>", parse_mode=ParseMode.HTML)
         return
+
     target = context.args[0]
     status = await update.message.reply_text(f"🔒 SSL check for {target}...", parse_mode=ParseMode.HTML)
+
     try:
         result = ssl_check(target)
         if not result.get("ok"):
             await status.edit_text(f"❌ {result.get('error')}", parse_mode=ParseMode.HTML)
             return
+
         txt = f"""
 🔒 <b>SSL for {target}</b>
 
 • Issuer: {result.get('issuer')}
+
 • Subject: {result.get('subject')}
+
 • From: {result.get('not_before')}
+
 • To: {result.get('not_after')}
+
 • Serial: {result.get('serial_number')}
+
 • SAN: {', '.join(result.get('san',[])[:5])}
 """
+
         await status.edit_text(txt, parse_mode=ParseMode.HTML)
+
     except Exception as e:
         await status.edit_text(f"❌ Error: {str(e)}", parse_mode=ParseMode.HTML)
 
-# ========== TOOL 5: EXIF ==========
+# ========== EXIF ==========
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Photo as document or photo
+    if not await check_force_join(update, context):
+        return
+
     file = None
     if update.message.document:
+        if not update.message.document.mime_type or not update.message.document.mime_type.startswith('image/'):
+            return
+        # Only handle if caption has exif or no caption (default EXIF)
+        caption = (update.message.caption or "").lower()
+        if "ocr" in caption or "excel" in caption or "pdf" in caption:
+            return
         file = await update.message.document.get_file()
         file_name = update.message.document.file_name
     elif update.message.photo:
-        # Get highest resolution
+        caption = (update.message.caption or "").lower()
+        if "ocr" in caption:
+            return
         photo = update.message.photo[-1]
         file = await photo.get_file()
         file_name = f"{photo.file_id}.jpg"
@@ -590,30 +1251,32 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     status = await update.message.reply_text("📸 EXIF analyzing... (photo download ho raha hai)", parse_mode=ParseMode.HTML)
+
     try:
         with tempfile.TemporaryDirectory() as tmpdir:
             file_path = os.path.join(tmpdir, file_name)
             await file.download_to_drive(file_path)
-            
+
             analysis = analyze_exif(file_path)
             txt = exif_to_text(analysis)
-            
+
             await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
-            
-            # Send raw JSON if has GPS
+
             if analysis.get("has_gps"):
                 json_path = os.path.join(tmpdir, f"{file_name}_exif.json")
                 with open(json_path, 'w') as f:
                     json.dump(analysis, f, indent=2, default=str)
                 await update.message.reply_document(document=open(json_path, 'rb'), filename=os.path.basename(json_path), caption="📍 Full EXIF JSON with GPS")
+
     except Exception as e:
         logger.exception(e)
         await status.edit_text(f"❌ EXIF Error: {str(e)}", parse_mode=ParseMode.HTML)
 
 async def exif_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # If reply to photo
+    if not await check_force_join(update, context):
+        return
+
     if update.message.reply_to_message and (update.message.reply_to_message.photo or update.message.reply_to_message.document):
-        # Reuse handle_photo logic but with replied message
         orig = update.message.reply_to_message
         file = None
         if orig.document:
@@ -623,8 +1286,9 @@ async def exif_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             photo = orig.photo[-1]
             file = await photo.get_file()
             file_name = f"{photo.file_id}.jpg"
-        
+
         status = await update.message.reply_text("📸 EXIF analyzing replied photo...", parse_mode=ParseMode.HTML)
+
         try:
             with tempfile.TemporaryDirectory() as tmpdir:
                 file_path = os.path.join(tmpdir, file_name)
@@ -632,79 +1296,55 @@ async def exif_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 analysis = analyze_exif(file_path)
                 txt = exif_to_text(analysis)
                 await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
+
         except Exception as e:
             await status.edit_text(f"❌ Error: {str(e)}", parse_mode=ParseMode.HTML)
+
     else:
-        await update.message.reply_text("❌ Photo bhejo as <b>Document/File</b> (compressed nahi), ya kisi photo pe reply karke /exif likho.\n\nTip: Telegram photo ko compress karta hai aur EXIF hata deta hai, isliye hamesha <b>File ke roop me bhejo</b> (📎 → File → Gallery se select).", parse_mode=ParseMode.HTML)
+        await update.message.reply_text(
+            "❌ Photo bhejo as <b>File/Document</b> (compressed nahi), ya kisi photo pe reply karke /exif likho.\n\n"
+            "Tip: Telegram photo ko compress karta hai aur EXIF hata deta hai, isliye hamesha <b>File ke roop me bhejo</b> (📎 → File → Gallery se select).",
+            parse_mode=ParseMode.HTML
+        )
 
-
-
-async def number_info_cmd(update, context):
-    if not context.args:
-        await update.message.reply_text("❌ Use: <code>/numinfo 9876543210</code> ya <code>/number 9876543210</code>\nExample: <code>/numinfo 9204507743</code>", parse_mode=ParseMode.HTML)
+# ========== OCR ==========
+async def ocr_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_force_join(update, context):
         return
-    number = context.args[0]
-    status = await update.message.reply_text(f"🔍 Number info for <code>{number}</code>...", parse_mode=ParseMode.HTML)
-    try:
-        result = lookup_number(number)
-        txt = numinfo_format(result)
-        await status.edit_text(txt, parse_mode=ParseMode.HTML)
-    except Exception as e:
-        await status.edit_text(f"❌ Error: {str(e)}", parse_mode=ParseMode.HTML)
+    await update.message.reply_text(
+        "📸 <b>OCR - Image to Text</b>\n\n"
+        "Photo ko <b>File/Document</b> ke roop me bhejo + caption me 'ocr' likho\n\n"
+        "Bot us image se Hindi+English text nikal dega\n\n"
+        "Example: Photo bhejo with caption <code>ocr</code> ya photo pe reply karke <code>/ocr</code>",
+        parse_mode=ParseMode.HTML
+    )
 
-async def tg_number_cmd(update, context):
-    if not context.args:
-        await update.message.reply_text("❌ Use: <code>/tginfo @username</code> ya <code>/tgnum @username</code>", parse_mode=ParseMode.HTML)
+async def handle_ocr_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_force_join(update, context):
         return
-    username = context.args[0]
-    status = await update.message.reply_text(f"🔍 Telegram lookup for {username}...", parse_mode=ParseMode.HTML)
-    try:
-        result = lookup_tg(username)
-        txt = format_tg_card(result)
-        await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
-    except Exception as e:
-        await status.edit_text(f"❌ Error: {str(e)}", parse_mode=ParseMode.HTML)
 
-async def pak_number_cmd(update, context):
-    if not context.args:
-        await update.message.reply_text("❌ Use: <code>/paknum 03001234567</code> ya CNIC", parse_mode=ParseMode.HTML)
-        return
-    num = context.args[0]
-    status = await update.message.reply_text(f"🔍 Pak lookup for {num}...", parse_mode=ParseMode.HTML)
-    try:
-        result = lookup_pak(num)
-        txt = format_pak_card(result)
-        await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
-    except Exception as e:
-        await status.edit_text(f"❌ Error: {str(e)}", parse_mode=ParseMode.HTML)
-
-
-async def ocr_cmd(update, context):
-    await update.message.reply_text("📸 OCR ke liye photo ko <b>File/Document</b> ke roop me bhejo (compressed nahi), ya photo pe reply karke /ocr likho.\n\nBot us image se text nikal dega (Hindi+English).", parse_mode=ParseMode.HTML)
-
-async def handle_ocr_photo(update, context):
-    # Check if already handled by EXIF handler - we will handle both
     file = None
     if update.message.document:
         if not update.message.document.mime_type or not update.message.document.mime_type.startswith('image/'):
             return
+        caption = (update.message.caption or "").lower()
+        if "ocr" not in caption:
+            return
         file = await update.message.document.get_file()
         file_name = update.message.document.file_name
     elif update.message.photo:
+        caption = (update.message.caption or "").lower()
+        if "ocr" not in caption:
+            # Also check if reply has /ocr command? Handled elsewhere
+            return
         photo = update.message.photo[-1]
         file = await photo.get_file()
         file_name = f"{photo.file_id}.jpg"
     else:
         return
 
-    # Only process if caption contains ocr or user explicitly wants OCR? For now auto if document
-    # To avoid conflict with EXIF, we check if user sent as document with caption ocr
-    caption = (update.message.caption or "").lower()
-    if "ocr" not in caption and not update.message.document:
-        return  # Let EXIF handler handle photos without ocr keyword
-
-    import tempfile, os
     status = await update.message.reply_text("🔍 OCR - Image se text nikal raha hu...", parse_mode=ParseMode.HTML)
+
     try:
         with tempfile.TemporaryDirectory() as tmpdir:
             file_path = os.path.join(tmpdir, file_name)
@@ -713,13 +1353,13 @@ async def handle_ocr_photo(update, context):
             if not result.get("ok"):
                 await status.edit_text(f"❌ {result.get('error')}", parse_mode=ParseMode.HTML)
                 return
+
             text = result.get("text","").strip()
             if not text:
                 await status.edit_text("❌ Koi text nahi mila image me. Clear image bhejo.", parse_mode=ParseMode.HTML)
                 return
-            # Send text
+
             if len(text) > 4000:
-                # Send as file
                 txt_path = os.path.join(tmpdir, f"{file_name}_ocr.txt")
                 with open(txt_path, 'w', encoding='utf-8') as f:
                     f.write(text)
@@ -727,95 +1367,142 @@ async def handle_ocr_photo(update, context):
                 await update.message.reply_document(document=open(txt_path,'rb'), filename=os.path.basename(txt_path), caption="📝 OCR Text")
             else:
                 await status.edit_text(f"✅ OCR Done ({result.get('method')}) - {result.get('chars')} chars:\n\n<pre>{text[:3500]}</pre>", parse_mode=ParseMode.HTML)
+
     except Exception as e:
         await status.edit_text(f"❌ OCR Error: {str(e)}", parse_mode=ParseMode.HTML)
 
-async def website_extract_cmd(update, context):
-    if not context.args:
-        await update.message.reply_text("❌ Use: <code>/wextract https://example.com</code> ya <code>/emailextract https://site.com</code>\nExample: <code>/wextract https://google.com</code>", parse_mode=ParseMode.HTML)
+# ========== WEBSITE EXTRACTOR ==========
+async def website_extract_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_force_join(update, context):
         return
+    if not context.args:
+        await update.message.reply_text("❌ Use: <code>/wextract https://example.com</code>", parse_mode=ParseMode.HTML)
+        return
+
     url = context.args[0]
     status = await update.message.reply_text(f"🔍 Extracting from {url}...", parse_mode=ParseMode.HTML)
+
     try:
         result = website_extractor(url)
         if not result.get("ok"):
             await status.edit_text(f"❌ {result.get('error')}", parse_mode=ParseMode.HTML)
             return
-        
+
         meta = result.get("meta",{})
         links = result.get("links",{})
+
         txt = f"""
-🌐 <b>Website Extractor: {result.get('url')}</b>
+╔══════════════════════════════════════╗
+║  🌐 <b>WEBSITE EXTRACTOR</b>             ║
+╚══════════════════════════════════════╝
+
+🌐 <b>URL:</b> {result.get('url')}
 
 📄 <b>Title:</b> {meta.get('title') or 'N/A'}
-📝 <b>Description:</b> {meta.get('description')[:200] or 'N/A'}
-🔑 <b>Keywords:</b> {meta.get('keywords')[:150] or 'N/A'}
+
+📝 <b>Description:</b>
+
+{meta.get('description')[:300] or 'N/A'}
+
+🔑 <b>Keywords:</b> {meta.get('keywords')[:200] or 'N/A'}
+
 🖼️ <b>OG Image:</b> {meta.get('og_image') or 'N/A'}
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 📧 <b>Emails Found ({len(result.get('emails',[]))}):</b>
+
 {', '.join(result.get('emails',[])[:10]) or 'None'}
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 📱 <b>Phones Found ({len(result.get('phones',[]))}):</b>
+
 {', '.join(result.get('phones',[])[:10]) or 'None'}
 
-🔗 <b>Links:</b> Total {links.get('total')} | Internal {len(links.get('internal',[]))} | External {len(links.get('external',[]))}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔗 <b>Links:</b>
+
+• Total: {links.get('total')}
+
+• Internal: {len(links.get('internal',[]))}
+
+• External: {len(links.get('external',[]))}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 📊 <b>Size:</b> HTML {result.get('html_length')} chars | Text {result.get('text_length')} chars
+
+🔥 Powered by @Supermannn_x
 """
+
         await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
+
     except Exception as e:
         await status.edit_text(f"❌ Error: {str(e)}", parse_mode=ParseMode.HTML)
 
-
-async def excel2pdf_cmd(update, context):
+# ========== FILE CONVERTER ==========
+async def excel2pdf_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_force_join(update, context):
+        return
     await update.message.reply_text(
-        "📊 <b>Excel to PDF Converter</b>\n\n"
-        "Excel file (.xlsx, .xls, .csv) ko <b>Document ke roop me bhejo</b> with caption <code>excel2pdf</code> ya <code>pdf</code>\n\n"
-        "Bot usko PDF me convert karke de dega (100 rows, 15 cols per sheet, landscape A4).\n\n"
-        "Supported: .xlsx, .xls, .csv → PDF\n"
-        "Commands: /excel2pdf, /csv2excel, /excel2csv, /img2pdf",
+        "📊 <b>Excel to PDF Converter - Advanced</b>\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "📤 <b>Excel file (.xlsx, .xls, .csv) ko Document ke roop me bhejo</b>\n"
+        "Caption me likho: <code>excel2pdf</code> ya <code>pdf</code>\n\n"
+        "Bot usko PDF me convert karke de dega:\n"
+        "• Landscape A4\n"
+        "• 100 rows, 15 cols per sheet\n"
+        "• Blue header + striped rows\n"
+        "• Multiple sheets support (5 tak)\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "📌 <b>Other Conversions:</b>\n"
+        "• <code>csv2excel</code> → CSV to Excel\n"
+        "• <code>excel2csv</code> → Excel to CSV\n"
+        "• <code>img2pdf</code> → Image to PDF\n"
+        "• <code>pdf2text</code> → PDF to Text\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "🔥 Powered by @Supermannn_x",
         parse_mode=ParseMode.HTML
     )
 
-async def handle_file_converter(update, context):
-    # Handle Excel/CSV/Image/PDF documents
+async def handle_file_converter(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_force_join(update, context):
+        return
     if not update.message.document:
         return
-    
+
     doc = update.message.document
     file_name = doc.file_name or "file"
     mime = doc.mime_type or ""
     caption = (update.message.caption or "").lower()
 
-    # Check what conversion requested
     is_excel = file_name.lower().endswith(('.xlsx','.xls')) or 'excel' in mime or 'spreadsheet' in mime
     is_csv = file_name.lower().endswith('.csv')
     is_image = file_name.lower().endswith(('.jpg','.jpeg','.png','.webp')) or mime.startswith('image/')
     is_pdf = file_name.lower().endswith('.pdf')
 
-    # Determine conversion type from caption
     convert_type = None
-    if 'excel2pdf' in caption or 'xlsx2pdf' in caption or 'pdf' in caption and (is_excel or is_csv):
+    if 'excel2pdf' in caption or 'xlsx2pdf' in caption or ('pdf' in caption and (is_excel or is_csv)):
         convert_type = 'excel2pdf'
-    elif 'csv2excel' in caption or 'csv to excel' in caption:
+    elif 'csv2excel' in caption:
         convert_type = 'csv2excel'
     elif 'excel2csv' in caption:
         convert_type = 'excel2csv'
-    elif 'img2pdf' in caption or 'image2pdf' in caption or 'images2pdf' in caption:
+    elif 'img2pdf' in caption or 'image2pdf' in caption:
         convert_type = 'img2pdf'
-    elif 'pdf2text' in caption or 'pdf to text' in caption:
+    elif 'pdf2text' in caption:
         convert_type = 'pdf2text'
     elif is_excel or is_csv:
-        # Default for Excel/CSV is to PDF
         convert_type = 'excel2pdf'
     elif is_pdf and 'text' in caption:
         convert_type = 'pdf2text'
     else:
-        return  # Not a conversion request
+        return
 
-    import tempfile, os
     status = await update.message.reply_text(f"⏳ Converting {file_name} → {convert_type}...", parse_mode=ParseMode.HTML)
-    
+
     try:
         with tempfile.TemporaryDirectory() as tmpdir:
             input_path = os.path.join(tmpdir, file_name)
@@ -828,7 +1515,13 @@ async def handle_file_converter(update, context):
                 if not result.get("ok"):
                     await status.edit_text(f"❌ {result.get('error')}", parse_mode=ParseMode.HTML)
                     return
-                await status.edit_text(f"✅ Excel to PDF Done - {result.get('total_rows')} rows, {result.get('sheets')} sheets", parse_mode=ParseMode.HTML)
+                await status.edit_text(
+                    f"✅ <b>Excel to PDF Done!</b>\n\n"
+                    f"📊 Total Rows: {result.get('total_rows')}\n"
+                    f"📑 Sheets: {result.get('sheets')}\n\n"
+                    f"🔥 Powered by @Supermannn_x",
+                    parse_mode=ParseMode.HTML
+                )
                 await update.message.reply_document(document=open(output_path,'rb'), filename=os.path.basename(output_path), caption=f"📄 PDF - {result.get('total_rows')} rows")
 
             elif convert_type == 'csv2excel':
@@ -850,7 +1543,6 @@ async def handle_file_converter(update, context):
                 await update.message.reply_document(document=open(output_path,'rb'), filename=os.path.basename(output_path))
 
             elif convert_type == 'img2pdf':
-                # For single image, convert to PDF
                 output_path = os.path.join(tmpdir, os.path.splitext(file_name)[0] + ".pdf")
                 result = images_to_pdf([input_path], output_path)
                 if not result.get("ok"):
@@ -869,44 +1561,62 @@ async def handle_file_converter(update, context):
                     txt_path = os.path.join(tmpdir, os.path.splitext(file_name)[0] + "_text.txt")
                     with open(txt_path, 'w', encoding='utf-8') as f:
                         f.write(text)
-                    await status.edit_text(f"✅ PDF to Text Done - {result.get('chars')} chars\n\n{text[:1000]}...", parse_mode=ParseMode.HTML)
+                    await status.edit_text(f"✅ PDF to Text Done - {result.get('chars')} chars\n\n{text[:1000]}...\n\nFull text file me hai:", parse_mode=ParseMode.HTML)
                     await update.message.reply_document(document=open(txt_path,'rb'), filename=os.path.basename(txt_path))
                 else:
                     await status.edit_text(f"✅ PDF to Text ({result.get('chars')} chars):\n\n<pre>{text[:3500]}</pre>", parse_mode=ParseMode.HTML)
 
     except Exception as e:
-        import logging
-        logging.exception(e)
+        logger.exception(e)
         await status.edit_text(f"❌ Conversion Error: {str(e)[:300]}", parse_mode=ParseMode.HTML)
 
+# ========== SOCIAL SECURITY CHECKER ==========
 async def igsecure_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not context.args:
-        await update.message.reply_text("❌ Use: <code>/igsecure @username</code> ya <code>/security @username</code>\nExample: <code>/igsecure @instagram</code>", parse_mode=ParseMode.HTML)
+    if not await check_force_join(update, context):
         return
+    if not context.args:
+        await update.message.reply_text(
+            "❌ <b>Use:</b> <code>/igsecure @username</code>\n\n"
+            "📌 Example: <code>/igsecure @instagram</code>",
+            parse_mode=ParseMode.HTML
+        )
+        return
+
     username = context.args[0]
     status = await update.message.reply_text(f"🔒 Security check for {username}...", parse_mode=ParseMode.HTML)
+
     try:
         result = social_security_check(username)
         if not result.get("ok"):
             await status.edit_text(f"❌ {result.get('error')}", parse_mode=ParseMode.HTML)
             return
+
         txt = security_report_text(result)
         await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
+
     except Exception as e:
-        import logging
-        logging.exception(e)
+        logger.exception(e)
         await status.edit_text(f"❌ Error: {str(e)}", parse_mode=ParseMode.HTML)
 
-def main():
+# ========== CALLBACKS ==========
+async def help_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    if query.data == "help_all":
+        await help_cmd(update, context)
+    elif query.data == "tools":
+        await start(update, context)
+    elif query.data == "check_joined":
+        await check_joined_callback(update, context)
 
-    # Telegram scraper needs API_ID etc, but other tools work without it
-    # So we don't hard fail if missing, just warn
+def main():
     missing = config.validate()
     if missing:
-        print(f"⚠️ Missing for Telegram scraper: {', '.join(missing)} - Telegram scraper commands fail karenge, baaki tools chalenge")
+        print(f"⚠️ Missing (Telegram scraper will fail, other tools work): {', '.join(missing)}")
+        print("For Telegram scraper: my.telegram.org se API_ID/HASH lo, generate_session.py chalao")
 
     if not config.BOT_TOKEN:
-        print("❌ BOT_TOKEN missing in .env")
+        print("❌ BOT_TOKEN missing")
         return
 
     app = Application.builder().token(config.BOT_TOKEN).build()
@@ -915,7 +1625,22 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_cmd))
 
-    # Tool 1: Telegram Scraper
+    # Force join callback
+    app.add_handler(CallbackQueryHandler(help_callback))
+
+    # Number Info (Tool 7) - Same as utility bot
+    app.add_handler(CommandHandler("numinfo", number_info_cmd))
+    app.add_handler(CommandHandler("number", number_info_cmd))
+    app.add_handler(CommandHandler("num", number_info_cmd))
+
+    # TG Tools (Tool 8)
+    app.add_handler(CommandHandler("tginfo", tg_number_cmd))
+    app.add_handler(CommandHandler("tgnum", tg_number_cmd))
+    app.add_handler(CommandHandler("telegram", tg_number_cmd))
+    app.add_handler(CommandHandler("paknum", pak_number_cmd))
+    app.add_handler(CommandHandler("pak", pak_number_cmd))
+
+    # Telegram Scraper (Tool 1)
     app.add_handler(CommandHandler("channel_info", channel_info_cmd))
     app.add_handler(CommandHandler("scrape", scrape_cmd))
     app.add_handler(CommandHandler("scrape_search", scrape_search_cmd))
@@ -923,34 +1648,19 @@ def main():
     app.add_handler(CommandHandler("stats", stats_cmd))
     app.add_handler(CommandHandler("batch", batch_cmd))
 
-    # Tool 2: Instagram
+    # Instagram (Tool 2)
     app.add_handler(CommandHandler("insta", insta_cmd))
     app.add_handler(CommandHandler("instagram", insta_cmd))
-    app.add_handler(CommandHandler("numinfo", number_info_cmd))
-    app.add_handler(CommandHandler("number", number_info_cmd))
-    app.add_handler(CommandHandler("num", number_info_cmd))
-    app.add_handler(CommandHandler("tginfo", tg_number_cmd))
-    app.add_handler(CommandHandler("tgnum", tg_number_cmd))
-    app.add_handler(CommandHandler("telegram", tg_number_cmd))
-    app.add_handler(CommandHandler("paknum", pak_number_cmd))
-    app.add_handler(CommandHandler("pak", pak_number_cmd))
-    app.add_handler(CommandHandler("excel2pdf", excel2pdf_cmd))
-    app.add_handler(CommandHandler("csv2excel", excel2pdf_cmd))
-    app.add_handler(CommandHandler("excel2csv", excel2pdf_cmd))
-    app.add_handler(CommandHandler("img2pdf", excel2pdf_cmd))
-    app.add_handler(CommandHandler("pdf2text", excel2pdf_cmd))
-    app.add_handler(CommandHandler("wextract", website_extract_cmd))
-    app.add_handler(CommandHandler("emailextract", website_extract_cmd))
-    app.add_handler(CommandHandler("linkextract", website_extract_cmd))
-    app.add_handler(CommandHandler("ocr", ocr_cmd))
+
+    # Security Checker (Tool 6)
     app.add_handler(CommandHandler("igsecure", igsecure_cmd))
     app.add_handler(CommandHandler("security", igsecure_cmd))
     app.add_handler(CommandHandler("sec", igsecure_cmd))
 
-    # Tool 3: Email
+    # Email (Tool 3)
     app.add_handler(CommandHandler("email", email_cmd))
 
-    # Tool 4: IP & Domain
+    # IP & Domain (Tool 4)
     app.add_handler(CommandHandler("ip", ip_cmd))
     app.add_handler(CommandHandler("domain", domain_cmd))
     app.add_handler(CommandHandler("dns", dns_cmd))
@@ -958,14 +1668,36 @@ def main():
     app.add_handler(CommandHandler("ssl", ssl_cmd))
     app.add_handler(CommandHandler("recon", domain_cmd))
 
-    # Tool 5: EXIF
-    app.add_handler(CommandHandler("exif", exif_cmd))
-    app.add_handler(MessageHandler(filters.PHOTO | filters.Document.IMAGE, handle_photo))
+    # File Converter (Tool 11)
+    app.add_handler(CommandHandler("excel2pdf", excel2pdf_cmd))
+    app.add_handler(CommandHandler("csv2excel", excel2pdf_cmd))
+    app.add_handler(CommandHandler("excel2csv", excel2pdf_cmd))
+    app.add_handler(CommandHandler("img2pdf", excel2pdf_cmd))
+    app.add_handler(CommandHandler("pdf2text", excel2pdf_cmd))
+
+    # Website Extractor (Tool 10)
+    app.add_handler(CommandHandler("wextract", website_extract_cmd))
+    app.add_handler(CommandHandler("emailextract", website_extract_cmd))
+    app.add_handler(CommandHandler("linkextract", website_extract_cmd))
+
+    # OCR (Tool 9)
+    app.add_handler(CommandHandler("ocr", excel2pdf_cmd))
+
+    # Document handlers - ORDER MATTERS: file converter first, then OCR, then EXIF
     app.add_handler(MessageHandler(filters.Document.ALL, handle_file_converter))
     app.add_handler(MessageHandler(filters.Document.IMAGE, handle_ocr_photo))
+    app.add_handler(MessageHandler(filters.PHOTO | filters.Document.IMAGE, handle_photo))
 
-    print("🚀 OSINT Hacker Hub Bot started with 5 tools...")
-    print(f"Repo: savecontentrestricted-pixel/osint")
+    print("="*60)
+    print("🚀 OSINT Hunter Hub - @osint_hunter_hub_bot - ADVANCED")
+    print("="*60)
+    print(f"👑 Owner: {config.ADMIN_ID} {config.OWNER_USERNAME}")
+    print(f"📢 Force Channel: {config.FORCE_CHANNEL} {config.FORCE_CHANNEL_LINK}")
+    print(f"🔧 Tools: 11 Advanced Tools Ready")
+    print(f"📦 Repo: savecontentrestricted-pixel/osint")
+    print("="*60)
+    print("Bot started - polling...")
+
     app.run_polling()
 
 if __name__ == "__main__":

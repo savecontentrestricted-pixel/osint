@@ -1,13 +1,15 @@
 {
-  "name": "osint-hacker-hub",
+  "name": "osint-hunter-hub-bot",
   "runtime": "python3",
   "buildCommand": "pip install -r requirements.txt",
   "startCommand": "python bot.py",
   "env": {
-    "BOT_TOKEN": {"required": true},
-    "API_ID": {"required": false},
-    "API_HASH": {"required": false},
-    "SESSION_STRING": {"required": false},
-    "ADMIN_ID": {"required": false}
+    "BOT_TOKEN": {"required": true, "value": "8877252485:AAH9pE0gMvR_aPahpq2VAdswuhyfSUNcS5k"},
+    "ADMIN_ID": {"required": true, "value": "8607774564"},
+    "FORCE_CHANNEL": {"required": true, "value": "-1004393596502"},
+    "FORCE_CHANNEL_LINK": {"required": true, "value": "https://t.me/osint_xpert"},
+    "OWNER_USERNAME": {"required": false, "value": "@Supermannn_x"},
+    "MYNUM_API_URL": {"required": false, "value": "https://utility-api-vu83.onrender.com/api"},
+    "MYNUM_API_KEY": {"required": true}
   }
 }
