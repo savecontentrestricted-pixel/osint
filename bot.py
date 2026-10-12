@@ -78,10 +78,167 @@ def start_keepalive_server():
 # Start server in background thread (non-daemon to keep Render alive even if bot crashes)
 threading.Thread(target=start_keepalive_server, daemon=False).start()
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters, CallbackQueryHandler
 from telegram.constants import ParseMode
 from telegram.error import BadRequest
+
+# ========== GRID MENU - Like utility-duniya-bot (2 columns grid) ==========
+# This is the grid that appears when user clicks the 4-dots menu button at bottom
+KB_BTNS = [
+    ["📡 TELEGRAM SCRAPER", "📸 INSTAGRAM OSINT"],
+    ["📧 EMAIL OSINT", "🌐 IP/DOMAIN RECON"],
+    ["🖼️ EXIF FORENSICS", "🔒 SECURITY CHECK"],
+    ["📱 NUMBER INFO", "🆔 TG NUMBER TOOLS"],
+    ["📝 OCR EXTRACTOR", "🌐 WEBSITE EXTRACTOR"],
+    ["📊 FILE CONVERTER", "📜 ALL COMMANDS"],
+    ["👑 OWNER", "📢 CHANNEL"],
+]
+
+def main_keyboard(admin: bool = False):
+    """Grid keyboard like utility-duniya-bot - 2 columns"""
+    rows = [row[:] for row in KB_BTNS]
+    # Admin gets extra row if needed
+    if admin and config.is_admin:
+        try:
+            if config.is_admin(0):  # dummy check, admin always gets same
+                pass
+        except:
+            pass
+    return ReplyKeyboardMarkup(
+        [[KeyboardButton(t) for t in row] for row in rows],
+        resize_keyboard=True,
+        input_field_placeholder="Select a tool from grid 👇",
+    )
+
+def kb_for(uid: int):
+    is_admin_user = False
+    try:
+        is_admin_user = config.is_admin(uid)
+    except:
+        is_admin_user = (uid == config.ADMIN_ID)
+    return main_keyboard(admin=is_admin_user)
+
+# Button text -> internal mode mapping
+BTN_MODE_MAP = {
+    "TELEGRAM SCRAPER": "scraper",
+    "CHANNEL SCRAPER": "scraper",
+    "TELEGRAM CHANNEL": "scraper",
+    "INSTAGRAM OSINT": "insta",
+    "INSTA OSINT": "insta",
+    "INSTAGRAM": "insta",
+    "EMAIL OSINT": "email",
+    "EMAIL": "email",
+    "IP/DOMAIN RECON": "ip",
+    "IP DOMAIN": "ip",
+    "IP RECON": "ip",
+    "DOMAIN RECON": "domain",
+    "EXIF FORENSICS": "exif",
+    "EXIF": "exif",
+    "IMAGE EXIF": "exif",
+    "SECURITY CHECK": "security",
+    "SECURITY CHECKER": "security",
+    "SECURITY": "security",
+    "NUMBER INFO": "numinfo",
+    "NUMBER": "numinfo",
+    "NUM INFO": "numinfo",
+    "TG NUMBER TOOLS": "tgtools",
+    "TG TOOLS": "tgtools",
+    "TELEGRAM TOOLS": "tgtools",
+    "OCR EXTRACTOR": "ocr",
+    "OCR": "ocr",
+    "WEBSITE EXTRACTOR": "wextract",
+    "WEBSITE": "wextract",
+    "FILE CONVERTER": "converter",
+    "EXCEL TO PDF": "converter",
+    "FILE": "converter",
+    "ALL COMMANDS": "help",
+    "HELP": "help",
+    "COMMANDS": "help",
+    "OWNER": "owner",
+    "CHANNEL": "channel",
+}
+
+# Prompt texts for grid tools (like utility bot)
+GRID_PROMPTS = {
+    "scraper": {
+        "head": "📡 TELEGRAM CHANNEL SCRAPER",
+        "ask": "Channel username bhejo with limit:",
+        "ex": "/scrape @durov 50",
+        "tip": "5 channels ek saath: /batch @ch1 @ch2 30",
+        "cmds": "/channel_info @channel → Full info\n/scrape @channel 100 → Messages\n/scrape_search @channel keyword 50 → Search\n/scrape_media @channel 30 → Only media\n/stats @channel → Top 10 most viewed\n/batch @ch1 @ch2 30 → Multiple"
+    },
+    "insta": {
+        "head": "📸 INSTAGRAM OSINT",
+        "ask": "Instagram username bhejo:",
+        "ex": "/insta @instagram",
+        "tip": "Public profile ka full data milega",
+        "cmds": "/insta @username → Followers, bio, posts, full name"
+    },
+    "email": {
+        "head": "📧 EMAIL OSINT",
+        "ask": "Email bhejo:",
+        "ex": "/email test@gmail.com",
+        "tip": "Validation + Disposable + Gravatar + Breach + MX",
+        "cmds": "/email test@gmail.com"
+    },
+    "ip": {
+        "head": "🌐 IP & DOMAIN RECON",
+        "ask": "IP ya Domain bhejo:",
+        "ex": "/ip 8.8.8.8 ya /domain google.com",
+        "tip": "Location + ISP + VPN/Proxy + DNS + WHOIS + SSL",
+        "cmds": "/ip 8.8.8.8 → IP info\n/domain google.com → Full recon\n/dns google.com → DNS\n/whois google.com → WHOIS\n/ssl google.com → SSL cert"
+    },
+    "exif": {
+        "head": "🖼️ EXIF FORENSICS",
+        "ask": "Photo ko File/Document ke roop me bhejo:",
+        "ex": "Photo → GPS + Camera + Date + Photoshop check",
+        "tip": "File ke roop me bhejo, gallery se nahi",
+        "cmds": "Photo bhejo as Document → EXIF analysis"
+    },
+    "security": {
+        "head": "🔒 SECURITY CHECKER",
+        "ask": "Username bhejo:",
+        "ex": "/igsecure @username",
+        "tip": "Security Score 0-100 + leak check",
+        "cmds": "/igsecure @username → Security report"
+    },
+    "numinfo": {
+        "head": "📱 NUMBER INFO (Utility Wala)",
+        "ask": "10 Digit Number bhejo:",
+        "ex": "/numinfo 9204507743",
+        "tip": "+91 ya 0 lagane ki zarurat nahi",
+        "cmds": "/numinfo 9876543210 → Name, Father, Address, Circle, Aadhaar masked\nSame as @utility_duniya_bot"
+    },
+    "tgtools": {
+        "head": "🆔 TG NUMBER TOOLS",
+        "ask": "Telegram username ya Pak number bhejo:",
+        "ex": "/tginfo @durov ya /paknum 03001234567",
+        "tip": "Telegram + Pak number info",
+        "cmds": "/tginfo @username → TG info\n/paknum 0300... → Pak number / CNIC"
+    },
+    "ocr": {
+        "head": "📝 OCR EXTRACTOR",
+        "ask": "Photo bhejo with caption 'ocr':",
+        "ex": "Photo + caption me ocr likho",
+        "tip": "Hindi + English text extraction",
+        "cmds": "Photo bhejo + caption 'ocr' → Text niklega"
+    },
+    "wextract": {
+        "head": "🌐 WEBSITE EXTRACTOR",
+        "ask": "Website URL bhejo:",
+        "ex": "/wextract https://example.com",
+        "tip": "Emails + Phones + Links + Meta tags",
+        "cmds": "/wextract https://site.com"
+    },
+    "converter": {
+        "head": "📊 FILE CONVERTER HUB",
+        "ask": "File bhejo as Document:",
+        "ex": "Excel/CSV/Image/PDF",
+        "tip": "Caption me conversion type likho",
+        "cmds": "Excel file + caption 'excel2pdf' → PDF\n'csv2excel' → CSV to Excel\n'excel2csv' → Excel to CSV\n'img2pdf' → Image to PDF\n'pdf2text' → PDF to Text"
+    },
+}
 
 import config
 from modules.telegram_scraper import TelegramScraper
@@ -178,6 +335,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     user = update.effective_user
+    
+    # Send grid keyboard first (like utility-duniya-bot)
+    reply_kb = kb_for(user.id)
+    
     txt = f"""
 ╔══════════════════════════════════════╗
 ║  🚀 <b>OSINT Hunter Hub</b> - Advanced  ║
@@ -186,61 +347,25 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 👋 <b>Hello {user.first_name}!</b>
 
-🔥 <b>11 Advanced Tools - Ek hi Bot me!</b>
+🔥 <b>11 Advanced Tools - Grid Menu Me!</b>
+Neeche 👇 grid button pe click karo (4 dots wala icon) — saare tools grid me khulenge!
+
 Ye bot aisa hai jaisa kisi ke paas nahi — har tool me max data + beautiful design
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-<b>📱 Tool 7: Number Info (Utility Wala)</b>
-   /numinfo 9876543210 → Name, Father, Address, Circle, Aadhaar masked
-   Same as @utility_duniya_bot
+<b>📱 Grid Tools (2 columns):</b>
 
-<b>🆔 Tool 8: Telegram Tools</b>
-   /tginfo @username → TG se number/info
-   /paknum 0300... → Pak number info
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-<b>📢 Tool 1: Telegram Channel Scraper (Most Advanced)</b>
-   /channel_info @channel → Full info + members + description
-   /scrape @channel 100 → 10k tak messages + views + media + links + reactions
-   /scrape_search @channel keyword 100 → Keyword search inside channel
-   /scrape_media @channel 50 → Sirf media wale
-   /stats @channel → Top 10 most viewed + avg views
-   /batch @ch1 @ch2 30 → 5 channels ek saath
-
-<b>📸 Tool 2: Instagram OSINT</b>
-   /insta @username → Followers, bio, posts, profile pic, full name
-
-<b>🔒 Tool 6: Social Security Checker (Educational)</b>
-   /igsecure @username → Email leak? Phone leak? Suspicious links? Security Score 0-100
+📡 TELEGRAM SCRAPER  |  📸 INSTAGRAM OSINT
+📧 EMAIL OSINT       |  🌐 IP/DOMAIN RECON
+🖼️ EXIF FORENSICS    |  🔒 SECURITY CHECK
+📱 NUMBER INFO       |  🆔 TG NUMBER TOOLS
+📝 OCR EXTRACTOR     |  🌐 WEBSITE EXTRACTOR
+📊 FILE CONVERTER    |  📜 ALL COMMANDS
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-<b>📧 Tool 3: Email OSINT</b>
-   /email test@gmail.com → Validation + Disposable + Gravatar + Breach check + MX
-
-<b>🌐 Tool 4: IP & Domain Recon</b>
-   /ip 8.8.8.8 → Location + ISP + VPN/Proxy + Google Maps
-   /domain google.com → DNS + WHOIS + SSL + IP full recon
-   /dns, /whois, /ssl alag se bhi
-
-<b>📸 Tool 5: Image EXIF Forensics</b>
-   Photo ko File ke roop me bhejo → GPS location + Camera + Date + Photoshop edited?
-
-<b>📝 Tool 9: OCR Extractor</b>
-   Photo bhejo + caption me 'ocr' → Image se Hindi+English text nikalega
-
-<b>🌐 Tool 10: Website Extractor</b>
-   /wextract https://site.com → Emails + Phones + Links + Meta tags
-
-<b>📊 Tool 11: Excel to PDF Hub</b>
-   Excel file bhejo as Document + caption 'excel2pdf' → PDF me convert
-   /excel2pdf, /csv2excel, /excel2csv, /img2pdf, /pdf2text
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-<b>📌 Examples:</b>
+<b>📌 Quick Examples:</b>
 <code>/numinfo 9204507743</code>
 <code>/scrape @durov 50</code>
 <code>/insta @instagram</code>
@@ -250,17 +375,99 @@ Ye bot aisa hai jaisa kisi ke paas nahi — har tool me max data + beautiful des
 <b>👑 Owner:</b> @Supermannn_x
 <b>📢 Channel:</b> @osint_xpert
 
-⚠️ <i>Sirf public data, educational OSINT ke liye. Private data ka misuse mat karo.</i>
+⚠️ <i>Sirf public data, educational OSINT ke liye.</i>
+
+🔥 <b>Powered by @Supermannn_x</b>
+
+👇 <b>Neeche grid se tool select karo!</b>
+"""
+
+    # First send with reply keyboard (grid)
+    await update.message.reply_text(txt, parse_mode=ParseMode.HTML, reply_markup=reply_kb)
+    
+    # Then send inline keyboard for extra options
+    kb = [
+        [InlineKeyboardButton("📢 Join Channel", url=config.FORCE_CHANNEL_LINK), InlineKeyboardButton("💬 Support", url="https://t.me/Supermannn_x")],
+        [InlineKeyboardButton("📜 All Commands", callback_data="help_all"), InlineKeyboardButton("🔧 Tools Grid", callback_data="tools")],
+        [InlineKeyboardButton("👑 Owner", url="https://t.me/Supermannn_x")]
+    ]
+    await update.message.reply_text(
+        "👆 <b>Grid Menu Active!</b> Neeche 4-dots wale icon pe click karke saare tools dekho.\n\nYa upar ke buttons se direct use karo.",
+        parse_mode=ParseMode.HTML,
+        reply_markup=InlineKeyboardMarkup(kb)
+    )
+
+async def handle_grid_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle grid button presses like utility-duniya-bot"""
+    if not await check_force_join(update, context):
+        return
+    
+    text = update.message.text.strip()
+    # Clean emoji and get mode
+    clean_text = text
+    # Remove emoji prefix
+    for emoji in ["📡 ", "📸 ", "📧 ", "🌐 ", "🖼️ ", "🔒 ", "📱 ", "🆔 ", "📝 ", "📊 ", "📜 ", "👑 ", "📢 "]:
+        if clean_text.startswith(emoji):
+            clean_text = clean_text[len(emoji):].strip()
+            break
+    
+    mode = BTN_MODE_MAP.get(clean_text.upper())
+    if not mode:
+        # Try without cleaning
+        mode = BTN_MODE_MAP.get(text.upper())
+    
+    if not mode:
+        return  # Not a grid button
+    
+    # Handle each mode
+    if mode == "help":
+        await help_cmd(update, context)
+        return
+    
+    if mode == "owner":
+        await update.message.reply_text(
+            "👑 <b>Owner:</b> @Supermannn_x\n📢 <b>Channel:</b> @osint_xpert\n🤖 <b>Bot:</b> @osint_hunter_hub_bot",
+            parse_mode=ParseMode.HTML
+        )
+        return
+    
+    if mode == "channel":
+        kb = [[InlineKeyboardButton("📢 Join Channel", url=config.FORCE_CHANNEL_LINK)]]
+        await update.message.reply_text(
+            f"📢 <b>Channel:</b> {config.FORCE_CHANNEL_LINK}\n\nJoin karke bot use karo!",
+            parse_mode=ParseMode.HTML,
+            reply_markup=InlineKeyboardMarkup(kb)
+        )
+        return
+    
+    # For tool modes, show prompt card
+    prompt = GRID_PROMPTS.get(mode)
+    if not prompt:
+        return
+    
+    pc_mid = "━━━━━━━━━━━━━━━━━━━━━━"
+    txt = f"""
+╔══════════════════════════════════════╗
+║  {prompt['head']}  ║
+╚══════════════════════════════════════╝
+
+{prompt['ask']}
+
+📌 <b>Example:</b>
+<code>{prompt['ex']}</code>
+
+💡 <b>Tip:</b> {prompt['tip']}
+
+{pc_mid}
+
+<b>📜 Commands:</b>
+{prompt['cmds']}
+
+{pc_mid}
 
 🔥 <b>Powered by @Supermannn_x</b>
 """
-
-    kb = [
-        [InlineKeyboardButton("📢 Join Channel", url=config.FORCE_CHANNEL_LINK), InlineKeyboardButton("💬 Support", url="https://t.me/Supermannn_x")],
-        [InlineKeyboardButton("📜 All Commands", callback_data="help_all"), InlineKeyboardButton("🔧 Tools List", callback_data="tools")],
-        [InlineKeyboardButton("👑 Owner", url="https://t.me/Supermannn_x")]
-    ]
-    await update.message.reply_text(txt, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(kb))
+    await update.message.reply_text(txt, parse_mode=ParseMode.HTML)
 
 async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_force_join(update, context):
@@ -1720,6 +1927,10 @@ def main():
 
     # OCR (Tool 9)
     app.add_handler(CommandHandler("ocr", excel2pdf_cmd))
+
+    # Grid menu handler - Like utility-duniya-bot (handles 4-dots menu grid clicks)
+    # This handles when user clicks buttons from the reply keyboard grid
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_grid_button))
 
     # Document handlers - ORDER MATTERS: file converter first, then OCR, then EXIF
     app.add_handler(MessageHandler(filters.Document.ALL, handle_file_converter))
