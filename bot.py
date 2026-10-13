@@ -483,17 +483,36 @@ async def handle_grid_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
             return
         
         text = update.message.text.strip()
-        # Clean emoji and get mode
+        # Clean emoji and get mode - robust for all emojis including 📚
         clean_text = text
-        # Remove emoji prefix
-        for emoji in ["📡 ", "📸 ", "📧 ", "🌐 ", "🖼️ ", "🔒 ", "📱 ", "🆔 ", "📝 ", "📊 ", "📜 ", "👑 ", "📢 "]:
+        # Remove emoji prefix - list includes all grid emojis
+        for emoji in ["📡 ", "📸 ", "📧 ", "🌐 ", "🖼️ ", "🔒 ", "📱 ", "🆔 ", "📝 ", "📊 ", "📜 ", "👑 ", "📢 ", "📚 ", "🔧 "]:
             if clean_text.startswith(emoji):
                 clean_text = clean_text[len(emoji):].strip()
                 break
+        # Fallback: strip any leading non-alphanumeric (emoji) characters
+        if clean_text == text:
+            # Try to remove first char if it's emoji/non-ascii
+            import re
+            # Remove leading emoji/non-letter chars
+            m = re.match(r'^[^A-Za-z0-9]+(.*)', text)
+            if m:
+                possible = m.group(1).strip()
+                if possible:
+                    clean_text = possible
         
         mode = BTN_MODE_MAP.get(clean_text.upper())
         if not mode:
             mode = BTN_MODE_MAP.get(text.upper())
+        # Also try without (Private) suffix
+        if not mode:
+            # Remove (Private) etc
+            import re
+            no_bracket = re.sub(r'\s*\(.*?\)\s*', '', clean_text).strip()
+            mode = BTN_MODE_MAP.get(no_bracket.upper())
+        if not mode:
+            no_bracket2 = re.sub(r'\s*\(.*?\)\s*', '', text).strip()
+            mode = BTN_MODE_MAP.get(no_bracket2.upper())
         
         # If it's a grid button, show prompt and set mode
         if mode:
