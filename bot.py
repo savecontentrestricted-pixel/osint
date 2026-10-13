@@ -465,7 +465,7 @@ Ye bot aisa hai jaisa kisi ke paas nahi — har tool me max data + beautiful des
             print(f"Fallback also failed: {e2}")
 
 async def handle_grid_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle grid button presses like utility-duniya-bot"""
+    """Handle grid button presses like utility-duniya-bot + auto-process inputs"""
     try:
         if not await check_force_join(update, context):
             return
@@ -481,48 +481,50 @@ async def handle_grid_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
         
         mode = BTN_MODE_MAP.get(clean_text.upper())
         if not mode:
-            # Try without cleaning
             mode = BTN_MODE_MAP.get(text.upper())
         
-        if not mode:
-            return  # Not a grid button
-        
-        # Handle each mode
-        if mode == "help":
-            await help_cmd(update, context)
-            return
-        
-        if mode == "owner":
-            await update.message.reply_text(
-                "👑 <b>Owner:</b> @Supermannn_x\n📢 <b>Channel:</b> @osint_xpert\n🤖 <b>Bot:</b> @osint_hunter_hub_bot",
-                parse_mode=ParseMode.HTML
-            )
-            return
-        
-        if mode == "channel":
-            kb = [[InlineKeyboardButton("📢 Join Channel", url=config.FORCE_CHANNEL_LINK)]]
-            await update.message.reply_text(
-                f"📢 <b>Channel:</b> {config.FORCE_CHANNEL_LINK}\n\nJoin karke bot use karo!",
-                parse_mode=ParseMode.HTML,
-                reply_markup=InlineKeyboardMarkup(kb)
-            )
-            return
-        
-        # For tool modes, show prompt card - CLEAN LIKE IMAGE (only ask + example, no commands)
-        prompt = GRID_PROMPTS.get(mode)
-        if not prompt:
-            return
-        
-        pc_mid = "━━━━━━━━━━━━━━━━━━━━━━"
-        head = prompt['head']
-        # Split icon and rest like utility bot
-        if " " in head:
-            icon, rest = head.split(" ", 1)
-            header_line = f"{icon} <b>{rest}</b>"
-        else:
-            header_line = f"<b>{head}</b>"
-        
-        txt = f"""
+        # If it's a grid button, show prompt and set mode
+        if mode:
+            # Handle special modes
+            if mode == "help":
+                await help_cmd(update, context)
+                return
+            
+            if mode == "owner":
+                await update.message.reply_text(
+                    "👑 <b>Owner:</b> @Supermannn_x\n📢 <b>Channel:</b> @osint_xpert\n🤖 <b>Bot:</b> @osint_hunter_hub_bot",
+                    parse_mode=ParseMode.HTML
+                )
+                return
+            
+            if mode == "channel":
+                kb = [[InlineKeyboardButton("📢 Join Channel", url=config.FORCE_CHANNEL_LINK)]]
+                await update.message.reply_text(
+                    f"📢 <b>Channel:</b> {config.FORCE_CHANNEL_LINK}\n\nJoin karke bot use karo!",
+                    parse_mode=ParseMode.HTML,
+                    reply_markup=InlineKeyboardMarkup(kb)
+                )
+                return
+            
+            # For tool modes, show prompt card - CLEAN LIKE IMAGE
+            prompt = GRID_PROMPTS.get(mode)
+            if not prompt:
+                return
+            
+            try:
+                context.user_data["mode"] = mode
+            except:
+                pass
+            
+            pc_mid = "━━━━━━━━━━━━━━━━━━━━━━"
+            head = prompt['head']
+            if " " in head:
+                icon, rest = head.split(" ", 1)
+                header_line = f"{icon} <b>{rest}</b>"
+            else:
+                header_line = f"<b>{head}</b>"
+            
+            txt = f"""
 {header_line}
 {pc_mid}
 
@@ -530,10 +532,105 @@ async def handle_grid_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
      <code>{prompt['ex']}</code>
 """
-        await update.message.reply_text(txt, parse_mode=ParseMode.HTML)
+            await update.message.reply_text(txt, parse_mode=ParseMode.HTML)
+            return
+        
+        # If not a grid button, check if user has a mode set (from previous grid click)
+        # Then treat this text as input for that mode - AUTO DETECT like utility bot
+        current_mode = None
+        try:
+            current_mode = context.user_data.get("mode")
+        except:
+            pass
+        
+        # Auto-detect mode from input if no mode set (like utility bot does)
+        if not current_mode:
+            import re
+            raw = text
+            d = re.sub(r"\D", "", raw)
+            # Auto detect
+            if len(d) == 10 and d[0] in "6789":
+                current_mode = "numinfo"
+            elif "@" in raw and "." in raw and " " not in raw:
+                # email
+                if re.match(r"^[^@]+@[^@]+\.[^@]+$", raw):
+                    current_mode = "email"
+            elif raw.startswith("@") or raw.replace("@","").replace("_","").isalnum() and len(raw) >= 4 and len(raw) <= 32 and " " not in raw:
+                # Could be telegram username or insta, but if mode was tgtools or insta, use that
+                # For now, if it starts with @, treat as tgtools
+                if raw.startswith("@"):
+                    current_mode = "tgtools"
+            elif "." in raw and ("http" in raw or "/" not in raw):
+                # domain or website
+                if raw.startswith("http"):
+                    current_mode = "wextract"
+                elif "." in raw and " " not in raw and len(raw) > 3:
+                    current_mode = "ip"
+        
+        if not current_mode:
+            # No mode and can't auto-detect, ignore (or show menu)
+            return
+        
+        # Process input based on mode - call appropriate lookup
+        # Clear mode after processing? Keep it for multiple lookups, but we can clear after one
+        # For now, keep mode so user can send multiple numbers without re-clicking
+        
+        print(f"Processing input '{text}' as mode {current_mode}")
+        
+        # Route to appropriate handler based on mode
+        if current_mode == "numinfo":
+            # Simulate /numinfo command
+            context.args = [text]
+            await number_info_cmd(update, context)
+        elif current_mode == "tgtools":
+            context.args = [text]
+            await tg_number_cmd(update, context)
+        elif current_mode == "email":
+            context.args = [text]
+            await email_cmd(update, context)
+        elif current_mode == "ip" or current_mode == "domain":
+            # Check if IP or domain
+            if "." in text and text.replace(".","").replace(":","").replace("/","").isdigit() or text.count(".")==3:
+                context.args = [text]
+                await ip_cmd(update, context)
+            else:
+                context.args = [text]
+                await domain_cmd(update, context)
+        elif current_mode == "insta":
+            context.args = [text]
+            await insta_cmd(update, context)
+        elif current_mode == "security":
+            context.args = [text]
+            await igsecure_cmd(update, context)
+        elif current_mode == "wextract":
+            context.args = [text]
+            await website_extract_cmd(update, context)
+        elif current_mode == "scraper":
+            # For scraper, need channel + limit
+            parts = text.split()
+            if len(parts) >= 1:
+                context.args = parts
+                await scrape_cmd(update, context)
+            else:
+                await update.message.reply_text("Channel bhejo: @username", parse_mode=ParseMode.HTML)
+        elif current_mode == "converter" or current_mode == "ocr" or current_mode == "exif":
+            await update.message.reply_text(
+                f"📎 <b>{current_mode.upper()}</b> ke liye file bhejo as Document.\n\n"
+                f"Prompt: {GRID_PROMPTS.get(current_mode, {}).get('ask','')}\n"
+                f"Example: {GRID_PROMPTS.get(current_mode, {}).get('ex','')}",
+                parse_mode=ParseMode.HTML
+            )
+        else:
+            # Generic
+            await update.message.reply_text(f"Processing {current_mode}: {text}", parse_mode=ParseMode.HTML)
+            
     except Exception as e:
         print(f"Grid handler error: {e}")
         traceback.print_exc()
+        try:
+            await update.message.reply_text(f"❌ Error: {str(e)[:200]}", parse_mode=ParseMode.HTML)
+        except:
+            pass
 
 async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_force_join(update, context):
