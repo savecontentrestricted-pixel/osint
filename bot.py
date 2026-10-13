@@ -128,20 +128,27 @@ from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandl
 from telegram.constants import ParseMode
 from telegram.error import BadRequest
 
-# ========== GRID MENU - 7 TOOLS (5 + 2 new pro hacking) ==========
-# Kept: NUMBER INFO, TG INFO, IP/DOMAIN, WEBSITE EXTRACTOR, PDF RENAMER + NEW: JS SECRETS, GITHUB LEAKS
+# ========== GRID MENU - 8 TOOLS (7 + TeraBox) ==========
 KB_BTNS = [
     ["📱 NUMBER INFO", "🆔 TELEGRAM NUMBER"],
     ["🌐 IP/DOMAIN RECON", "🌐 WEBSITE EXTRACTOR"],
     ["💎 JS SECRET FINDER", "🐙 GITHUB LEAK HUNTER"],
+    ["☁️ TERABOX EXTRACTOR", "📚 PDF RENAMER (Private)"],
 ]
 
 def main_keyboard(admin: bool = False):
-    """Grid keyboard - 7 tools clean, no commands"""
+    """Grid keyboard - 8 tools clean, no commands - PDF Renamer still owner only but in grid for all? Keep owner check in handler"""
     rows = [row[:] for row in KB_BTNS]
-    # PDF Renamer is private but user wants to keep it - show only for admin/owner
-    if admin:
-        rows.append(["📚 PDF RENAMER (Private)"])
+    # If not admin, hide PDF Renamer row? Actually keep it but handler will block
+    # For clean: if not admin, remove PDF Renamer from last row
+    if not admin:
+        # Remove PDF Renamer from grid for non-admin, keep only TeraBox
+        new_rows = []
+        for row in rows:
+            new_row = [b for b in row if "PDF RENAMER" not in b]
+            if new_row:
+                new_rows.append(new_row)
+        rows = new_rows
     try:
         return ReplyKeyboardMarkup(
             [[KeyboardButton(t) for t in row] for row in rows],
@@ -162,7 +169,7 @@ def kb_for(uid: int):
         is_admin_user = (uid == config.ADMIN_ID)
     return main_keyboard(admin=is_admin_user)
 
-# Button text -> internal mode mapping - 7 TOOLS
+# Button text -> internal mode mapping - 8 TOOLS
 BTN_MODE_MAP = {
     "IP/DOMAIN RECON": "ip",
     "IP DOMAIN": "ip",
@@ -198,9 +205,13 @@ BTN_MODE_MAP = {
     "GITHUB LEAK": "ghleak",
     "GITHUB": "ghleak",
     "LEAK HUNTER": "ghleak",
+    "TERABOX EXTRACTOR": "terabox",
+    "TERABOX": "terabox",
+    "TERABOX STREAM": "terabox",
+    "TERABOX FILE": "terabox",
 }
 
-# Prompt texts for grid tools - 7 TOOLS CLEAN, NO COMMANDS
+# Prompt texts for grid tools - 8 TOOLS CLEAN, NO COMMANDS
 GRID_PROMPTS = {
     "ip": {
         "head": "🌐 IP/DOMAIN RECON",
@@ -237,6 +248,11 @@ GRID_PROMPTS = {
         "ask": "Keyword bhejein (domain/email):",
         "ex": "example.com",
     },
+    "terabox": {
+        "head": "☁️ TERABOX EXTRACTOR - PRO",
+        "ask": "TeraBox URL bhejein:",
+        "ex": "https://1024terabox.com/s/1AbCd...",
+    },
 }
 
 import config
@@ -247,6 +263,7 @@ from modules.website_extractor import website_extractor
 from modules.pdf_renamer import rename_pdf_filename, batch_rename, HACKER_NAME, OWNER_ID as PDF_OWNER_ID
 from modules.js_secret_finder import js_secret_finder, format_js_report
 from modules.github_leak_hunter import github_leak_hunter, format_github_report
+from modules.terabox_extractor import extract_terabox, format_terabox_report
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -565,21 +582,22 @@ async def handle_grid_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
             raw = text
             d = re.sub(r"\D", "", raw)
             # Auto detect
-            if len(d) == 10 and d[0] in "6789":
+            if "terabox.com" in raw or "1024terabox.com" in raw or "terabox" in raw.lower():
+                current_mode = "terabox"
+            elif len(d) == 10 and d[0] in "6789":
                 current_mode = "numinfo"
-            elif "@" in raw and "." in raw and " " not in raw:
-                # email
-                if re.match(r"^[^@]+@[^@]+\.[^@]+$", raw):
-                    current_mode = "email"
             elif raw.startswith("@") or raw.replace("@","").replace("_","").isalnum() and len(raw) >= 4 and len(raw) <= 32 and " " not in raw:
-                # Could be telegram username or insta, but if mode was tgtools or insta, use that
-                # For now, if it starts with @, treat as tgtools
+                # Could be telegram username
                 if raw.startswith("@"):
                     current_mode = "tgtools"
             elif "." in raw and ("http" in raw or "/" not in raw):
                 # domain or website
                 if raw.startswith("http"):
-                    current_mode = "wextract"
+                    # Check if it's terabox url already handled above, else wextract
+                    if "terabox" in raw.lower():
+                        current_mode = "terabox"
+                    else:
+                        current_mode = "wextract"
                 elif "." in raw and " " not in raw and len(raw) > 3:
                     current_mode = "ip"
         
@@ -618,6 +636,9 @@ async def handle_grid_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
         elif current_mode == "ghleak":
             context.args = [text]
             await github_leak_cmd(update, context)
+        elif current_mode == "terabox":
+            context.args = [text]
+            await terabox_cmd(update, context)
         elif current_mode == "pdf_rename":
             await update.message.reply_text(
                 f"📚 <b>PDF RENAMER Mode ON</b>\n\n"
@@ -1538,6 +1559,36 @@ async def github_leak_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.exception(e)
         await status.edit_text(f"❌ Error: {str(e)[:300]}", parse_mode=ParseMode.HTML)
 
+# ========== TERABOX EXTRACTOR - PRO ==========
+async def terabox_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_force_join(update, context):
+        return
+    if not context.args:
+        await update.message.reply_text(
+            "❌ <b>Use:</b> <code>/terabox https://1024terabox.com/s/xxxxx</code>\n\n"
+            "📌 Example: <code>/terabox https://1024terabox.com/s/1AbCdEfGh</code>\n"
+            "TeraBox se direct download + stream link",
+            parse_mode=ParseMode.HTML
+        )
+        return
+
+    url = context.args[0]
+    status = await update.message.reply_text(
+        f"☁️ <b>TeraBox Extracting...</b>\n\n"
+        f"🌐 URL: <code>{url[:80]}</code>\n"
+        f"⏳ 4 APIs combination se try kar raha hu (2 LIVE)...\n"
+        f"Note: Upstream Render service 50s me wake up hota hai, thoda wait karo",
+        parse_mode=ParseMode.HTML
+    )
+
+    try:
+        result = extract_terabox(url)
+        txt = format_terabox_report(result)
+        await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML, disable_web_page_preview=True)
+    except Exception as e:
+        logger.exception(e)
+        await status.edit_text(f"❌ Error: {str(e)[:500]}", parse_mode=ParseMode.HTML)
+
 # ========== CALLBACKS ==========
 async def help_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -1552,7 +1603,7 @@ async def help_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def main_async():
     global app, loop
     loop = asyncio.get_running_loop()
-    print("Building 7 TOOLS app - 5 old + 2 new pro...")
+    print("Building 8 TOOLS app - 5 old + 2 pro + TeraBox...")
     
     app = Application.builder().token(BOT_TOKEN).build()
 
@@ -1592,13 +1643,18 @@ async def main_async():
     app.add_handler(CommandHandler("hacker", pdf_rename_cmd))
     app.add_handler(CommandHandler("hackerpdf", pdf_rename_cmd))
 
-    # NEW PRO TOOLS - JS Secret Finder + GitHub Leak Hunter
+    # PRO TOOLS - JS Secret Finder + GitHub Leak Hunter
     app.add_handler(CommandHandler("jsfind", js_secret_cmd))
     app.add_handler(CommandHandler("jssecret", js_secret_cmd))
     app.add_handler(CommandHandler("secrets", js_secret_cmd))
     app.add_handler(CommandHandler("ghleak", github_leak_cmd))
     app.add_handler(CommandHandler("github", github_leak_cmd))
     app.add_handler(CommandHandler("leak", github_leak_cmd))
+
+    # TeraBox Extractor - NEW
+    app.add_handler(CommandHandler("terabox", terabox_cmd))
+    app.add_handler(CommandHandler("tb", terabox_cmd))
+    app.add_handler(CommandHandler("teraboxdl", terabox_cmd))
 
     # Grid handler - must be before document handlers
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_grid_button))
