@@ -10,13 +10,15 @@ services:
     autoDeploy: true
     envVars:
       - key: BOT_TOKEN
-        value: 8877252485:AAH9pE0gMvR_aPahpq2VAdswuhyfSUNcS5k
+        sync: false
       - key: ADMIN_ID
         value: 8607774564
       - key: FORCE_CHANNEL
         value: -1004393596502
       - key: FORCE_CHANNEL_LINK
         value: https://t.me/osint_xpert
+      - key: FORCE_CHANNEL_USERNAME
+        value: osint_xpert
       - key: OWNER_USERNAME
         value: "@Supermannn_x"
       - key: BRAND_TAG
@@ -31,3 +33,5 @@ services:
         sync: false
       - key: SESSION_STRING
         sync: false
+      - key: PORT
+        value: 10000

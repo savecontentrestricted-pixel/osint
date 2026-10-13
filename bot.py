@@ -345,68 +345,105 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             print(f"kb_for failed: {e}")
             reply_kb = None
         
-        pc_mid = "━━━━━━━━━━━━━━━━━━━━━━"
+        # Format current time like screenshot: 14 October 2026 01:47 AM
+        now = datetime.now()
+        current_time_str = now.strftime("%d %B %Y\n%I:%M %p")
+        
+        # User details like screenshot
+        username = f"@{user.username}" if user.username else "N/A"
+        user_id = user.id
+        # Stylized name - use first_name with same style as screenshot? Use actual name
+        display_name = user.first_name or "User"
+        # For owner, show ** V ᴇ ɴ ᴏ ᴍ ** style if it's owner? Use actual name but keep format
+        # Screenshot shows ** V ᴇ ɴ ᴏ ᴍ ** - that's stylized VENOM
+        # We'll use user's first name, but if owner, use VENOM style
+        if user_id == 8607774564:
+            name_display = "** V ᴇ ɴ ᴏ ᴍ **"
+        else:
+            name_display = f"** {display_name} **"
+        
         txt = f"""
-🚀 <b>OSINT Hunter Hub - 7 PRO TOOLS</b>
-{pc_mid}
+👋 Welcome {name_display}, apka swagat hai is bot mein! 😊
 
-👋 <b>Hello {user.first_name}!</b>
+👤 User Details:
+   ├ Username: {username}
+   ├ User ID: {user_id}
+   └ Name: {name_display}
 
-🔥 <b>7 Powerful Tools - Clean Grid, No Commands!</b>
-Neeche 👇 grid button pe click karo
+🕐 Current Time:
+   {current_time_str}
 
-{pc_mid}
+💡 Neeche menu se tool chuno, ya /help bhejo.
 
-<b>📱 Grid Tools (Pro - Clean):</b>
-
-📱 NUMBER INFO       |  🆔 TG NUMBER
-🌐 IP/DOMAIN RECON  |  🌐 WEBSITE EXTRACTOR
-💎 JS SECRET FINDER |  🐙 GITHUB LEAKS
-📚 PDF RENAMER (Private - Owner Only)
-
-{pc_mid}
-
-<b>📌 How to Use:</b>
-Grid se tool select karo, phir data bhejo
-Example: 7857843092, @username, example.com
-
-{pc_mid}
-
-<b>👑 Owner:</b> @Supermannn_x
-<b>📢 Channel:</b> @osint_xpert
-
-⚠️ <i>Sirf public data, educational OSINT ke liye.</i>
-
-🔥 <b>Powered by @Supermannn_x</b>
-
-👇 <b>Neeche grid se tool select karo!</b>
+📢 Update ke liye join karo: @osint_xpert
 """
 
-        # First send with reply keyboard (grid) - with fallback
-        try:
-            if reply_kb:
-                await update.message.reply_text(txt, parse_mode=ParseMode.HTML, reply_markup=reply_kb)
-            else:
-                await update.message.reply_text(txt, parse_mode=ParseMode.HTML)
-        except Exception as e:
-            print(f"First reply failed: {e}, trying without markup")
-            await update.message.reply_text(txt, parse_mode=ParseMode.HTML)
+        # Try to send photo banner + caption + grid
+        banner_path = os.path.join(os.path.dirname(__file__), "welcome_banner.jpg")
+        # Also check alternative path
+        if not os.path.exists(banner_path):
+            banner_path = "welcome_banner.jpg"
         
-        # Then send inline keyboard for extra options
         try:
-            kb = [
-                [InlineKeyboardButton("📢 Join Channel", url=config.FORCE_CHANNEL_LINK), InlineKeyboardButton("💬 Support", url="https://t.me/Supermannn_x")],
-                [InlineKeyboardButton("📜 All Commands", callback_data="help_all"), InlineKeyboardButton("🔧 Tools Grid", callback_data="tools")],
-                [InlineKeyboardButton("👑 Owner", url="https://t.me/Supermannn_x")]
-            ]
-            await update.message.reply_text(
-                "👆 <b>Grid Menu Active!</b> Neeche 4-dots wale icon pe click karke saare tools dekho.\n\nYa upar ke buttons se direct use karo.",
-                parse_mode=ParseMode.HTML,
-                reply_markup=InlineKeyboardMarkup(kb)
-            )
+            if os.path.exists(banner_path):
+                # Send photo with caption and grid keyboard
+                with open(banner_path, 'rb') as photo:
+                    if reply_kb:
+                        await update.message.reply_photo(
+                            photo=photo,
+                            caption=txt,
+                            parse_mode=ParseMode.HTML,
+                            reply_markup=reply_kb
+                        )
+                    else:
+                        await update.message.reply_photo(
+                            photo=photo,
+                            caption=txt,
+                            parse_mode=ParseMode.HTML
+                        )
+                # Send inline buttons for channel
+                try:
+                    kb = [
+                        [InlineKeyboardButton("📢 Official Channel", url=config.FORCE_CHANNEL_LINK)],
+                        [InlineKeyboardButton("✅ Verify", callback_data="check_joined")]
+                    ]
+                    await update.message.reply_text(
+                        "👇 <b>Neeche menu se tool chuno</b>",
+                        parse_mode=ParseMode.HTML,
+                        reply_markup=InlineKeyboardMarkup(kb)
+                    )
+                except:
+                    pass
+            else:
+                # Fallback without photo
+                if reply_kb:
+                    await update.message.reply_text(txt, parse_mode=ParseMode.HTML, reply_markup=reply_kb)
+                else:
+                    await update.message.reply_text(txt, parse_mode=ParseMode.HTML)
+                
+                # Inline buttons
+                try:
+                    kb = [
+                        [InlineKeyboardButton("📢 Official Channel", url=config.FORCE_CHANNEL_LINK)],
+                        [InlineKeyboardButton("✅ Verify", callback_data="check_joined")]
+                    ]
+                    await update.message.reply_text(
+                        "👇 <b>Neeche menu se tool chuno</b>",
+                        parse_mode=ParseMode.HTML,
+                        reply_markup=InlineKeyboardMarkup(kb)
+                    )
+                except:
+                    pass
         except Exception as e:
-            print(f"Second reply failed: {e}")
-            # Even if inline fails, first message already sent, so ok
+            print(f"Photo send failed: {e}, trying text only")
+            try:
+                if reply_kb:
+                    await update.message.reply_text(txt, parse_mode=ParseMode.HTML, reply_markup=reply_kb)
+                else:
+                    await update.message.reply_text(txt, parse_mode=ParseMode.HTML)
+            except Exception as e2:
+                print(f"Text fallback also failed: {e2}")
+                await update.message.reply_text(txt[:4000])
     
     except Exception as e:
         print(f"START CRASHED: {e}")
