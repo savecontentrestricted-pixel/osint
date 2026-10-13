@@ -128,20 +128,20 @@ from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandl
 from telegram.constants import ParseMode
 from telegram.error import BadRequest
 
-# ========== GRID MENU - SLIM 5 TOOLS ONLY (User requested delete rest) ==========
-# Kept: NUMBER INFO, TG INFO, IP/DOMAIN, WEBSITE EXTRACTOR, PDF RENAMER (Private Owner)
+# ========== GRID MENU - 7 TOOLS (5 + 2 new pro hacking) ==========
+# Kept: NUMBER INFO, TG INFO, IP/DOMAIN, WEBSITE EXTRACTOR, PDF RENAMER + NEW: JS SECRETS, GITHUB LEAKS
 KB_BTNS = [
     ["📱 NUMBER INFO", "🆔 TELEGRAM NUMBER"],
     ["🌐 IP/DOMAIN RECON", "🌐 WEBSITE EXTRACTOR"],
+    ["💎 JS SECRET FINDER", "🐙 GITHUB LEAK HUNTER"],
 ]
 
 def main_keyboard(admin: bool = False):
-    """Grid keyboard - 5 tools only as per user request"""
+    """Grid keyboard - 7 tools clean, no commands"""
     rows = [row[:] for row in KB_BTNS]
     # PDF Renamer is private but user wants to keep it - show only for admin/owner
     if admin:
         rows.append(["📚 PDF RENAMER (Private)"])
-    # For non-admin, show 4 tools only
     try:
         return ReplyKeyboardMarkup(
             [[KeyboardButton(t) for t in row] for row in rows],
@@ -162,7 +162,7 @@ def kb_for(uid: int):
         is_admin_user = (uid == config.ADMIN_ID)
     return main_keyboard(admin=is_admin_user)
 
-# Button text -> internal mode mapping - SLIM 5 TOOLS ONLY
+# Button text -> internal mode mapping - 7 TOOLS
 BTN_MODE_MAP = {
     "IP/DOMAIN RECON": "ip",
     "IP DOMAIN": "ip",
@@ -188,9 +188,19 @@ BTN_MODE_MAP = {
     "PDF RENAMER (PRIVATE) ": "pdf_rename",
     "HACKER PDF": "pdf_rename",
     "HACKER": "pdf_rename",
+    "JS SECRET FINDER": "jsfinder",
+    "JS SECRETS": "jsfinder",
+    "JS SECRET": "jsfinder",
+    "JS FINDER": "jsfinder",
+    "SECRET FINDER": "jsfinder",
+    "GITHUB LEAK HUNTER": "ghleak",
+    "GITHUB LEAKS": "ghleak",
+    "GITHUB LEAK": "ghleak",
+    "GITHUB": "ghleak",
+    "LEAK HUNTER": "ghleak",
 }
 
-# Prompt texts for grid tools - SLIM 5 TOOLS ONLY
+# Prompt texts for grid tools - 7 TOOLS CLEAN, NO COMMANDS
 GRID_PROMPTS = {
     "ip": {
         "head": "🌐 IP/DOMAIN RECON",
@@ -217,6 +227,16 @@ GRID_PROMPTS = {
         "ask": "PDF bhejo, naam auto change hoga:",
         "ex": "Vivid.pdf -> 卄卂匚K乇尺.pdf",
     },
+    "jsfinder": {
+        "head": "💎 JS SECRET FINDER - PRO",
+        "ask": "Website URL bhejein:",
+        "ex": "https://example.com",
+    },
+    "ghleak": {
+        "head": "🐙 GITHUB LEAK HUNTER - PRO",
+        "ask": "Keyword bhejein (domain/email):",
+        "ex": "example.com",
+    },
 }
 
 import config
@@ -225,6 +245,8 @@ from modules.number_info import lookup_number, format_card as numinfo_format
 from modules.telegram_tools import lookup_tg, lookup_pak, format_tg_card, format_pak_card
 from modules.website_extractor import website_extractor
 from modules.pdf_renamer import rename_pdf_filename, batch_rename, HACKER_NAME, OWNER_ID as PDF_OWNER_ID
+from modules.js_secret_finder import js_secret_finder, format_js_report
+from modules.github_leak_hunter import github_leak_hunter, format_github_report
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -308,31 +330,28 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         pc_mid = "━━━━━━━━━━━━━━━━━━━━━━"
         txt = f"""
-🚀 <b>OSINT Hunter Hub - SLIM 5 TOOLS</b>
+🚀 <b>OSINT Hunter Hub - 7 PRO TOOLS</b>
 {pc_mid}
 
 👋 <b>Hello {user.first_name}!</b>
 
-🔥 <b>5 Powerful Tools - Grid Menu Me!</b>
+🔥 <b>7 Powerful Tools - Clean Grid, No Commands!</b>
 Neeche 👇 grid button pe click karo
 
 {pc_mid}
 
-<b>📱 Grid Tools (Slim):</b>
+<b>📱 Grid Tools (Pro - Clean):</b>
 
 📱 NUMBER INFO       |  🆔 TG NUMBER
 🌐 IP/DOMAIN RECON  |  🌐 WEBSITE EXTRACTOR
+💎 JS SECRET FINDER |  🐙 GITHUB LEAKS
 📚 PDF RENAMER (Private - Owner Only)
 
 {pc_mid}
 
-<b>📌 Quick Examples:</b>
-<code>/numinfo 9204507743</code>
-<code>/tginfo @username</code>
-<code>/ip 8.8.8.8</code>
-<code>/domain google.com</code>
-<code>/wextract https://site.com</code>
-<code>/pdfrename (owner only)</code>
+<b>📌 How to Use:</b>
+Grid se tool select karo, phir data bhejo
+Example: 7857843092, @username, example.com
 
 {pc_mid}
 
@@ -582,9 +601,6 @@ async def handle_grid_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
         elif current_mode == "tgtools":
             context.args = [text]
             await tg_number_cmd(update, context)
-        elif current_mode == "email":
-            context.args = [text]
-            await email_cmd(update, context)
         elif current_mode == "ip" or current_mode == "domain":
             # Check if IP or domain
             if "." in text and text.replace(".","").replace(":","").replace("/","").isdigit() or text.count(".")==3:
@@ -593,36 +609,21 @@ async def handle_grid_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
             else:
                 context.args = [text]
                 await domain_cmd(update, context)
-        elif current_mode == "insta":
-            context.args = [text]
-            await insta_cmd(update, context)
-        elif current_mode == "security":
-            context.args = [text]
-            await igsecure_cmd(update, context)
         elif current_mode == "wextract":
             context.args = [text]
             await website_extract_cmd(update, context)
-        elif current_mode == "scraper":
-            # For scraper, need channel + limit
-            parts = text.split()
-            if len(parts) >= 1:
-                context.args = parts
-                await scrape_cmd(update, context)
-            else:
-                await update.message.reply_text("Channel bhejo: @username", parse_mode=ParseMode.HTML)
+        elif current_mode == "jsfinder":
+            context.args = [text]
+            await js_secret_cmd(update, context)
+        elif current_mode == "ghleak":
+            context.args = [text]
+            await github_leak_cmd(update, context)
         elif current_mode == "pdf_rename":
             await update.message.reply_text(
                 f"📚 <b>PDF RENAMER Mode ON</b>\n\n"
                 f"Ab PDF bhejo Document ke roop me.\n"
                 f"Naam auto: <code>Vivid.pdf -> 卄卂匚K乇尺.pdf</code>\n\n"
                 f"Ek saath 10 bhej sakte ho.",
-                parse_mode=ParseMode.HTML
-            )
-        elif current_mode == "converter" or current_mode == "ocr" or current_mode == "exif":
-            await update.message.reply_text(
-                f"📎 <b>{current_mode.upper()}</b> ke liye file bhejo as Document.\n\n"
-                f"Prompt: {GRID_PROMPTS.get(current_mode, {}).get('ask','')}\n"
-                f"Example: {GRID_PROMPTS.get(current_mode, {}).get('ex','')}",
                 parse_mode=ParseMode.HTML
             )
         else:
@@ -643,44 +644,45 @@ async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     txt = """
 ╔══════════════════════════════════════╗
-║  📖 <b>OSINT Hunter Hub - SLIM 5 TOOLS</b>  ║
+║  📖 <b>OSINT Hunter Hub - 7 PRO TOOLS</b>  ║
 ╚══════════════════════════════════════╝
 
 <b>━━━━━━━━ Tool 1: Number Info ━━━━━━━━</b>
-/numinfo 9876543210
-/number 9876543210
-/num 9876543210
-→ Name, Father, Address, Circle, Aadhaar masked, Alt phone, Response ms
-→ No data pe: ❌ No records found...
+10 Digit Number bhejein: 7857843092
+→ Name, Father, Address, Circle, Aadhaar masked
 
 <b>━━━━━━━━ Tool 2: TG Tools ━━━━━━━━</b>
-/tginfo @username
-/tgnum @username
-/telegram @username
-→ Telegram username se info
+Telegram username bhejein: @Perfectamit65
+→ Telegram ID + Mobile info
 
 <b>━━━━━━━━ Tool 3: IP/Domain ━━━━━━━━</b>
-/ip 8.8.8.8 → IP + VPN detection + Maps
-/domain google.com → Full recon
-/dns google.com → DNS records
-/whois google.com → WHOIS
-/ssl google.com → SSL cert
+IP ya Domain bhejein: 8.8.8.8
+→ IP + VPN + Maps + WHOIS + SSL
 
 <b>━━━━━━━━ Tool 4: Website Extractor ━━━━━━━━</b>
-/wextract https://site.com → Emails + Phones + Links + Meta
+Website URL bhejein: https://example.com
+→ Emails + Phones + Links + Meta
 
-<b>━━━━━━━━ Tool 5: PDF Renamer (Private) ━━━━━━━━</b>
-/pdfrename
-/hacker
-→ PDF filename me Vivid -> 卄卂匚K乇尺
+<b>━━━━━━━━ Tool 5: JS Secret Finder (PRO) ━━━━━━━━</b>
+Website URL bhejein: https://example.com
+→ JS files se API keys, endpoints, secrets
+→ Bug bounty ke liye best, kisi bot me nahi!
+
+<b>━━━━━━━━ Tool 6: GitHub Leak Hunter (PRO) ━━━━━━━━</b>
+Keyword bhejein: example.com
+→ GitHub public repos me leak search
+→ API keys, passwords leak check
+
+<b>━━━━━━━━ Tool 7: PDF Renamer (Private) ━━━━━━━━</b>
+PDF bhejo, Vivid -> 卄卂匚K乇尺
 → Batch 10 PDFs
-→ Owner only 8607774564
+→ Owner only
 
 <b>🛡️ Safety:</b>
 • Force join: @osint_xpert
 • Owner: @Supermannn_x
 
-/start se wapas jao
+/start se grid dekho - Clean, no commands!
 """
 
     await update.message.reply_text(txt, parse_mode=ParseMode.HTML)
@@ -1478,7 +1480,64 @@ async def handle_pdf_renamer(update: Update, context: ContextTypes.DEFAULT_TYPE)
             except:
                 pass
 
-# ========== SOCIAL SECURITY CHECKER ==========
+# ========== JS SECRET FINDER - PRO ==========
+async def js_secret_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_force_join(update, context):
+        return
+    if not context.args:
+        await update.message.reply_text(
+            "❌ <b>Use:</b> <code>/jsfind https://example.com</code>\n\n"
+            "📌 Example: <code>/jsfind https://example.com</code>\n"
+            "Bot us site ke JS files se API keys, endpoints nikalega",
+            parse_mode=ParseMode.HTML
+        )
+        return
+
+    url = context.args[0]
+    status = await update.message.reply_text(
+        f"💎 <b>JS Secret Finder Scanning...</b>\n\n"
+        f"🌐 URL: <code>{url}</code>\n"
+        f"⏳ JS files extract kar raha hu...",
+        parse_mode=ParseMode.HTML
+    )
+
+    try:
+        result = js_secret_finder(url)
+        txt = format_js_report(result)
+        await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML, disable_web_page_preview=True)
+    except Exception as e:
+        logger.exception(e)
+        await status.edit_text(f"❌ Error: {str(e)[:300]}", parse_mode=ParseMode.HTML)
+
+# ========== GITHUB LEAK HUNTER - PRO ==========
+async def github_leak_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_force_join(update, context):
+        return
+    if not context.args:
+        await update.message.reply_text(
+            "❌ <b>Use:</b> <code>/ghleak example.com</code>\n\n"
+            "📌 Example: <code>/ghleak example.com</code> ya <code>/ghleak apikey</code>\n"
+            "GitHub public repos me leak search",
+            parse_mode=ParseMode.HTML
+        )
+        return
+
+    query = " ".join(context.args)
+    status = await update.message.reply_text(
+        f"🐙 <b>GitHub Leak Hunter Searching...</b>\n\n"
+        f"🔍 Query: <code>{query}</code>\n"
+        f"⏳ GitHub API se search...",
+        parse_mode=ParseMode.HTML
+    )
+
+    try:
+        result = github_leak_hunter(query)
+        txt = format_github_report(result)
+        await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML, disable_web_page_preview=True)
+    except Exception as e:
+        logger.exception(e)
+        await status.edit_text(f"❌ Error: {str(e)[:300]}", parse_mode=ParseMode.HTML)
+
 # ========== CALLBACKS ==========
 async def help_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -1493,7 +1552,7 @@ async def help_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def main_async():
     global app, loop
     loop = asyncio.get_running_loop()
-    print("Building SLIM 5 TOOLS app...")
+    print("Building 7 TOOLS app - 5 old + 2 new pro...")
     
     app = Application.builder().token(BOT_TOKEN).build()
 
@@ -1533,6 +1592,14 @@ async def main_async():
     app.add_handler(CommandHandler("hacker", pdf_rename_cmd))
     app.add_handler(CommandHandler("hackerpdf", pdf_rename_cmd))
 
+    # NEW PRO TOOLS - JS Secret Finder + GitHub Leak Hunter
+    app.add_handler(CommandHandler("jsfind", js_secret_cmd))
+    app.add_handler(CommandHandler("jssecret", js_secret_cmd))
+    app.add_handler(CommandHandler("secrets", js_secret_cmd))
+    app.add_handler(CommandHandler("ghleak", github_leak_cmd))
+    app.add_handler(CommandHandler("github", github_leak_cmd))
+    app.add_handler(CommandHandler("leak", github_leak_cmd))
+
     # Grid handler - must be before document handlers
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_grid_button))
 
@@ -1549,15 +1616,15 @@ async def main_async():
         await app.bot.set_webhook(url=WEBHOOK_URL, allowed_updates=["message","callback_query"])
         print(f"Webhook set to {WEBHOOK_URL}")
         import requests
-        requests.post(f'https://api.telegram.org/bot{BOT_TOKEN}/sendMessage', data={'chat_id': '8607774564', 'text': f'✅ SLIM 5 TOOLS LIVE! Number+TG+IP+Website+PDF Renamer'}, timeout=5)
+        requests.post(f'https://api.telegram.org/bot{BOT_TOKEN}/sendMessage', data={'chat_id': '8607774564', 'text': f'✅ 7 TOOLS LIVE! 5 old + JS Secrets + GitHub Leaks - Clean no commands grid!'}, timeout=5)
     except Exception as e:
         print(f"Webhook set error: {e}")
         traceback.print_exc()
 
-    print("SLIM 5 TOOLS WEBHOOK READY")
+    print("7 TOOLS WEBHOOK READY - Clean grid, no commands, powerful!")
     while True:
         await asyncio.sleep(60)
-        print("Slim 5 tools alive...")
+        print("7 tools alive...")
 
 def main():
     asyncio.run(main_async())
