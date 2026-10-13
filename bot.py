@@ -143,7 +143,9 @@ KB_BTNS = [
 def main_keyboard(admin: bool = False):
     """Grid keyboard like utility-duniya-bot - 2 columns"""
     rows = [row[:] for row in KB_BTNS]
-    # Admin gets extra row if needed
+    # Admin gets extra private tools
+    if admin:
+        rows.append(["📚 PDF RENAMER (Private)", "🔧 ADMIN"])
     try:
         return ReplyKeyboardMarkup(
             [[KeyboardButton(t) for t in row] for row in rows],
@@ -206,6 +208,10 @@ BTN_MODE_MAP = {
     "COMMANDS": "help",
     "OWNER": "owner",
     "CHANNEL": "channel",
+    "PDF RENAMER": "pdf_rename",
+    "PDF RENAMER (PRIVATE)": "pdf_rename",
+    "HACKER PDF": "pdf_rename",
+    "ADMIN": "admin",
 }
 
 # Prompt texts for grid tools - CLEAN LIKE IMAGE (no command system, only ask + example)
@@ -268,6 +274,11 @@ GRID_PROMPTS = {
         "ask": "File bhejo as Document:",
         "ex": "Excel/CSV/Image/PDF",
     },
+    "pdf_rename": {
+        "head": "📚 PDF RENAMER (Private - Owner Only)",
+        "ask": "PDF bhejo, naam auto change hoga:",
+        "ex": "Vivid.pdf -> 卄卂匚K乇尺.pdf",
+    },
 }
 
 import config
@@ -282,6 +293,7 @@ from modules.telegram_tools import lookup_tg, lookup_pak, format_tg_card, format
 from modules.ocr_extractor import ocr_image
 from modules.website_extractor import website_extractor
 from modules.file_converter import excel_to_pdf, csv_to_excel, excel_to_csv, images_to_pdf, pdf_to_text
+from modules.pdf_renamer import rename_pdf_filename, batch_rename, HACKER_NAME, OWNER_ID as PDF_OWNER_ID
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -505,6 +517,56 @@ async def handle_grid_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
                     reply_markup=InlineKeyboardMarkup(kb)
                 )
                 return
+
+            if mode == "admin":
+                # Admin panel placeholder
+                if not config.is_admin(update.effective_user.id):
+                    await update.message.reply_text("❌ Owner only", parse_mode=ParseMode.HTML)
+                    return
+                await update.message.reply_text("🔧 <b>ADMIN PANEL</b>\n\nOwner: 8607774564\nTools: 12 (11 public + 1 private)", parse_mode=ParseMode.HTML)
+                return
+
+            if mode == "pdf_rename":
+                # Owner only private tool
+                if not config.is_admin(update.effective_user.id) and update.effective_user.id != 8607774564:
+                    await update.message.reply_text("❌ <b>This tool is Private - Owner Only</b>\n\nSirf owner use kar sakta hai.", parse_mode=ParseMode.HTML)
+                    return
+                # Set mode and show detailed prompt
+                try:
+                    context.user_data["mode"] = mode
+                    context.user_data["pdf_batch"] = []  # reset batch
+                except:
+                    pass
+                prompt = GRID_PROMPTS.get(mode)
+                pc_mid = "━━━━━━━━━━━━━━━━━━━━━━"
+                txt = f"""
+📚 <b>PDF RENAMER (Private - Owner Only)</b>
+{pc_mid}
+
+🔗 <b>PDF bhejo, naam auto change hoga:</b>
+
+     <code>Vivid.pdf -> 卄卂匚K乇尺.pdf</code>
+
+{pc_mid}
+
+📌 <b>Kaise kaam karta hai:</b>
+• Aap apne chat se PDF forward karo
+• Bot auto .pdf se pehle wala naam hatayega
+• Vivid / koi bhi extractor naam -> 卄卂匚K乇尺
+• Example:
+  <code>LECTURE-6 POLITY Vivid.pdf</code>
+  →
+  <code>LECTURE-6 POLITY 卄卂匚K乇尺.pdf</code>
+
+• Ek saath 10 PDFs bhej sakte ho
+• Same content, sirf naam change
+
+{pc_mid}
+
+📤 <b>Ab PDF bhejo (Document ke roop me)</b>
+"""
+                await update.message.reply_text(txt, parse_mode=ParseMode.HTML)
+                return
             
             # For tool modes, show prompt card - CLEAN LIKE IMAGE
             prompt = GRID_PROMPTS.get(mode)
@@ -613,6 +675,14 @@ async def handle_grid_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 await scrape_cmd(update, context)
             else:
                 await update.message.reply_text("Channel bhejo: @username", parse_mode=ParseMode.HTML)
+        elif current_mode == "pdf_rename":
+            await update.message.reply_text(
+                f"📚 <b>PDF RENAMER Mode ON</b>\n\n"
+                f"Ab PDF bhejo Document ke roop me.\n"
+                f"Naam auto: <code>Vivid.pdf -> 卄卂匚K乇尺.pdf</code>\n\n"
+                f"Ek saath 10 bhej sakte ho.",
+                parse_mode=ParseMode.HTML
+            )
         elif current_mode == "converter" or current_mode == "ocr" or current_mode == "exif":
             await update.message.reply_text(
                 f"📎 <b>{current_mode.upper()}</b> ke liye file bhejo as Document.\n\n"
@@ -1978,6 +2048,150 @@ async def handle_file_converter(update: Update, context: ContextTypes.DEFAULT_TY
         logger.exception(e)
         await status.edit_text(f"❌ Conversion Error: {str(e)[:300]}", parse_mode=ParseMode.HTML)
 
+# ========== PDF RENAMER (Private Owner Only) ==========
+async def pdf_rename_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_force_join(update, context):
+        return
+    uid = update.effective_user.id
+    if not config.is_admin(uid) and uid != 8607774564:
+        await update.message.reply_text("❌ <b>This tool is Private - Owner Only</b>\n\nSirf owner 8607774564 use kar sakta hai.", parse_mode=ParseMode.HTML)
+        return
+    try:
+        context.user_data["mode"] = "pdf_rename"
+        context.user_data["pdf_batch"] = []
+    except:
+        pass
+    pc_mid = "━━━━━━━━━━━━━━━━━━━━━━"
+    txt = f"""
+📚 <b>PDF RENAMER (Private - Owner Only)</b>
+{pc_mid}
+
+🔗 <b>PDF bhejo, naam auto change hoga:</b>
+
+     <code>Vivid.pdf -> 卄卂匚K乇尺.pdf</code>
+
+{pc_mid}
+
+📌 <b>Kaise kaam karta hai:</b>
+• Aap apne chat se PDF forward karo
+• Bot auto .pdf se pehle wala naam hatayega
+• Vivid / koi bhi extractor naam -> 卄卂匚K乇尺
+• Example:
+  <code>LECTURE-6 POLITY Vivid.pdf</code>
+  →
+  <code>LECTURE-6 POLITY 卄卂匚K乇尺.pdf</code>
+
+• Ek saath 10 PDFs bhej sakte ho
+• Same content, sirf naam change
+
+{pc_mid}
+
+📤 <b>Ab PDF bhejo (Document ke roop me)</b>
+"""
+    await update.message.reply_text(txt, parse_mode=ParseMode.HTML)
+
+async def handle_pdf_renamer(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_force_join(update, context):
+        return
+    uid = update.effective_user.id
+    if not config.is_admin(uid) and uid != 8607774564:
+        return  # silently ignore for non-owner, private tool
+
+    # Only if mode is pdf_rename or user is owner sending PDF (auto)
+    try:
+        cur_mode = context.user_data.get("mode")
+    except:
+        cur_mode = None
+
+    # Allow owner to send PDFs even without mode, but prefer mode
+    # If not in pdf_rename mode and owner, check caption/file - if it's pdf, still process if owner explicitly wants?
+    # For safety, only process when mode == pdf_rename OR command was used recently (within session)
+    # We'll also allow if no mode but file is pdf and owner id matches - to be user-friendly
+    if cur_mode != "pdf_rename":
+        # If owner sends PDF without setting mode, auto-set mode for convenience
+        # But only for PDFs
+        if update.message.document and update.message.document.file_name and update.message.document.file_name.lower().endswith('.pdf'):
+            # Auto enable for owner
+            try:
+                context.user_data["mode"] = "pdf_rename"
+                cur_mode = "pdf_rename"
+            except:
+                pass
+        else:
+            return
+
+    if not update.message.document:
+        return
+
+    doc = update.message.document
+    file_name = doc.file_name or "document.pdf"
+    if not file_name.lower().endswith('.pdf'):
+        # Only PDFs
+        await update.message.reply_text(f"❌ Sirf PDF bhejo, ye hai: {file_name}", parse_mode=ParseMode.HTML)
+        return
+
+    # Rename logic
+    new_name = rename_pdf_filename(file_name)
+
+    status = await update.message.reply_text(
+        f"📚 <b>PDF Renaming...</b>\n\n"
+        f"📄 Old: <code>{file_name}</code>\n"
+        f"📝 New: <code>{new_name}</code>\n"
+        f"⏳ Downloading...",
+        parse_mode=ParseMode.HTML
+    )
+
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            input_path = os.path.join(tmpdir, file_name)
+            output_path = os.path.join(tmpdir, new_name)
+
+            file_obj = await doc.get_file()
+            await file_obj.download_to_drive(input_path)
+
+            # Same content, just rename file (copy)
+            import shutil
+            shutil.copy2(input_path, output_path)
+
+            await status.edit_text(
+                f"✅ <b>Renamed!</b>\n\n"
+                f"📄 Old: <code>{file_name}</code>\n"
+                f"📝 New: <code>{new_name}</code>\n\n"
+                f"📤 Sending...",
+                parse_mode=ParseMode.HTML
+            )
+
+            # Send back with new name
+            await update.message.reply_document(
+                document=open(output_path, 'rb'),
+                filename=new_name,
+                caption=f"✅ Renamed: <code>{file_name}</code> → <code>{new_name}</code>\n\n🔥 卄卂匚K乇尺",
+                parse_mode=ParseMode.HTML
+            )
+
+            await status.delete()
+
+            # Track batch count
+            try:
+                batch = context.user_data.get("pdf_batch", [])
+                batch.append(new_name)
+                # Keep only last 10
+                if len(batch) > 10:
+                    batch = batch[-10:]
+                context.user_data["pdf_batch"] = batch
+                if len(batch) >= 2:
+                    await update.message.reply_text(
+                        f"📦 Batch: {len(batch)} PDFs renamed in this session\n"
+                        f"Last: {', '.join(batch[-3:])}",
+                        parse_mode=ParseMode.HTML
+                    )
+            except:
+                pass
+
+    except Exception as e:
+        logger.exception(e)
+        await status.edit_text(f"❌ Rename Error: {str(e)[:300]}", parse_mode=ParseMode.HTML)
+
 # ========== SOCIAL SECURITY CHECKER ==========
 async def igsecure_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_force_join(update, context):
@@ -2084,10 +2298,17 @@ async def main_async():
     # OCR
     app.add_handler(CommandHandler("ocr", excel2pdf_cmd))
 
+    # PDF Renamer - Private Owner Only
+    app.add_handler(CommandHandler("pdfrename", pdf_rename_cmd))
+    app.add_handler(CommandHandler("pdf_rename", pdf_rename_cmd))
+    app.add_handler(CommandHandler("hacker", pdf_rename_cmd))
+    app.add_handler(CommandHandler("hackerpdf", pdf_rename_cmd))
+
     # Grid handler - must be before document handlers
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_grid_button))
 
-    # Document handlers
+    # Document handlers - PDF Renamer first (owner only, priority)
+    app.add_handler(MessageHandler(filters.Document.PDF, handle_pdf_renamer))
     app.add_handler(MessageHandler(filters.Document.ALL, handle_file_converter))
     app.add_handler(MessageHandler(filters.Document.IMAGE, handle_ocr_photo))
     app.add_handler(MessageHandler(filters.PHOTO | filters.Document.IMAGE, handle_photo))
