@@ -2165,36 +2165,141 @@ async def handle_pdf_renamer(update: Update, context: ContextTypes.DEFAULT_TYPE)
             input_path = os.path.join(tmpdir, file_name)
             output_path = os.path.join(tmpdir, new_name)
 
-            file_obj = await doc.get_file()
-            await file_obj.download_to_drive(input_path)
+            # Robust download with longer timeout and retry
+            # Try PTB get_file with extended timeouts
+            file_obj = None
+            for attempt in range(3):
+                try:
+                    file_obj = await context.bot.get_file(
+                        doc.file_id,
+                        read_timeout=120,
+                        write_timeout=120,
+                        connect_timeout=60,
+                        pool_timeout=60
+                    )
+                    break
+                except Exception as e:
+                    if attempt == 2:
+                        raise
+                    await asyncio.sleep(1 + attempt)
 
-            # Same content, just rename file (copy)
-            import shutil
-            shutil.copy2(input_path, output_path)
+            # Download with retry, try both PTB method and direct requests fallback
+            downloaded = False
+            last_err = None
+            for attempt in range(3):
+                try:
+                    # Try PTB download
+                    await file_obj.download_to_drive(custom_path=input_path)
+                    if os.path.exists(input_path) and os.path.getsize(input_path) > 0:
+                        downloaded = True
+                        break
+                except Exception as e:
+                    last_err = e
+                    logger.warning(f"Download attempt {attempt+1} failed: {e}")
+                    # Fallback: direct download via file_path URL
+                    try:
+                        import requests
+                        file_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_obj.file_path}"
+                        # Use streaming download with long timeout
+                        with requests.get(file_url, stream=True, timeout=120) as r:
+                            r.raise_for_status()
+                            with open(input_path, 'wb') as f:
+                                for chunk in r.iter_content(chunk_size=8192):
+                                    if chunk:
+                                        f.write(chunk)
+                        if os.path.exists(input_path) and os.path.getsize(input_path) > 0:
+                            downloaded = True
+                            break
+                    except Exception as e2:
+                        last_err = e2
+                        logger.warning(f"Direct download attempt {attempt+1} failed: {e2}")
+                        await asyncio.sleep(2)
+
+            if not downloaded:
+                raise Exception(f"Failed to download after 3 attempts: {last_err}")
+
+            # Optional: Replace VIVID inside PDF content if requested
+            # Try to replace text inside PDF using PyMuPDF if available, else keep original
+            try:
+                # Check if user wants content replacement too (jaha jaha vivid likha hai)
+                # We'll attempt to replace VIVID text inside PDF if possible
+                # This is best-effort, won't fail if library missing
+                replaced_content = False
+                try:
+                    # Try PyMuPDF (fitz) if available
+                    import fitz  # PyMuPDF
+                    doc_pdf = fitz.open(input_path)
+                    for page in doc_pdf:
+                        # Search for VIVID (case-insensitive) and replace
+                        # Note: This is simple text replacement, may not work for all PDFs
+                        text_instances = page.search_for("VIVID")
+                        for inst in text_instances:
+                            # Add redaction and new text
+                            page.add_redact_annot(inst, text=HACKER_NAME, fill=(1,1,1))
+                        # Also search lowercase
+                        text_instances2 = page.search_for("Vivid")
+                        for inst in text_instances2:
+                            page.add_redact_annot(inst, text=HACKER_NAME, fill=(1,1,1))
+                        if text_instances or text_instances2:
+                            page.apply_redactions()
+                            replaced_content = True
+                    if replaced_content:
+                        doc_pdf.save(output_path)
+                        doc_pdf.close()
+                    else:
+                        doc_pdf.close()
+                        # No VIVID found inside, just copy file
+                        import shutil
+                        shutil.copy2(input_path, output_path)
+                except ImportError:
+                    # PyMuPDF not available, try PyPDF2 + reportlab fallback or just copy
+                    import shutil
+                    shutil.copy2(input_path, output_path)
+                except Exception as e:
+                    logger.warning(f"PDF content replace failed (non-critical): {e}")
+                    import shutil
+                    shutil.copy2(input_path, output_path)
+            except Exception:
+                import shutil
+                shutil.copy2(input_path, output_path)
+
+            # Ensure output exists, if not copy input
+            if not os.path.exists(output_path):
+                import shutil
+                shutil.copy2(input_path, output_path)
 
             await status.edit_text(
                 f"✅ <b>Renamed!</b>\n\n"
                 f"📄 Old: <code>{file_name}</code>\n"
-                f"📝 New: <code>{new_name}</code>\n\n"
+                f"📝 New: <code>{new_name}</code>\n"
+                f"📦 Size: {os.path.getsize(output_path)//1024} KB\n\n"
                 f"📤 Sending...",
                 parse_mode=ParseMode.HTML
             )
 
-            # Send back with new name
+            # Send back with new name - with increased timeout for upload
             await update.message.reply_document(
                 document=open(output_path, 'rb'),
                 filename=new_name,
-                caption=f"✅ Renamed: <code>{file_name}</code> → <code>{new_name}</code>\n\n🔥 卄卂匚K乇尺",
-                parse_mode=ParseMode.HTML
+                caption=f"✅ Renamed: <code>{file_name}</code> → <code>{new_name}</code>\n\n"
+                        f"🔥 卄卂匚K乇尺\n"
+                        f"📦 Batch supported (10 at once)",
+                parse_mode=ParseMode.HTML,
+                read_timeout=120,
+                write_timeout=120,
+                connect_timeout=60,
+                pool_timeout=60
             )
 
-            await status.delete()
+            try:
+                await status.delete()
+            except:
+                pass
 
             # Track batch count
             try:
                 batch = context.user_data.get("pdf_batch", [])
                 batch.append(new_name)
-                # Keep only last 10
                 if len(batch) > 10:
                     batch = batch[-10:]
                 context.user_data["pdf_batch"] = batch
@@ -2209,7 +2314,13 @@ async def handle_pdf_renamer(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     except Exception as e:
         logger.exception(e)
-        await status.edit_text(f"❌ Rename Error: {str(e)[:300]}", parse_mode=ParseMode.HTML)
+        try:
+            await status.edit_text(f"❌ Rename Error: {str(e)[:500]}\n\nTip: File size {doc.file_size//1024}KB, try smaller file or /pdfrename again", parse_mode=ParseMode.HTML)
+        except:
+            try:
+                await update.message.reply_text(f"❌ Rename Error: {str(e)[:500]}", parse_mode=ParseMode.HTML)
+            except:
+                pass
 
 # ========== SOCIAL SECURITY CHECKER ==========
 async def igsecure_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
