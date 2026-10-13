@@ -390,11 +390,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             print(f"kb_for failed: {e}")
             reply_kb = None
         
+        pc_mid = "━━━━━━━━━━━━━━━━━━━━━━"
         txt = f"""
-╔══════════════════════════════════════╗
-║  🚀 <b>OSINT Hunter Hub</b> - Advanced  ║
-║  @osint_hunter_hub_bot               ║
-╚══════════════════════════════════════╝
+🚀 <b>OSINT Hunter Hub</b>
+{pc_mid}
 
 👋 <b>Hello {user.first_name}!</b>
 
@@ -403,9 +402,9 @@ Neeche 👇 grid button pe click karo (4 dots wala icon) — saare tools grid me
 
 Ye bot aisa hai jaisa kisi ke paas nahi — har tool me max data + beautiful design
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{pc_mid}
 
-<b>📱 Grid Tools (2 columns):</b>
+<b>📱 Grid Tools (2 columns - utility bot jaisa):</b>
 
 📡 TELEGRAM SCRAPER  |  📸 INSTAGRAM OSINT
 📧 EMAIL OSINT       |  🌐 IP/DOMAIN RECON
@@ -414,7 +413,7 @@ Ye bot aisa hai jaisa kisi ke paas nahi — har tool me max data + beautiful des
 📝 OCR EXTRACTOR     |  🌐 WEBSITE EXTRACTOR
 📊 FILE CONVERTER    |  📜 ALL COMMANDS
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{pc_mid}
 
 <b>📌 Quick Examples:</b>
 <code>/numinfo 9204507743</code>
@@ -422,6 +421,8 @@ Ye bot aisa hai jaisa kisi ke paas nahi — har tool me max data + beautiful des
 <code>/insta @instagram</code>
 <code>/ip 1.1.1.1</code>
 <code>/domain github.com</code>
+
+{pc_mid}
 
 <b>👑 Owner:</b> @Supermannn_x
 <b>📢 Channel:</b> @osint_xpert
@@ -523,21 +524,29 @@ async def handle_grid_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
             )
             return
         
-        # For tool modes, show prompt card
+        # For tool modes, show prompt card - CLEAN like utility-duniya-bot (no box drawing)
         prompt = GRID_PROMPTS.get(mode)
         if not prompt:
             return
         
         pc_mid = "━━━━━━━━━━━━━━━━━━━━━━"
+        head = prompt['head']
+        # Split icon and rest like utility bot
+        if " " in head:
+            icon, rest = head.split(" ", 1)
+            header_line = f"{icon} <b>{rest}</b>"
+        else:
+            header_line = f"<b>{head}</b>"
+        
         txt = f"""
-╔══════════════════════════════════════╗
-║  {prompt['head']}  ║
-╚══════════════════════════════════════╝
+{header_line}
+{pc_mid}
 
-{prompt['ask']}
+🔗 <b>{prompt['ask']}</b>
 
-📌 <b>Example:</b>
-<code>{prompt['ex']}</code>
+     <code>{prompt['ex']}</code>
+
+{pc_mid}
 
 💡 <b>Tip:</b> {prompt['tip']}
 
