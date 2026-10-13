@@ -128,13 +128,13 @@ from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandl
 from telegram.constants import ParseMode
 from telegram.error import BadRequest
 
-# ========== GRID MENU - Like utility-duniya-bot (2 columns grid) ==========
-# This is the grid that appears when user clicks the 4-dots menu button at bottom
+# ========== GRID MENU - Like utility-duniya-bot (2 columns grid) - CLEAN LIKE IMAGE ==========
+# Image shows: TELEGRAM NUMBER, NUMBER INFO V2 ENGINE etc with clean prompts
 KB_BTNS = [
     ["📡 TELEGRAM SCRAPER", "📸 INSTAGRAM OSINT"],
     ["📧 EMAIL OSINT", "🌐 IP/DOMAIN RECON"],
     ["🖼️ EXIF FORENSICS", "🔒 SECURITY CHECK"],
-    ["📱 NUMBER INFO", "🆔 TG NUMBER TOOLS"],
+    ["📱 NUMBER INFO", "🆔 TELEGRAM NUMBER"],
     ["📝 OCR EXTRACTOR", "🌐 WEBSITE EXTRACTOR"],
     ["📊 FILE CONVERTER", "📜 ALL COMMANDS"],
     ["👑 OWNER", "📢 CHANNEL"],
@@ -165,7 +165,7 @@ def kb_for(uid: int):
         is_admin_user = (uid == config.ADMIN_ID)
     return main_keyboard(admin=is_admin_user)
 
-# Button text -> internal mode mapping
+# Button text -> internal mode mapping - CLEAN, only TG, no Pakistan
 BTN_MODE_MAP = {
     "TELEGRAM SCRAPER": "scraper",
     "CHANNEL SCRAPER": "scraper",
@@ -179,6 +179,7 @@ BTN_MODE_MAP = {
     "IP DOMAIN": "ip",
     "IP RECON": "ip",
     "DOMAIN RECON": "domain",
+    "DOMAIN": "domain",
     "EXIF FORENSICS": "exif",
     "EXIF": "exif",
     "IMAGE EXIF": "exif",
@@ -186,16 +187,18 @@ BTN_MODE_MAP = {
     "SECURITY CHECKER": "security",
     "SECURITY": "security",
     "NUMBER INFO": "numinfo",
+    "NUMBER INFO V2 ENGINE": "numinfo",
     "NUMBER": "numinfo",
     "NUM INFO": "numinfo",
-    "TG NUMBER TOOLS": "tgtools",
-    "TG TOOLS": "tgtools",
-    "TELEGRAM TOOLS": "tgtools",
+    "TELEGRAM NUMBER": "tgtools",
+    "TG NUMBER": "tgtools",
+    "TELEGRAM": "tgtools",
     "OCR EXTRACTOR": "ocr",
     "OCR": "ocr",
     "WEBSITE EXTRACTOR": "wextract",
     "WEBSITE": "wextract",
     "FILE CONVERTER": "converter",
+    "FILE CONVERTER HUB": "converter",
     "EXCEL TO PDF": "converter",
     "FILE": "converter",
     "ALL COMMANDS": "help",
@@ -205,84 +208,65 @@ BTN_MODE_MAP = {
     "CHANNEL": "channel",
 }
 
-# Prompt texts for grid tools (like utility bot)
+# Prompt texts for grid tools - CLEAN LIKE IMAGE (no command system, only ask + example)
+# Image shows: TELEGRAM NUMBER -> "Telegram username ya user ID bhejein: @Perfectamit65"
+# NUMBER INFO V2 ENGINE -> "10 Digit Number bhejein: 7857843092"
+# No commands, no tips, just clean like utility-duniya-bot
 GRID_PROMPTS = {
     "scraper": {
         "head": "📡 TELEGRAM CHANNEL SCRAPER",
-        "ask": "Channel username bhejo with limit:",
-        "ex": "/scrape @durov 50",
-        "tip": "5 channels ek saath: /batch @ch1 @ch2 30",
-        "cmds": "/channel_info @channel → Full info\n/scrape @channel 100 → Messages\n/scrape_search @channel keyword 50 → Search\n/scrape_media @channel 30 → Only media\n/stats @channel → Top 10 most viewed\n/batch @ch1 @ch2 30 → Multiple"
+        "ask": "Telegram channel username bhejein:",
+        "ex": "@durov",
     },
     "insta": {
         "head": "📸 INSTAGRAM OSINT",
-        "ask": "Instagram username bhejo:",
-        "ex": "/insta @instagram",
-        "tip": "Public profile ka full data milega",
-        "cmds": "/insta @username → Followers, bio, posts, full name"
+        "ask": "Instagram username bhejein:",
+        "ex": "@instagram",
     },
     "email": {
         "head": "📧 EMAIL OSINT",
-        "ask": "Email bhejo:",
-        "ex": "/email test@gmail.com",
-        "tip": "Validation + Disposable + Gravatar + Breach + MX",
-        "cmds": "/email test@gmail.com"
+        "ask": "Email bhejein:",
+        "ex": "test@gmail.com",
     },
     "ip": {
-        "head": "🌐 IP & DOMAIN RECON",
-        "ask": "IP ya Domain bhejo:",
-        "ex": "/ip 8.8.8.8 ya /domain google.com",
-        "tip": "Location + ISP + VPN/Proxy + DNS + WHOIS + SSL",
-        "cmds": "/ip 8.8.8.8 → IP info\n/domain google.com → Full recon\n/dns google.com → DNS\n/whois google.com → WHOIS\n/ssl google.com → SSL cert"
+        "head": "🌐 IP/DOMAIN RECON",
+        "ask": "IP ya Domain bhejein:",
+        "ex": "8.8.8.8",
     },
     "exif": {
         "head": "🖼️ EXIF FORENSICS",
-        "ask": "Photo ko File/Document ke roop me bhejo:",
-        "ex": "Photo → GPS + Camera + Date + Photoshop check",
-        "tip": "File ke roop me bhejo, gallery se nahi",
-        "cmds": "Photo bhejo as Document → EXIF analysis"
+        "ask": "Photo ko File ke roop me bhejo:",
+        "ex": "Image file",
     },
     "security": {
-        "head": "🔒 SECURITY CHECKER",
-        "ask": "Username bhejo:",
-        "ex": "/igsecure @username",
-        "tip": "Security Score 0-100 + leak check",
-        "cmds": "/igsecure @username → Security report"
+        "head": "🔒 SECURITY CHECK",
+        "ask": "Instagram username bhejein:",
+        "ex": "@instagram",
     },
     "numinfo": {
-        "head": "📱 NUMBER INFO (Utility Wala)",
-        "ask": "10 Digit Number bhejo:",
-        "ex": "/numinfo 9204507743",
-        "tip": "+91 ya 0 lagane ki zarurat nahi",
-        "cmds": "/numinfo 9876543210 → Name, Father, Address, Circle, Aadhaar masked\nSame as @utility_duniya_bot"
+        "head": "📱 NUMBER INFO V2 ENGINE",
+        "ask": "10 Digit Number bhejein:",
+        "ex": "7857843092",
     },
     "tgtools": {
-        "head": "🆔 TG NUMBER TOOLS",
-        "ask": "Telegram username ya Pak number bhejo:",
-        "ex": "/tginfo @durov ya /paknum 03001234567",
-        "tip": "Telegram + Pak number info",
-        "cmds": "/tginfo @username → TG info\n/paknum 0300... → Pak number / CNIC"
+        "head": "🆔 TELEGRAM NUMBER",
+        "ask": "Telegram username ya user ID bhejein:",
+        "ex": "@Perfectamit65",
     },
     "ocr": {
         "head": "📝 OCR EXTRACTOR",
-        "ask": "Photo bhejo with caption 'ocr':",
-        "ex": "Photo + caption me ocr likho",
-        "tip": "Hindi + English text extraction",
-        "cmds": "Photo bhejo + caption 'ocr' → Text niklega"
+        "ask": "Photo bhejo OCR ke liye:",
+        "ex": "Image with text",
     },
     "wextract": {
         "head": "🌐 WEBSITE EXTRACTOR",
-        "ask": "Website URL bhejo:",
-        "ex": "/wextract https://example.com",
-        "tip": "Emails + Phones + Links + Meta tags",
-        "cmds": "/wextract https://site.com"
+        "ask": "Website URL bhejein:",
+        "ex": "https://example.com",
     },
     "converter": {
         "head": "📊 FILE CONVERTER HUB",
         "ask": "File bhejo as Document:",
         "ex": "Excel/CSV/Image/PDF",
-        "tip": "Caption me conversion type likho",
-        "cmds": "Excel file + caption 'excel2pdf' → PDF\n'csv2excel' → CSV to Excel\n'excel2csv' → Excel to CSV\n'img2pdf' → Image to PDF\n'pdf2text' → PDF to Text"
     },
 }
 
@@ -524,7 +508,7 @@ async def handle_grid_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
             )
             return
         
-        # For tool modes, show prompt card - CLEAN like utility-duniya-bot (no box drawing)
+        # For tool modes, show prompt card - CLEAN LIKE IMAGE (only ask + example, no commands)
         prompt = GRID_PROMPTS.get(mode)
         if not prompt:
             return
@@ -545,19 +529,6 @@ async def handle_grid_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
 🔗 <b>{prompt['ask']}</b>
 
      <code>{prompt['ex']}</code>
-
-{pc_mid}
-
-💡 <b>Tip:</b> {prompt['tip']}
-
-{pc_mid}
-
-<b>📜 Commands:</b>
-{prompt['cmds']}
-
-{pc_mid}
-
-🔥 <b>Powered by @Supermannn_x</b>
 """
         await update.message.reply_text(txt, parse_mode=ParseMode.HTML)
     except Exception as e:
