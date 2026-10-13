@@ -128,27 +128,21 @@ from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandl
 from telegram.constants import ParseMode
 from telegram.error import BadRequest
 
-# ========== GRID MENU - 8 TOOLS (7 + TeraBox) ==========
+# ========== GRID MENU - 9 TOOLS (8 + Proxy Ultra) ==========
 KB_BTNS = [
     ["📱 NUMBER INFO", "🆔 TELEGRAM NUMBER"],
     ["🌐 IP/DOMAIN RECON", "🌐 WEBSITE EXTRACTOR"],
     ["💎 JS SECRET FINDER", "🐙 GITHUB LEAK HUNTER"],
-    ["☁️ TERABOX EXTRACTOR", "📚 PDF RENAMER (Private)"],
+    ["☁️ TERABOX EXTRACTOR", "🌐 PROXY ULTRA 99%"],
 ]
 
 def main_keyboard(admin: bool = False):
-    """Grid keyboard - 8 tools clean, no commands - PDF Renamer still owner only but in grid for all? Keep owner check in handler"""
+    """Grid keyboard - 9 tools clean, no commands - PDF Renamer owner only extra row"""
     rows = [row[:] for row in KB_BTNS]
-    # If not admin, hide PDF Renamer row? Actually keep it but handler will block
-    # For clean: if not admin, remove PDF Renamer from last row
+    if admin:
+        rows.append(["📚 PDF RENAMER (Private)"])
     if not admin:
-        # Remove PDF Renamer from grid for non-admin, keep only TeraBox
-        new_rows = []
-        for row in rows:
-            new_row = [b for b in row if "PDF RENAMER" not in b]
-            if new_row:
-                new_rows.append(new_row)
-        rows = new_rows
+        rows = [r for r in rows if not any("PDF RENAMER" in b for b in r)]
     try:
         return ReplyKeyboardMarkup(
             [[KeyboardButton(t) for t in row] for row in rows],
@@ -169,7 +163,7 @@ def kb_for(uid: int):
         is_admin_user = (uid == config.ADMIN_ID)
     return main_keyboard(admin=is_admin_user)
 
-# Button text -> internal mode mapping - 8 TOOLS
+# Button text -> internal mode mapping - 9 TOOLS
 BTN_MODE_MAP = {
     "IP/DOMAIN RECON": "ip",
     "IP DOMAIN": "ip",
@@ -192,12 +186,10 @@ BTN_MODE_MAP = {
     "WEXTRACT": "wextract",
     "PDF RENAMER": "pdf_rename",
     "PDF RENAMER (PRIVATE)": "pdf_rename",
-    "PDF RENAMER (PRIVATE) ": "pdf_rename",
     "HACKER PDF": "pdf_rename",
     "HACKER": "pdf_rename",
     "JS SECRET FINDER": "jsfinder",
     "JS SECRETS": "jsfinder",
-    "JS SECRET": "jsfinder",
     "JS FINDER": "jsfinder",
     "SECRET FINDER": "jsfinder",
     "GITHUB LEAK HUNTER": "ghleak",
@@ -209,9 +201,14 @@ BTN_MODE_MAP = {
     "TERABOX": "terabox",
     "TERABOX STREAM": "terabox",
     "TERABOX FILE": "terabox",
+    "PROXY ULTRA 99%": "proxy",
+    "PROXY ULTRA": "proxy",
+    "PROXY": "proxy",
+    "PROXY CHECKER": "proxy",
+    "PROXY FINDER": "proxy",
 }
 
-# Prompt texts for grid tools - 8 TOOLS CLEAN, NO COMMANDS
+# Prompt texts for grid tools - 9 TOOLS CLEAN, NO COMMANDS, ULTRA ADVANCED
 GRID_PROMPTS = {
     "ip": {
         "head": "🌐 IP/DOMAIN RECON",
@@ -253,6 +250,11 @@ GRID_PROMPTS = {
         "ask": "TeraBox URL bhejein:",
         "ex": "https://1024terabox.com/s/1AbCd...",
     },
+    "proxy": {
+        "head": "🌐 PROXY ULTRA 99% - Advanced",
+        "ask": "Proxy bhejein ya /proxy for fresh list:",
+        "ex": "1.2.3.4:8080",
+    },
 }
 
 import config
@@ -264,6 +266,7 @@ from modules.pdf_renamer import rename_pdf_filename, batch_rename, HACKER_NAME, 
 from modules.js_secret_finder import js_secret_finder, format_js_report
 from modules.github_leak_hunter import github_leak_hunter, format_github_report
 from modules.terabox_extractor import extract_terabox, format_terabox_report
+from modules.proxy_checker import get_fresh_proxies, check_proxy, check_proxies_batch, format_proxy_report, format_proxy_finder_report
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -676,6 +679,9 @@ async def handle_grid_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
         elif current_mode == "terabox":
             context.args = [text]
             await terabox_cmd(update, context)
+        elif current_mode == "proxy":
+            context.args = [text]
+            await proxy_cmd(update, context)
         elif current_mode == "pdf_rename":
             await update.message.reply_text(
                 f"📚 <b>PDF RENAMER Mode ON</b>\n\n"
@@ -1626,6 +1632,90 @@ async def terabox_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.exception(e)
         await status.edit_text(f"❌ Error: {str(e)[:500]}", parse_mode=ParseMode.HTML)
 
+# ========== PROXY ULTRA 99% - Advanced ==========
+async def proxy_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_force_join(update, context):
+        return
+    
+    # If no args, show fresh proxies
+    if not context.args:
+        status = await update.message.reply_text(
+            f"🌐 <b>Proxy Ultra 99% - Finding Fresh Proxies...</b>\n\n"
+            f"⏳ Public sources se fresh proxies la raha hu...\n"
+            f"⚡ Elite anonymity ke liye filter kar raha hu...",
+            parse_mode=ParseMode.HTML
+        )
+        try:
+            proxies = get_fresh_proxies(10)
+            txt = format_proxy_finder_report(proxies)
+            await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
+            
+            # Auto-check top 3 for demo
+            try:
+                await update.message.reply_text(
+                    f"🔍 <b>Top 3 Proxies Auto-Checking for 99% Safety...</b>\n"
+                    f"⏳ 15 sec lagega...",
+                    parse_mode=ParseMode.HTML
+                )
+                results = check_proxies_batch(proxies[:3], max_workers=3)
+                report = format_proxy_report(results)
+                await update.message.reply_text(report[:4000], parse_mode=ParseMode.HTML, disable_web_page_preview=True)
+            except Exception as e:
+                logger.warning(f"Auto check failed: {e}")
+                
+        except Exception as e:
+            logger.exception(e)
+            await status.edit_text(f"❌ Error: {str(e)[:300]}", parse_mode=ParseMode.HTML)
+        return
+
+    # If args provided, check specific proxy
+    proxy_input = context.args[0]
+    # Also handle ip:port format
+    if ":" in proxy_input and "." in proxy_input:
+        status = await update.message.reply_text(
+            f"🌐 <b>Proxy Checking...</b>\n\n"
+            f"🔍 Proxy: <code>{proxy_input}</code>\n"
+            f"⏳ Live, Speed, Anonymity, Safety Score check...",
+            parse_mode=ParseMode.HTML
+        )
+        try:
+            result = check_proxy(proxy_input, timeout=10)
+            if result.get("live"):
+                txt = f"""
+╔══════════════════════════════════════╗
+║  🌐 <b>PROXY ULTRA - 99% Safe Check</b>  ║
+╚══════════════════════════════════════╝
+
+✅ <b>LIVE</b> - <code>{result['proxy']}</code>
+
+🌍 Country: {result.get('country','?')}
+⚡ Speed: {result.get('speed_ms','?')}ms
+🕵️ Anonymity: {result.get('anonymity','?')}
+🛡️ Safety Score: {result.get('safety_score',0)}% (Max 99%)
+
+━━━━━━━━━━━━━━━━━━━━━━
+
+🔒 <b>Usage:</b>
+Telegram: Settings → Data & Storage → Proxy → Add → {result['proxy']}
+Chrome: Settings → Proxy → {result['proxy']}
+
+⚠️ Free proxies can see traffic, banking ke liye use mat karo
+🔥 @Supermannn_x - Ultra Advanced!
+"""
+            else:
+                txt = f"❌ <b>DEAD</b> - <code>{result['proxy']}</code>\n\nError: {result.get('error','Unknown')}\n\nTry /proxy for fresh list"
+            
+            await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
+        except Exception as e:
+            await status.edit_text(f"❌ Error: {str(e)[:300]}", parse_mode=ParseMode.HTML)
+    else:
+        # If not proxy format, treat as general search (maybe user sent text)
+        await update.message.reply_text(
+            f"❌ Invalid proxy format. Use <code>IP:Port</code> like <code>1.2.3.4:8080</code>\n\n"
+            f"Or send /proxy for fresh list",
+            parse_mode=ParseMode.HTML
+        )
+
 # ========== CALLBACKS ==========
 async def help_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -1640,7 +1730,7 @@ async def help_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def main_async():
     global app, loop
     loop = asyncio.get_running_loop()
-    print("Building 8 TOOLS app - 5 old + 2 pro + TeraBox...")
+    print("Building 9 TOOLS ULTRA app - 8 old + Proxy Ultra 99%...")
     
     app = Application.builder().token(BOT_TOKEN).build()
 
@@ -1693,6 +1783,12 @@ async def main_async():
     app.add_handler(CommandHandler("tb", terabox_cmd))
     app.add_handler(CommandHandler("teraboxdl", terabox_cmd))
 
+    # Proxy Ultra 99% - NEW ULTRA ADVANCED
+    app.add_handler(CommandHandler("proxy", proxy_cmd))
+    app.add_handler(CommandHandler("proxies", proxy_cmd))
+    app.add_handler(CommandHandler("proxycheck", proxy_cmd))
+    app.add_handler(CommandHandler("ultraproxy", proxy_cmd))
+
     # Grid handler - must be before document handlers
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_grid_button))
 
@@ -1709,15 +1805,15 @@ async def main_async():
         await app.bot.set_webhook(url=WEBHOOK_URL, allowed_updates=["message","callback_query"])
         print(f"Webhook set to {WEBHOOK_URL}")
         import requests
-        requests.post(f'https://api.telegram.org/bot{BOT_TOKEN}/sendMessage', data={'chat_id': '8607774564', 'text': f'✅ 7 TOOLS LIVE! 5 old + JS Secrets + GitHub Leaks - Clean no commands grid!'}, timeout=5)
+        requests.post(f'https://api.telegram.org/bot{BOT_TOKEN}/sendMessage', data={'chat_id': '8607774564', 'text': f'✅ 9 TOOLS ULTRA LIVE! Number+TG+IP+Website+JS Secrets+GitHub Leaks+TeraBox+Proxy Ultra 99%+PDF Renamer - Clean no commands!'}, timeout=5)
     except Exception as e:
         print(f"Webhook set error: {e}")
         traceback.print_exc()
 
-    print("7 TOOLS WEBHOOK READY - Clean grid, no commands, powerful!")
+    print("9 TOOLS ULTRA WEBHOOK READY - Clean grid, no commands, powerful!")
     while True:
         await asyncio.sleep(60)
-        print("7 tools alive...")
+        print("9 tools ultra alive - 99% safe proxy!")
 
 def main():
     asyncio.run(main_async())
