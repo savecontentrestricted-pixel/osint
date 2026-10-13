@@ -258,49 +258,70 @@ from modules.terabox_extractor import extract_terabox, format_terabox_report
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# ========== FORCE JOIN CHECK ==========
+# ========== FORCE JOIN - STRONG PROTECTION (No join = No bot) ==========
+async def is_user_joined_channel(user_id: int, bot) -> bool:
+    """Internal check - returns True if joined"""
+    if not config.FORCE_CHANNEL:
+        return True
+    if config.is_admin(user_id):
+        return True
+    try:
+        member = await bot.get_chat_member(chat_id=config.FORCE_CHANNEL, user_id=user_id)
+        return member.status in ['member', 'administrator', 'creator']
+    except BadRequest as e:
+        # Bot not admin in channel - log but allow to avoid total block, owner must make bot admin
+        logger.warning(f"FORCE JOIN: Bot not admin or channel error: {e} | Make bot admin in {config.FORCE_CHANNEL_LINK}")
+        # For strong protection, still return True here to not block everyone if misconfig, but owner should fix
+        # Change to False if you want hard block even when bot not admin
+        return True
+    except Exception as e:
+        logger.warning(f"FORCE JOIN error user {user_id}: {e}")
+        return False
+
 async def check_force_join(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
-    """Check if user joined force channel, if not ask to join"""
+    """Strong protection - Check if user joined, else block with join buttons"""
     if not config.FORCE_CHANNEL:
         return True
     
     user_id = update.effective_user.id
     if config.is_admin(user_id):
-        return True  # Admin bypass
-
-    try:
-        # Try to check membership
-        channel_id = config.FORCE_CHANNEL
-        # Convert username to id if needed? We have ID -1004393596502
-        try:
-            member = await context.bot.get_chat_member(chat_id=channel_id, user_id=user_id)
-            if member.status in ['member', 'administrator', 'creator']:
-                return True
-        except BadRequest as e:
-            # If bot not admin in channel, skip check
-            logger.warning(f"Force join check failed (bot not admin in channel?): {e}")
-            return True
-        except Exception as e:
-            logger.warning(f"Force join error: {e}")
-            return True
-
-        # Not joined - ask to join
-        kb = [
-            [InlineKeyboardButton("📢 Join Channel", url=config.FORCE_CHANNEL_LINK)],
-            [InlineKeyboardButton("✅ Joined - Check Again", callback_data="check_joined")]
-        ]
-        await update.message.reply_text(
-            f"⚠️ <b>Access Denied!</b>\n\n"
-            f"Bot use karne ke liye aapko hamara channel join karna hoga.\n\n"
-            f"📢 Channel: {config.FORCE_CHANNEL_LINK}\n\n"
-            f"Join karke 'Joined - Check Again' pe click karo.",
-            parse_mode=ParseMode.HTML,
-            reply_markup=InlineKeyboardMarkup(kb)
-        )
-        return False
-    except Exception as e:
-        logger.warning(f"Force join check exception: {e}")
         return True
+
+    joined = await is_user_joined_channel(user_id, context.bot)
+    if joined:
+        return True
+
+    # NOT JOINED - Strong block
+    kb = [
+        [InlineKeyboardButton("📢 Join Channel @osint_xpert", url=config.FORCE_CHANNEL_LINK)],
+        [InlineKeyboardButton("✅ Verify - Joined", callback_data="check_joined")]
+    ]
+    try:
+        # If called from message
+        if update.message:
+            await update.message.reply_text(
+                f"🚫 <b>ACCESS DENIED - FORCE JOIN REQUIRED!</b>\n\n"
+                f"👋 Hello <b>{update.effective_user.first_name}</b>!\n\n"
+                f"⚠️ <b>Bot use karne ke liye aapko hamara channel join karna hoga!</b>\n\n"
+                f"📢 <b>Channel:</b> {config.FORCE_CHANNEL_LINK}\n"
+                f"🔒 Bina join kiye koi bhi tool kaam nahi karega!\n\n"
+                f"👇 <b>Step 1:</b> Join Channel pe click karo\n"
+                f"👇 <b>Step 2:</b> Verify pe click karo\n"
+                f"✅ Uske baad /start se bot use karo",
+                parse_mode=ParseMode.HTML,
+                reply_markup=InlineKeyboardMarkup(kb)
+            )
+        elif update.callback_query:
+            await update.callback_query.answer("❌ Pehle channel join karo!", show_alert=True)
+            await update.callback_query.message.reply_text(
+                f"🚫 <b>Channel Join Karo!</b>\n\n📢 {config.FORCE_CHANNEL_LINK}",
+                parse_mode=ParseMode.HTML,
+                reply_markup=InlineKeyboardMarkup(kb)
+            )
+    except Exception as e:
+        logger.warning(f"Force join send failed: {e}")
+    
+    return False
 
 async def check_joined_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -308,21 +329,48 @@ async def check_joined_callback(update: Update, context: ContextTypes.DEFAULT_TY
     
     user_id = query.from_user.id
     try:
-        member = await context.bot.get_chat_member(chat_id=config.FORCE_CHANNEL, user_id=user_id)
-        if member.status in ['member', 'administrator', 'creator']:
+        joined = await is_user_joined_channel(user_id, context.bot)
+        if joined:
+            # Verified! Now send welcome with grid
             await query.edit_message_text(
-                "✅ <b>Verified! Ab aap bot use kar sakte ho.</b>\n\n/start pe click karo.",
+                f"✅ <b>VERIFIED SUCCESSFULLY!</b>\n\n"
+                f"🎉 Aapne channel join kar liya!\n"
+                f"🚀 Ab aap bot ke saare tools use kar sakte ho!\n\n"
+                f"👇 /start pe click karo tools dekhne ke liye",
                 parse_mode=ParseMode.HTML
             )
+            # Auto trigger start
+            try:
+                # Create fake update for start
+                await start(update, context)
+            except:
+                pass
         else:
-            await query.answer("❌ Abhi bhi join nahi kiya! Pehle channel join karo.", show_alert=True)
+            await query.answer("❌ Abhi bhi join nahi kiya! Pehle channel join karo, phir Verify dabao.", show_alert=True)
+            # Keep message with buttons
+            kb = [
+                [InlineKeyboardButton("📢 Join Channel @osint_xpert", url=config.FORCE_CHANNEL_LINK)],
+                [InlineKeyboardButton("✅ Verify - Joined", callback_data="check_joined")]
+            ]
+            try:
+                await query.edit_message_text(
+                    f"❌ <b>Abhi bhi join nahi kiya!</b>\n\n"
+                    f"📢 Channel: {config.FORCE_CHANNEL_LINK}\n\n"
+                    f"1️⃣ Join pe click karo\n"
+                    f"2️⃣ Wapas aake Verify dabao",
+                    parse_mode=ParseMode.HTML,
+                    reply_markup=InlineKeyboardMarkup(kb)
+                )
+            except:
+                pass
     except Exception as e:
-        await query.edit_message_text(f"✅ Check done! /start se shuru karo.\n\nNote: {str(e)[:100]}", parse_mode=ParseMode.HTML)
+        logger.warning(f"check_joined_callback error: {e}")
+        await query.answer(f"Error: {str(e)[:100]}", show_alert=True)
 
 # ========== START & HELP ==========
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        # Force join check
+        # STRONG FORCE JOIN CHECK - No join = No access at all
         if not await check_force_join(update, context):
             return
 
@@ -342,11 +390,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # User details like screenshot
         username = f"@{user.username}" if user.username else "N/A"
         user_id = user.id
-        # Stylized name - use first_name with same style as screenshot? Use actual name
         display_name = user.first_name or "User"
-        # For owner, show ** V ᴇ ɴ ᴏ ᴍ ** style if it's owner? Use actual name but keep format
-        # Screenshot shows ** V ᴇ ɴ ᴏ ᴍ ** - that's stylized VENOM
-        # We'll use user's first name, but if owner, use VENOM style
         if user_id == 8607774564:
             name_display = "** V ᴇ ɴ ᴏ ᴍ **"
         else:
@@ -363,20 +407,20 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 🕐 Current Time:
    {current_time_str}
 
+✅ <b>Verified: Channel Joined!</b>
 💡 Neeche menu se tool chuno, ya /help bhejo.
 
-📢 Update ke liye join karo: @osint_xpert
+📢 Update ke liye: @osint_xpert
+👑 Owner: @Supermannn_x
 """
 
         # Try to send photo banner + caption + grid
         banner_path = os.path.join(os.path.dirname(__file__), "welcome_banner.jpg")
-        # Also check alternative path
         if not os.path.exists(banner_path):
             banner_path = "welcome_banner.jpg"
         
         try:
             if os.path.exists(banner_path):
-                # Send photo with caption and grid keyboard
                 with open(banner_path, 'rb') as photo:
                     if reply_kb:
                         await update.message.reply_photo(
@@ -391,34 +435,35 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             caption=txt,
                             parse_mode=ParseMode.HTML
                         )
-                # Send inline buttons for channel
+                # Inline buttons below welcome - channel + owner
                 try:
                     kb = [
-                        [InlineKeyboardButton("📢 Official Channel", url=config.FORCE_CHANNEL_LINK)],
-                        [InlineKeyboardButton("✅ Verify", callback_data="check_joined")]
+                        [InlineKeyboardButton("📢 Official Channel @osint_xpert", url=config.FORCE_CHANNEL_LINK)],
+                        [InlineKeyboardButton("👑 Owner @Supermannn_x", url="https://t.me/Supermannn_x"), InlineKeyboardButton("📖 Help", callback_data="help_all")]
                     ]
                     await update.message.reply_text(
-                        "👇 <b>Neeche menu se tool chuno</b>",
+                        "👇 <b>Neeche menu se tool chuno - 8 Tools Ready!</b>\n\n"
+                        "🔒 <b>Protection:</b> Channel joined ✅ | Ab sab tools kaam karenge!",
                         parse_mode=ParseMode.HTML,
                         reply_markup=InlineKeyboardMarkup(kb)
                     )
                 except:
                     pass
             else:
-                # Fallback without photo
                 if reply_kb:
                     await update.message.reply_text(txt, parse_mode=ParseMode.HTML, reply_markup=reply_kb)
                 else:
                     await update.message.reply_text(txt, parse_mode=ParseMode.HTML)
                 
-                # Inline buttons
+                # Inline buttons - joined users
                 try:
                     kb = [
-                        [InlineKeyboardButton("📢 Official Channel", url=config.FORCE_CHANNEL_LINK)],
-                        [InlineKeyboardButton("✅ Verify", callback_data="check_joined")]
+                        [InlineKeyboardButton("📢 Official Channel @osint_xpert", url=config.FORCE_CHANNEL_LINK)],
+                        [InlineKeyboardButton("👑 Owner @Supermannn_x", url="https://t.me/Supermannn_x"), InlineKeyboardButton("📖 Help", callback_data="help_all")]
                     ]
                     await update.message.reply_text(
-                        "👇 <b>Neeche menu se tool chuno</b>",
+                        "👇 <b>Neeche menu se tool chuno - 8 Tools Ready!</b>\n\n"
+                        "🔒 <b>Protection:</b> Channel joined ✅",
                         parse_mode=ParseMode.HTML,
                         reply_markup=InlineKeyboardMarkup(kb)
                     )
