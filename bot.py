@@ -600,23 +600,35 @@ async def handle_grid_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
             return
         
         text = update.message.text.strip()
-        # Clean emoji and get mode - robust for all emojis including 📚
+        print(f"GRID BUTTON PRESSED: '{text}' from user {update.effective_user.id}")
+        # Clean emoji and get mode - robust for ALL emojis
         clean_text = text
-        # Remove emoji prefix - list includes all grid emojis
-        for emoji in ["📡 ", "📸 ", "📧 ", "🌐 ", "🖼️ ", "🔒 ", "📱 ", "🆔 ", "📝 ", "📊 ", "📜 ", "👑 ", "📢 ", "📚 ", "🔧 "]:
+        # Remove emoji prefix - comprehensive list
+        all_emojis = ["📡 ", "📸 ", "📧 ", "🌐 ", "🖼️ ", "🔒 ", "📱 ", "🆔 ", "📝 ", "📊 ", "📜 ", "👑 ", "📢 ", "📚 ", "🔧 ", "💎 ", "🐙 ", "☁️ ", "🛠️ ", "⚒️ ", "🔨 ", "💳 ", "🎁 ", "👥 ", "📊 ", "💎 ", "🔥 ", "⭐ ", "🚀 "]
+        for emoji in all_emojis:
             if clean_text.startswith(emoji):
                 clean_text = clean_text[len(emoji):].strip()
                 break
-        # Fallback: strip any leading non-alphanumeric (emoji) characters
+        # Fallback: strip any leading non-alphanumeric (emoji) characters - handles ALL emojis
         if clean_text == text:
-            # Try to remove first char if it's emoji/non-ascii
             import re
-            # Remove leading emoji/non-letter chars
-            m = re.match(r'^[^A-Za-z0-9]+(.*)', text)
+            # Remove leading emoji/non-letter chars - more aggressive
+            m = re.match(r'^[^\w]+(.*)', text, re.UNICODE)
             if m:
                 possible = m.group(1).strip()
                 if possible:
                     clean_text = possible
+            # Also try removing first 2 chars if still same (for compound emojis like 🛠️)
+            if clean_text == text and len(text) > 2:
+                # Try stripping first 2-4 chars
+                for i in range(1, 5):
+                    if len(text) > i:
+                        test = text[i:].strip()
+                        if test and test[0].isalnum():
+                            clean_text = test
+                            break
+        
+        print(f"CLEANED: '{clean_text}' from '{text}'")
         
         mode = BTN_MODE_MAP.get(clean_text.upper())
         if not mode:
@@ -911,7 +923,7 @@ async def number_info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     try:
-        result = lookup_number(number)
+        result = await asyncio.to_thread(lookup_number, number)
         
         # Advanced formatting with spaces and emojis
         if not result.get("ok"):
@@ -1017,7 +1029,7 @@ async def tg_number_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     try:
-        result = lookup_tg(username)
+        result = await asyncio.to_thread(lookup_tg, username)
         
         if not result.get("ok"):
             try:
@@ -1088,7 +1100,7 @@ async def pak_number_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     status = await update.message.reply_text(f"🔍 Pak lookup for {num}...", parse_mode=ParseMode.HTML)
 
     try:
-        result = lookup_pak(num)
+        result = await asyncio.to_thread(lookup_pak, num)
         if not result.get("ok"):
             try:
                 left = spend_credits(uid, 1)
@@ -1159,7 +1171,7 @@ async def ip_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     status = await update.message.reply_text(f"🌐 IP lookup for {target}...", parse_mode=ParseMode.HTML)
 
     try:
-        result = ip_lookup(target)
+        result = await asyncio.to_thread(ip_lookup, target)
         if not result.get("ok"):
             try:
                 left = spend_credits(uid, 1)
@@ -1248,7 +1260,7 @@ async def domain_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     status = await update.message.reply_text(f"🌐 Full recon for {target}...", parse_mode=ParseMode.HTML)
 
     try:
-        result = full_recon(target)
+        result = await asyncio.to_thread(full_recon, target)
         if result.get("type") == "ip":
             ip_info = result.get("ip_info", {})
             try:
@@ -1354,7 +1366,7 @@ async def dns_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     status = await update.message.reply_text(f"🔍 DNS lookup for {target}...", parse_mode=ParseMode.HTML)
 
     try:
-        result = dns_lookup(target)
+        result = await asyncio.to_thread(dns_lookup, target)
         txt = f"🌐 <b>DNS for {result.get('domain')}</b>\n\n"
         for k, v in result.get("records", {}).items():
             txt += f"<b>{k}:</b> {', '.join(v) if isinstance(v, list) else v}\n\n"
@@ -1389,7 +1401,7 @@ async def whois_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     status = await update.message.reply_text(f"🔍 WHOIS for {target}...", parse_mode=ParseMode.HTML)
 
     try:
-        result = whois_lookup(target)
+        result = await asyncio.to_thread(whois_lookup, target)
         if not result.get("ok"):
             try:
                 left = spend_credits(uid, 1)
@@ -1453,7 +1465,7 @@ async def ssl_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     status = await update.message.reply_text(f"🔒 SSL check for {target}...", parse_mode=ParseMode.HTML)
 
     try:
-        result = ssl_check(target)
+        result = await asyncio.to_thread(ssl_check, target)
         if not result.get("ok"):
             try:
                 left = spend_credits(uid, 1)
@@ -1513,7 +1525,7 @@ async def website_extract_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE
     status = await update.message.reply_text(f"🔍 Extracting from {url}...", parse_mode=ParseMode.HTML)
 
     try:
-        result = website_extractor(url)
+        result = await asyncio.to_thread(website_extractor, url)
         if not result.get("ok"):
             try:
                 left = spend_credits(uid, 1)
@@ -1870,7 +1882,7 @@ async def js_secret_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     try:
-        result = js_secret_finder(url)
+        result = await asyncio.to_thread(js_secret_finder, url)
         txt = format_js_report(result)
         try:
             left = spend_credits(uid, 1)
@@ -1914,7 +1926,7 @@ async def github_leak_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     try:
-        result = github_leak_hunter(query)
+        result = await asyncio.to_thread(github_leak_hunter, query)
         txt = format_github_report(result)
         try:
             left = spend_credits(uid, 1)
@@ -1959,7 +1971,7 @@ async def terabox_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     try:
-        result = extract_terabox(url)
+        result = await asyncio.to_thread(extract_terabox, url)
         txt = format_terabox_report(result)
         try:
             left = spend_credits(uid, 1)
@@ -1975,6 +1987,11 @@ async def terabox_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except:
             pass
         await status.edit_text(f"❌ Error: {str(e)[:500]}", parse_mode=ParseMode.HTML)
+
+# ========== PING - FAST TEST ==========
+async def ping_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # No force join, no credits - instant reply to test bot alive
+    await update.message.reply_text(f"🏓 Pong! Bot alive - {datetime.now().strftime('%I:%M:%S %p')}\n\n✅ Fast stable mode ON\n⚡ No delay\n\nGrid: /start", parse_mode=ParseMode.HTML)
 
 # ========== PAYMENTS & PREMIUM ==========
 async def premium_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2668,6 +2685,7 @@ async def main_async():
     app.add_handler(CommandHandler(["myplan", "mycredits", "credits", "plan"], myplan_cmd))
     app.add_handler(CommandHandler("buy", buy_cmd))
     app.add_handler(CommandHandler("pay", pay_cmd))
+    app.add_handler(CommandHandler(["ping", "alive", "test"], ping_cmd))
 
     # ========== ADMIN FULL CONTROLS ==========
     app.add_handler(CommandHandler(["admin", "adminpanel", "panel"], admin_cmd))
