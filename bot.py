@@ -415,27 +415,27 @@ async def is_user_joined_channel(user_id: int, bot) -> bool:
             return False
     except BadRequest as e:
         err_msg = str(e).lower()
-        if "member list is inaccessible" in err_msg:
-            # Bot not admin - CRITICAL - owner must fix
-            logger.error(f"FORCE JOIN CRITICAL: Bot NOT admin in {config.FORCE_CHANNEL_LINK}! Owner must make @osint_hunter_hub_bot admin to enable REAL force join. Allowing user {user_id} temporarily.")
-            # Notify owner async (don't block)
+        if "member list is inaccessible" in err_msg or "chat not found" in err_msg:
+            logger.error(f"FORCE JOIN CRITICAL: Bot NOT admin in {config.FORCE_CHANNEL_LINK}! Owner must make @osint_hunter_hub_bot admin. Allowing user {user_id} temporarily.")
             try:
-                # Send warning to owner in background
                 asyncio.create_task(
                     bot.send_message(
                         chat_id=config.ADMIN_ID,
-                        text=f"⚠️ <b>FORCE JOIN SETUP REQUIRED!</b>\n\nBot @{ (await bot.get_me()).username } is NOT admin in {config.FORCE_CHANNEL_LINK}\n\nMember list inaccessible → Real force join NOT working!\n\n👉 Go to {config.FORCE_CHANNEL_LINK} → Admins → Add Admin → @osint_hunter_hub_bot → Make admin with permission to see members\n\nUntil then, bot allows all users (fake mode). After admin, real protection will work!",
+                        text=f"⚠️ <b>FORCE JOIN SETUP REQUIRED!</b>\n\nBot is NOT admin in {config.FORCE_CHANNEL_LINK}\n\nMember list inaccessible → Real force join NOT working!\n\n👉 Go to channel → Admins → Add @osint_hunter_hub_bot as admin\n\nUntil then, bot allows all users.",
                         parse_mode=ParseMode.HTML
                     )
                 )
             except:
                 pass
-            # TEMP allow to avoid total outage until owner fixes
             return True
         else:
             logger.warning(f"FORCE JOIN BadRequest user {user_id}: {e}")
             return False
     except Exception as e:
+        err_msg = str(e).lower()
+        if "member list is inaccessible" in err_msg or "chat not found" in err_msg or "forbidden" in err_msg:
+            logger.error(f"FORCE JOIN CRITICAL (generic): Bot NOT admin in {config.FORCE_CHANNEL_LINK}! Allowing user {user_id} temporarily. Error: {e}")
+            return True
         logger.warning(f"FORCE JOIN error user {user_id}: {e}")
         return False
 
