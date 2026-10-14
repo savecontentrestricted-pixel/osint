@@ -5,6 +5,10 @@ name: render-auto-deploy
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '.github/**'      # workflow file change = bot code same, deploy bekaar
+      - '*.md'
+      - 'pella.json'
   workflow_dispatch: {}
 
 jobs:

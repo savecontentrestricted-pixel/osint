@@ -45,7 +45,12 @@ import threading
 import traceback
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
-BOT_VERSION = ("v2.1 — ⚡ FAST-2 (poore bot me 2-layer cache: memory + DB): ab TG number, Pak number, "
+BOT_VERSION = ("v2.2 — ⚡ FEEL-FAST (utility-duniya-bot jaisa instant feel): number bhejte hi TURANT "
+    "(1 sec) hint dikhta hai — number valid, operator + circle approx (100% offline, 0 ms) — "
+    "phir wahi message final card ban jata hai; galat number par API call hi nahi hoti (instant reply); "
+    "wait time ab honest (5-10 sec) + 'dobara bhejo to INSTANT' note; har tool ka [TIMING] log "
+    "(asli speed /health ke bajaye logs me proof) | "
+    "v2.1 — ⚡ FAST-2 (poore bot me 2-layer cache: memory + DB): ab TG number, Pak number, "
     "IP/DNS/WHOIS/SSL recon, website extractor, JS secret finder, GitHub leak hunter aur TeraBox — "
     "SAB me cache hai. Wahi query dobara = INSTANT (0 ms), pehli call bhi warm hub se. "
     "TG/Pak lookup ab pooled connection + 25s timeout (pehle 40s) | "
@@ -1229,16 +1234,39 @@ async def number_info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     number = context.args[0]
-    status = await update.message.reply_text(
-        f"🔍 <b>Number Info Searching...</b>\n\n"
-        f"📱 Number: <code>{number}</code>\n"
-        f"⏳ Please wait 5-15 seconds...\n"
-        f"{credits_line(uid)}",
-        parse_mode=ParseMode.HTML
-    )
+    # ⚡ v2.2 FEEL-FAST (utility-duniya-bot jaisa): offline parse 0 ms me hota
+    # hai — pehle number validate karo aur TURANT circle/operator hint dikhao.
+    # Provider 8-11 sec leta hai, par user ko 1 second me pata chal jata hai
+    # ki number sahi hai. Galat number par API call HI NAHI hoti (instant reply).
+    _off = {"ok": True}
+    try:
+        from modules.phone_offline import lookup_phone_info as _offline
+        _off = _offline(number)
+    except Exception:
+        pass
+    if not _off.get("ok"):
+        await update.message.reply_text(
+            f"❌ {_off.get('error')}", parse_mode=ParseMode.HTML)
+        return
+    _hint = ["🔍 <b>Record dhoondh raha hoon…</b>", "",
+             f"📱 <b>Number:</b> <code>{_off.get('e164') or number}</code>"]
+    if _off.get("operator"):
+        _hint.append(f"📶 <b>Operator (approx):</b> {html.escape(str(_off.get('operator'))[:40])}")
+    if _off.get("circle"):
+        _hint.append(f"📍 <b>Circle (approx):</b> {html.escape(str(_off.get('circle'))[:40])}")
+    if _off.get("type"):
+        _hint.append(f"🧾 <b>Type:</b> {_off.get('type')}")
+    _hint += ["", "🕐 <i>Owner details aate hi yahin update ho jayega (5-10 sec). "
+                  "Wahi number dobara bhejo to INSTANT (0 sec).</i>", credits_line(uid)]
+    status = await update.message.reply_text("\n".join(_hint), parse_mode=ParseMode.HTML)
 
+    _t0 = time.time()
     try:
         result = await asyncio.to_thread(lookup_number, number)
+        try:
+            print(f"[TIMING] numinfo {int((time.time()-_t0)*1000)}ms ok={result.get('ok')} cached={result.get('cached', False)}")
+        except Exception:
+            pass
         
         # Advanced formatting with spaces and emojis
         if not result.get("ok"):
@@ -1339,15 +1367,20 @@ async def family_info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     aadhaar = context.args[0]
     status = await update.message.reply_text(
-        f"👪 <b>Family Info Searching...</b>\n\n"
+        f"👪 <b>Family Info dhoondh raha hoon…</b>\n\n"
         f"🔒 Aadhaar: <code>XXXX-XXXX-{aadhaar[-4:] if len(aadhaar)>=4 else 'XXXX'}</code>\n"
-        f"⏳ Please wait 10-30 seconds...\n"
+        f"🕐 <i>5-10 sec (provider ki speed). Wahi Aadhaar dobara = INSTANT.</i>\n"
         f"{credits_line(uid)}",
         parse_mode=ParseMode.HTML
     )
 
+    _t0 = time.time()
     try:
         result = await asyncio.to_thread(lookup_family, aadhaar)
+        try:
+            print(f"[TIMING] family {int((time.time()-_t0)*1000)}ms ok={result.get('ok')} cached={result.get('cached', False)}")
+        except Exception:
+            pass
         txt = format_family_card(result)
         # Spend credit
         try:
@@ -1384,15 +1417,20 @@ async def upi_info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     upi_id = context.args[0]
     status = await update.message.reply_text(
-        f"💸 <b>UPI Info Searching...</b>\n\n"
+        f"💸 <b>UPI Info dhoondh raha hoon…</b>\n\n"
         f"💳 UPI ID: <code>{upi_id[:40]}</code>\n"
-        f"⏳ Please wait 5-15 seconds...\n"
+        f"🕐 <i>5-10 sec. Wahi UPI ID dobara = INSTANT.</i>\n"
         f"{credits_line(uid)}",
         parse_mode=ParseMode.HTML
     )
 
+    _t0 = time.time()
     try:
         result = await asyncio.to_thread(lookup_upi, upi_id)
+        try:
+            print(f"[TIMING] upi {int((time.time()-_t0)*1000)}ms ok={result.get('ok')} cached={result.get('cached', False)}")
+        except Exception:
+            pass
         txt = format_upi_card(result)
         try:
             left = spend_credits(uid, 1)
@@ -1425,14 +1463,19 @@ async def tg_number_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     username = context.args[0]
     status = await update.message.reply_text(
-        f"🔍 <b>Telegram OSINT Searching...</b>\n\n"
+        f"🔍 <b>Telegram OSINT dhoondh raha hoon…</b>\n\n"
         f"👤 Username: <code>{username}</code>\n"
-        f"⏳ Please wait...",
+        f"🕐 <i>5-10 sec. Wahi username dobara = INSTANT.</i>",
         parse_mode=ParseMode.HTML
     )
 
+    _t0 = time.time()
     try:
         result = await asyncio.to_thread(lookup_tg, username)
+        try:
+            print(f"[TIMING] tg {int((time.time()-_t0)*1000)}ms ok={result.get('ok')} cached={result.get('cached', False)}")
+        except Exception:
+            pass
         
         if not result.get("ok"):
             try:
@@ -1500,10 +1543,19 @@ async def pak_number_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     num = context.args[0]
-    status = await update.message.reply_text(f"🔍 Pak lookup for {num}...", parse_mode=ParseMode.HTML)
+    status = await update.message.reply_text(
+        f"🔍 <b>Pak number dhoondh raha hoon…</b>\n\n"
+        f"📱 <code>{html.escape(str(num)[:20])}</code>\n"
+        f"🕐 <i>5-10 sec. Wahi number dobara = INSTANT.</i>",
+        parse_mode=ParseMode.HTML)
 
+    _t0 = time.time()
     try:
         result = await asyncio.to_thread(lookup_pak, num)
+        try:
+            print(f"[TIMING] pak {int((time.time()-_t0)*1000)}ms ok={result.get('ok')} cached={result.get('cached', False)}")
+        except Exception:
+            pass
         if not result.get("ok"):
             try:
                 left = spend_credits(uid, 1)
