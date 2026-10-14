@@ -1,0 +1,45 @@
+# SELF-HEALING DEPLOY: har 30 min check karta hai ki latest commit live hai ya nahi.
+# Render ka deploy API down ho to ye chup-chaap skip karta hai aur agle run me
+# dobara try karta hai. Jaise hi Render theek hota hai, naya version khud live
+# ho jata hai — kisi ko kuch karne ki zaroorat nahi.
+name: deploy-retry
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  ensure-latest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Latest commit live hai? warna deploy bhejo
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: |
+          set -u
+          SID=srv-db6jiubl550s73b7k8d0
+          API="https://api.render.com/v1/services/$SID"
+          WANT="${GITHUB_SHA:0:7}"
+          INFO=$(curl -fsS -H "Authorization: Bearer $RENDER_API_KEY" "$API/deploys?limit=1" || echo '')
+          if [ -z "$INFO" ]; then echo "Render API reachable nahi - agla run try karega"; exit 0; fi
+          STATUS=$(echo "$INFO" | jq -r '.[0].deploy.status')
+          HAVE=$(echo "$INFO" | jq -r '.[0].deploy.commit.id' | cut -c1-7)
+          echo "want=$WANT have=$HAVE status=$STATUS"
+          case "$STATUS" in
+            build_in_progress|update_in_progress|created|queued)
+              echo "Ek deploy chal raha hai - skip."; exit 0;;
+          esac
+          if [ "$HAVE" = "$WANT" ]; then echo "Latest commit already live ✅"; exit 0; fi
+          for attempt in 1 2 3; do
+            CODE=$(curl -sS -o /tmp/r.json -w "%{http_code}" -X POST \
+              -H "Authorization: Bearer $RENDER_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d '{"clearCache":"do_not_clear"}' "$API/deploys" || echo 000)
+            if [ "$CODE" = "201" ] || [ "$CODE" = "200" ]; then
+              echo "Deploy trigger ho gaya (attempt $attempt) ✅"; exit 0
+            fi
+            echo "attempt $attempt fail ($CODE): $(head -c 140 /tmp/r.json 2>/dev/null)"
+            sleep 45
+          done
+          echo "Render deploys abhi bhi unavailable - agla scheduled run dobara try karega"
