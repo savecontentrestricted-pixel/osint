@@ -18,12 +18,17 @@ jobs:
           set -e
           SID=srv-db6jiubl550s73b7k8d0
           API="https://api.render.com/v1/services/$SID"
-          STATUS=$(curl -fsS -H "Authorization: Bearer $RENDER_API_KEY" "$API/deploys?limit=1" | jq -r '.[0].deploy.status')
-          echo "Latest deploy status: $STATUS"
+          LATEST=$(curl -fsS -H "Authorization: Bearer $RENDER_API_KEY" "$API/deploys?limit=1")
+          STATUS=$(echo "$LATEST" | jq -r '.[0].deploy.status')
+          COMMIT=$(echo "$LATEST" | jq -r '.[0].deploy.commit.id' | cut -c1-7)
+          echo "Latest deploy: $STATUS | commit: $COMMIT | is push: ${GITHUB_SHA:0:7}"
           case "$STATUS" in
             build_in_progress|update_in_progress|created|queued)
               echo "Deploy already running - skipping to avoid churn."; exit 0;;
           esac
+          if [ "$COMMIT" = "${GITHUB_SHA:0:7}" ]; then
+            echo "Is commit ka deploy already ho chuka/chal raha hai - skipping."; exit 0
+          fi
           curl -fsS -X POST -H "Authorization: Bearer $RENDER_API_KEY" \
             -H "Content-Type: application/json" \
             -d '{"clearCache":"do_not_clear"}' "$API/deploys" \
