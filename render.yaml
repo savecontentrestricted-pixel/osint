@@ -44,13 +44,13 @@ services:
       - key: FAMINFO_API_URL
         value: https://utility-api-vu83.onrender.com/api
       - key: FAMINFO_API_KEY
-        value: udb-SlhpCRCaziEfxTPvasAUHNFCPa9CYw6smolrP0QX
+        sync: false   # Render Dashboard -> Environment me daalo (code me hardcode NAHI)
       - key: FAMINFO_API_TIMEOUT
         value: 40
       - key: UPIINFO_API_URL
         value: https://utility-api-vu83.onrender.com/api
       - key: UPIINFO_API_KEY
-        value: udb-SlhpCRCaziEfxTPvasAUHNFCPa9CYw6smolrP0QX
+        sync: false   # Render Dashboard -> Environment me daalo (code me hardcode NAHI)
       - key: UPIINFO_API_TIMEOUT
         value: 30
       - key: BOT_SELF_URL

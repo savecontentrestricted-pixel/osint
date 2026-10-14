@@ -128,12 +128,12 @@ excel2pdf, csv2excel, excel2csv, img2pdf, pdf2text
 
 ### ENV Variables (Required)
 ```
-BOT_TOKEN=8877252485:AAH9pE0gMvR_aPahpq2VAdswuhyfSUNcS5k (will be revoked, use new after)
+BOT_TOKEN=<Render Environment me set karo — code/repo me kabhi nahi>
 ADMIN_ID=8607774564
 FORCE_CHANNEL=-1004393596502
 FORCE_CHANNEL_LINK=https://t.me/osint_xpert
 MYNUM_API_URL=https://utility-api-vu83.onrender.com/api
-MYNUM_API_KEY=udb-SlhpCRCaziEfxTPvasAUHNFCPa9CYw6smolrP0QX
+MYNUM_API_KEY=<Render Environment me set karo>
 API_ID= (from my.telegram.org - for Telegram scraper)
 API_HASH= (from my.telegram.org)
 SESSION_STRING= (from generate_session.py)
