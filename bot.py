@@ -307,6 +307,7 @@ from modules.database import (
     is_banned, set_ban, FREE_CREDITS
 )
 from modules.payments import PLANS, UPI_ID, UPI_NAME, get_upi_link, format_plans, format_plan_detail, format_myplan, format_credits_over
+from modules.upi_qr import generate_upi_qr
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -2028,7 +2029,7 @@ async def buy_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     plan_key = context.args[0].lower()
     plan = PLANS.get(plan_key)
     if not plan:
-        await update.message.reply_text(f"❌ Invalid plan <code>{plan_key}</code>\n\nValid: {', '.join(PLANS.keys())}\n\n/premium se dekho", parse_mode=ParseMode.HTML)
+        await update.message.reply_text(f"❌ Invalid plan <code>{html.escape(plan_key)}</code>\n\nValid: {', '.join(PLANS.keys())}\n\n/premium se dekho", parse_mode=ParseMode.HTML)
         return
     uid = update.effective_user.id
     get_user(uid, update.effective_user.first_name or "", update.effective_user.username or "")
@@ -2038,7 +2039,25 @@ async def buy_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("✅ Paid - Send Screenshot", callback_data=f"paid_{plan_key}")],
         [InlineKeyboardButton("📖 How to Pay?", callback_data="howtopay")]
     ]
-    await update.message.reply_text(txt, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(kb))
+    # Send with QR
+    try:
+        qr_bio = await asyncio.to_thread(generate_upi_qr, plan['amount'], plan['name'], f"OSINT {plan['name']}")
+        if qr_bio:
+            await update.message.reply_photo(
+                photo=qr_bio,
+                caption=txt[:1000],
+                parse_mode=ParseMode.HTML,
+                reply_markup=InlineKeyboardMarkup(kb)
+            )
+        else:
+            await update.message.reply_text(txt, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(kb))
+    except Exception as e:
+        print(f"buy_cmd QR error: {e}")
+        try:
+            await update.message.reply_text(txt, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(kb))
+        except:
+            plain = f"Plan: {plan['name']}\nAmount: ₹{plan['amount']}\nUPI: {UPI_ID}\n/pay {plan_key} UTR + screenshot"
+            await update.message.reply_text(plain, reply_markup=InlineKeyboardMarkup(kb))
 
 async def pay_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_force_join(update, context):
@@ -2526,16 +2545,37 @@ async def help_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     [InlineKeyboardButton("✅ Paid - Send Screenshot", callback_data=f"paid_{plan_key}")],
                     [InlineKeyboardButton("📖 How to Pay?", callback_data="howtopay")]
                 ]
-                await query.message.reply_text(txt, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(kb))
-            except Exception as e:
-                print(f"Buy callback HTML error {plan_key}: {e}")
+                # Generate QR with fixed price
                 try:
-                    # Fallback without HTML
-                    plain = f"Plan: {plan['name']}\nAmount: ₹{plan['amount']}\nDuration: {plan['days']} days\n\nUPI: {UPI_ID}\n\nSteps:\n1. Pay ₹{plan['amount']} to {UPI_ID}\n2. Send screenshot + UTR\n3. /pay {plan_key} UTR"
-                    await query.message.reply_text(plain, reply_markup=InlineKeyboardMarkup(kb))
-                except Exception as e2:
-                    print(f"Fallback also failed: {e2}")
+                    qr_bio = await asyncio.to_thread(generate_upi_qr, plan['amount'], plan['name'], f"OSINT {plan['name']}")
+                    if qr_bio:
+                        # Send photo with QR + caption
+                        await context.bot.send_photo(
+                            chat_id=query.message.chat_id,
+                            photo=qr_bio,
+                            caption=txt[:1000],
+                            parse_mode=ParseMode.HTML,
+                            reply_markup=InlineKeyboardMarkup(kb)
+                        )
+                    else:
+                        # Fallback without QR
+                        await query.message.reply_text(txt, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(kb))
+                except Exception as qr_err:
+                    print(f"QR send failed for {plan_key}: {qr_err}")
+                    # Try without QR
+                    try:
+                        await query.message.reply_text(txt, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(kb))
+                    except Exception as html_err:
+                        print(f"HTML parse failed for buy_{plan_key}: {html_err}, sending plain")
+                        plain = f"Plan: {plan['name']}\nAmount: ₹{plan['amount']}\nDuration: {plan['days']} days\n\nUPI: {UPI_ID}\n\nSteps:\n1. Pay ₹{plan['amount']} to {UPI_ID}\n2. Send screenshot + UTR\n3. /pay {plan_key} UTR"
+                        await query.message.reply_text(plain, reply_markup=InlineKeyboardMarkup(kb))
+            except Exception as e:
+                print(f"Buy callback error {plan_key}: {e}")
+                traceback.print_exc()
+                try:
                     await query.message.reply_text(f"Plan {plan_key} - ₹{plan['amount']} - UPI {UPI_ID} - /pay {plan_key} UTR", parse_mode=ParseMode.HTML)
+                except:
+                    pass
         else:
             await query.message.reply_text(f"❌ Invalid plan {plan_key}", parse_mode=ParseMode.HTML)
     elif data.startswith("paid_"):
