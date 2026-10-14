@@ -38,6 +38,8 @@ def get_upi_link_escaped(amount: int, note: str = "OSINT Premium") -> str:
     return html.escape(link)
 
 def format_plans() -> str:
+    upi_id_esc = html.escape(UPI_ID)
+    upi_name_esc = html.escape(UPI_NAME)
     txt = f"""
 ╔══════════════════════════════════════╗
 ║  👑 <b>PREMIUM PLANS - OSINT Hunter Hub</b>  ║
@@ -204,6 +206,7 @@ def format_myplan(user: dict, credits: int) -> str:
     return txt
 
 def format_credits_over(tool_name: str = "") -> str:
+    upi_id_esc = html.escape(UPI_ID)
     return f"""
 🔒 <b>Aapke {FREE_CREDITS} free credits khatam ho gaye</b>
 
@@ -219,5 +222,5 @@ Aapne saare use kar liye!
 
 💳 UPI: <code>{upi_id_esc}</code>
 
-{tool_name} premium me bina rok-tok chalega!
+{html.escape(tool_name)} premium me bina rok-tok chalega!
 """
