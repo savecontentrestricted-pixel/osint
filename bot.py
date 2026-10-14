@@ -164,17 +164,18 @@ from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandl
 from telegram.constants import ParseMode
 from telegram.error import BadRequest
 
-# ========== GRID MENU - 9 TOOLS + PREMIUM + ADMIN ==========
+# ========== GRID MENU - 10 TOOLS + PREMIUM + ADMIN ==========
 KB_BTNS = [
     ["📱 NUMBER INFO", "🆔 TELEGRAM NUMBER"],
-    ["👪 FAMILY INFO", "🌐 IP/DOMAIN RECON"],
-    ["🌐 WEBSITE EXTRACTOR", "💎 JS SECRET FINDER"],
-    ["🐙 GITHUB LEAK HUNTER", "☁️ TERABOX EXTRACTOR"],
-    ["👑 PREMIUM", "📊 MY PLAN"],
+    ["👪 FAMILY INFO", "💸 UPI INFO"],
+    ["🌐 IP/DOMAIN RECON", "🌐 WEBSITE EXTRACTOR"],
+    ["💎 JS SECRET FINDER", "🐙 GITHUB LEAK HUNTER"],
+    ["☁️ TERABOX EXTRACTOR", "👑 PREMIUM"],
+    ["📊 MY PLAN"],
 ]
 
 def main_keyboard(admin: bool = False):
-    """Grid keyboard - 8 tools + Premium + Admin controls"""
+    """Grid keyboard - 10 tools + Premium + Admin controls"""
     rows = [row[:] for row in KB_BTNS]
     if admin:
         rows.append(["📚 PDF RENAMER (Private)", "🛠️ ADMIN PANEL"])
@@ -240,6 +241,9 @@ BTN_MODE_MAP = {
     "FAMILY": "familyinfo",
     "FAMILYINFO": "familyinfo",
     "RATION CARD": "familyinfo",
+    "UPI INFO": "upiinfo",
+    "UPI": "upiinfo",
+    "UPI ID": "upiinfo",
     "PREMIUM": "premium",
     "VIP": "premium",
     "BUY PREMIUM": "premium",
@@ -296,6 +300,11 @@ GRID_PROMPTS = {
         "ask": "12 Digit Aadhaar bhejein:",
         "ex": "401234567849",
     },
+    "upiinfo": {
+        "head": "💸 UPI INFO - BEST",
+        "ask": "UPI ID bhejein:",
+        "ex": "kumaranil98787@axl",
+    },
     "premium": {
         "head": "👑 PREMIUM PLANS",
         "ask": "Plan chuno ya /buy bhejo:",
@@ -323,15 +332,7 @@ from modules.js_secret_finder import js_secret_finder, format_js_report
 from modules.github_leak_hunter import github_leak_hunter, format_github_report
 from modules.terabox_extractor import extract_terabox, format_terabox_report
 from modules.family_info import lookup_family, format_family_card
-# NEW: Payments + Credits + Database
-from modules.database import (
-    get_user, get_credits, add_credits, set_credits, spend_credits,
-    is_premium_user, is_premium, premium_expiry, grant_premium, revoke_premium,
-    create_payment, get_payment, set_payment_status, set_payment_admin_msg,
-    utr_exists, pending_payments_count, pending_payments, recent_payments,
-    user_payments, all_user_ids, premium_users, recent_users, credits_stats, payment_stats,
-    is_banned, set_ban, FREE_CREDITS
-)
+from modules.upi_info import lookup_upi, format_upi_card
 from modules.payments import PLANS, UPI_ID, UPI_NAME, get_upi_link, format_plans, format_plan_detail, format_myplan, format_credits_over
 from modules.upi_qr import generate_upi_qr
 
@@ -795,6 +796,13 @@ async def handle_grid_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
             # Auto detect
             if "terabox.com" in raw or "1024terabox.com" in raw or "terabox" in raw.lower():
                 current_mode = "terabox"
+            elif "@" in raw and not raw.startswith("@") and " " not in raw and raw.count("@")==1 and len(raw)>=6 and len(raw)<=60:
+                # Likely UPI ID like name@axl
+                # Avoid email false positive: UPI handles short, email has .com etc but still we treat as upi
+                current_mode = "upiinfo"
+            elif len(d) == 12 and len(raw)>=12:
+                # Aadhaar 12 digits
+                current_mode = "familyinfo"
             elif len(d) == 10 and d[0] in "6789":
                 current_mode = "numinfo"
             elif raw.startswith("@") or raw.replace("@","").replace("_","").isalnum() and len(raw) >= 4 and len(raw) <= 32 and " " not in raw:
@@ -853,6 +861,9 @@ async def handle_grid_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
         elif current_mode == "familyinfo":
             context.args = [text]
             await family_info_cmd(update, context)
+        elif current_mode == "upiinfo":
+            context.args = [text]
+            await upi_info_cmd(update, context)
         elif current_mode == "pdf_rename":
             await update.message.reply_text(
                 f"📚 <b>PDF RENAMER Mode ON</b>\n\n"
@@ -1065,6 +1076,50 @@ async def family_info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         result = await asyncio.to_thread(lookup_family, aadhaar)
         txt = format_family_card(result)
         # Spend credit
+        try:
+            left = spend_credits(uid, 1)
+            txt += f"\n{credits_line(uid)}"
+        except:
+            pass
+        await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
+    except Exception as e:
+        logger.exception(e)
+        await status.edit_text(f"❌ Error: {str(e)[:200]}", parse_mode=ParseMode.HTML)
+
+# ========== UPI INFO - BEST - YOUR API ==========
+async def upi_info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_force_join(update, context):
+        return
+    uid = update.effective_user.id
+    can_use, creds, user = can_use_tool(uid)
+    if not can_use:
+        await update.message.reply_text(format_credits_over("UPI Info"), parse_mode=ParseMode.HTML)
+        return
+    if not context.args:
+        await update.message.reply_text(
+            f"❌ <b>Use:</b> <code>/upi kumaranil98787@axl</code>\n\n"
+            f"📌 Example:\n"
+            f"<code>/upi kumaranil98787@axl</code>\n"
+            f"<code>/upiinfo test@okaxis</code>\n\n"
+            f"💳 UPI ID → Name + Bank + Valid\n"
+            f"🔒 Your API: utility-api-vu83\n\n"
+            f"{credits_line(uid)}",
+            parse_mode=ParseMode.HTML
+        )
+        return
+
+    upi_id = context.args[0]
+    status = await update.message.reply_text(
+        f"💸 <b>UPI Info Searching...</b>\n\n"
+        f"💳 UPI ID: <code>{upi_id[:40]}</code>\n"
+        f"⏳ Please wait 5-15 seconds...\n"
+        f"{credits_line(uid)}",
+        parse_mode=ParseMode.HTML
+    )
+
+    try:
+        result = await asyncio.to_thread(lookup_upi, upi_id)
+        txt = format_upi_card(result)
         try:
             left = spend_credits(uid, 1)
             txt += f"\n{credits_line(uid)}"
@@ -2770,12 +2825,17 @@ async def main_async():
     app.add_handler(CommandHandler("number", number_info_cmd))
     app.add_handler(CommandHandler("num", number_info_cmd))
 
-    # Family Info - NEW BEST
+    # Family Info - BEST
     app.add_handler(CommandHandler("family", family_info_cmd))
     app.add_handler(CommandHandler("finfo", family_info_cmd))
     app.add_handler(CommandHandler("familyinfo", family_info_cmd))
     app.add_handler(CommandHandler("ration", family_info_cmd))
     app.add_handler(CommandHandler("aadhaar", family_info_cmd))
+
+    # UPI Info - NEW BEST - YOUR API
+    app.add_handler(CommandHandler("upi", upi_info_cmd))
+    app.add_handler(CommandHandler("upiinfo", upi_info_cmd))
+    app.add_handler(CommandHandler("upiid", upi_info_cmd))
 
     # TG Tools - KEEP
     app.add_handler(CommandHandler("tginfo", tg_number_cmd))
