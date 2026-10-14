@@ -679,7 +679,7 @@ async def handle_grid_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
             
             if mode == "owner":
                 await update.message.reply_text(
-                    "👑 <b>Owner:</b> @Supermannn_x\n📢 <b>Channel:</b> @osint_xpert\n🤖 <b>Bot:</b> @osint_hunter_hub_bot",
+                    "👑 <b>Owner:</b> @Supermannn_x\n\n🤖 <b>Bot:</b> @osint_hunter_hub_bot",
                     parse_mode=ParseMode.HTML
                 )
                 return
@@ -1022,7 +1022,6 @@ async def number_info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 🔥 <b>Powered by @Supermannn_x</b>
-📢 <b>Channel:</b> @osint_xpert
 """
 
         await status.edit_text(txt, parse_mode=ParseMode.HTML)

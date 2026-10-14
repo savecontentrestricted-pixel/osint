@@ -238,7 +238,6 @@ def format_family_card(result: dict) -> str:
 🔒 <b>Privacy:</b> Full Aadhaar never shown, only {html.escape(masked)}
 
 🔥 <b>Powered by @Supermannn_x</b>
-📢 <b>Channel:</b> @osint_xpert
 """
     
     return txt
