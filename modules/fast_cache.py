@@ -6,6 +6,7 @@ Ultra-Fast Cache + Session for OSINT Hunter Hub
 """
 import time
 import threading
+import functools
 import requests
 from typing import Any, Dict, Optional
 
@@ -141,18 +142,61 @@ def api_cache_get(tool: str, term: str) -> Optional[Dict]:
         return pc
     return None
 
-def api_cache_set(tool: str, term: str, data: Dict, ttl: int = 300):
+def api_cache_set(tool: str, term: str, data: Dict, ttl: int = 300, db_ttl: int = None):
+    """mem TTL = ttl · DB TTL = db_ttl (None = default: ok 30 din, not_found 6 ghante)."""
     global _db_writes
+    if not isinstance(data, dict):
+        return
+    # SAFETY (v2.1): sirf achha result cache karo — error kabhi cache na ho
+    if data.get("ok") is False and not data.get("not_found"):
+        return
     key = api_cache_key(tool, term)
     cache_set(key, data, ttl)
     try:
         from modules.database import cache_put as _p, cache_prune as _pr
         if isinstance(data, dict) and data.get("ok"):
-            _p(f"osint:{key}", data, 2592000)          # success = 30 din
+            _p(f"osint:{key}", data, int(db_ttl) if db_ttl else 2592000)   # success
         elif isinstance(data, dict) and data.get("not_found"):
-            _p(f"osint:{key}", data, 21600)            # no-record = 6 ghante
+            _p(f"osint:{key}", data,
+               min(int(db_ttl), 21600) if db_ttl else 21600)               # no-record
         _db_writes += 1
         if _db_writes % 50 == 0:
             _pr()
     except Exception:
         pass
+
+
+# ======================================================================
+#  v2.1 FAST-2 — ek line ka cache decorator (mem -> DB -> real call)
+#  Decorated function ka pehla argument = term (url/number/query).
+#  Repeat query = 0 ms instant; fail/HTTP error cache NAHI hota.
+# ======================================================================
+def with_cache(tool: str, mem_ttl: int = 300, db_ttl: int = None):
+    """@with_cache("ip", 1800, 21600) — bas yahi ek line, poori speed."""
+    def _deco(fn):
+        @functools.wraps(fn)
+        def _wrap(term, *a, **kw):
+            t = str(term or "").strip()
+            if not t:
+                return fn(term, *a, **kw)
+            try:
+                hit = api_cache_get(tool, t)
+            except Exception:
+                hit = None
+            if isinstance(hit, dict) and hit:
+                out = dict(hit)
+                out["cached"] = True
+                try:
+                    out["ms"] = 0
+                except Exception:
+                    pass
+                return out
+            res = fn(term, *a, **kw)
+            try:
+                if isinstance(res, dict):
+                    api_cache_set(tool, t, res, ttl=mem_ttl, db_ttl=db_ttl)
+            except Exception:
+                pass
+            return res
+        return _wrap
+    return _deco

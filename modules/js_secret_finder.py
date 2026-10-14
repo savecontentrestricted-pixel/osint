@@ -7,6 +7,7 @@ Example: https://example.com -> extracts JS files -> finds api_key, /admin, etc.
 
 import re
 import requests
+from .fast_cache import with_cache
 from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
 
@@ -92,6 +93,7 @@ def find_endpoints_in_text(text, url=""):
             continue
     return endpoints
 
+@with_cache("jss", 1800, 21600)
 def js_secret_finder(target_url):
     """Main function - finds secrets in JS files of a website"""
     if not target_url.startswith('http'):

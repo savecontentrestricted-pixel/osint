@@ -11,6 +11,7 @@ Upstream base: https://osint-apis-hub.onrender.com
 """
 
 import requests
+from .fast_cache import with_cache
 import time
 
 # Upstream APIs - in order of preference
@@ -45,6 +46,7 @@ UPSTREAM_APIS = [
     },
 ]
 
+@with_cache("tbx", 600, 3600)
 def extract_terabox(url, custom_key=None, timeout=90):
     """
     Extract TeraBox file info using upstream APIs with fallback

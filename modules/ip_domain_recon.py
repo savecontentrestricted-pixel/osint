@@ -12,6 +12,7 @@ import socket
 import ssl
 import json
 import requests
+from .fast_cache import with_cache
 from datetime import datetime
 from typing import Dict, Any, List
 import re
@@ -19,6 +20,7 @@ import re
 # Free APIs - no key needed
 IP_API_URL = "http://ip-api.com/json/{ip}?fields=status,message,continent,country,regionName,city,zip,lat,lon,timezone,isp,org,as,proxy,hosting,query,reverse"
 
+@with_cache("ip", 1800, 21600)
 def ip_lookup(ip: str) -> Dict[str, Any]:
     """IP geolocation + ISP + VPN detection using ip-api.com (free, no key)"""
     ip = ip.strip()
@@ -65,6 +67,7 @@ def ip_lookup(ip: str) -> Dict[str, Any]:
     except Exception as e:
         return {"ok": False, "error": f"IP lookup error: {str(e)}"}
 
+@with_cache("dns", 1800, 21600)
 def dns_lookup(domain: str) -> Dict[str, Any]:
     """DNS records lookup using socket + dnspython fallback"""
     domain = domain.strip().lower()
@@ -101,6 +104,7 @@ def dns_lookup(domain: str) -> Dict[str, Any]:
 
     return result
 
+@with_cache("whois", 3600, 43200)
 def whois_lookup(domain: str) -> Dict[str, Any]:
     """WHOIS lookup - tries python-whois, fallback to API"""
     domain = domain.strip().lower()
@@ -143,6 +147,7 @@ def whois_lookup(domain: str) -> Dict[str, Any]:
     except Exception as e:
         return {"ok": False, "error": f"WHOIS error: {str(e)}"}
 
+@with_cache("ssl", 3600, 43200)
 def ssl_check(domain: str) -> Dict[str, Any]:
     """SSL certificate info"""
     domain = domain.strip().lower()
@@ -179,6 +184,7 @@ def ssl_check(domain: str) -> Dict[str, Any]:
     except Exception as e:
         return {"ok": False, "error": f"SSL check error: {str(e)} - maybe no SSL or port 443 closed"}
 
+@with_cache("recon", 1800, 21600)
 def full_recon(target: str) -> Dict[str, Any]:
     """Full recon - ULTRA FAST with concurrent execution"""
     target = target.strip()

@@ -7,15 +7,17 @@ import os
 import re
 import time
 import requests
+from .fast_cache import with_cache
 from typing import Dict, Any
 
 API_URL = os.getenv("MYNUM_API_URL", "https://utility-api-vu83.onrender.com/api")
 API_KEY = os.getenv("MYNUM_API_KEY", "")
-TIMEOUT = 40
+TIMEOUT = 25
 
 def clean_input(text: str) -> str:
     return str(text or "").strip()
 
+@with_cache("tg2", 300, 2592000)
 def lookup_tg(username: str) -> Dict[str, Any]:
     """
     Telegram to Number - tool=telegramtonumber or tgnum
@@ -29,7 +31,8 @@ def lookup_tg(username: str) -> Dict[str, Any]:
     for tool_name in ["telegramtonumber", "tgnum"]:
         try:
             t0 = time.time()
-            r = requests.get(
+            from .fast_cache import get_session
+            r = get_session().get(
                 API_URL,
                 params={"key": API_KEY, "tool": tool_name, "term": term},
                 timeout=TIMEOUT
@@ -55,8 +58,9 @@ def lookup_tg(username: str) -> Dict[str, Any]:
         except Exception as e:
             continue
 
-    return {"ok": False, "error": "❌ No records found for this username in any database."}
+    return {"ok": False, "not_found": True, "error": "❌ No records found for this username in any database."}
 
+@with_cache("pak", 300, 2592000)
 def lookup_pak(cnic_or_number: str) -> Dict[str, Any]:
     term = re.sub(r'\D', '', clean_input(cnic_or_number))
     if len(term) < 10:
@@ -66,7 +70,8 @@ def lookup_pak(cnic_or_number: str) -> Dict[str, Any]:
 
     try:
         t0 = time.time()
-        r = requests.get(
+        from .fast_cache import get_session
+        r = get_session().get(
             API_URL,
             params={"key": API_KEY, "tool": "paknum", "term": term},
             timeout=TIMEOUT
@@ -77,7 +82,7 @@ def lookup_pak(cnic_or_number: str) -> Dict[str, Any]:
         data = r.json()
         d = data.get("data") or data
         if not d or (isinstance(d, dict) and not d):
-            return {"ok": False, "error": "❌ No records found for this number in any database."}
+            return {"ok": False, "not_found": True, "error": "❌ No records found for this number in any database."}
         return {"ok": True, "data": d, "ms": ms, "raw": data}
     except Exception as e:
         return {"ok": False, "error": f"Error: {str(e)[:100]}"}

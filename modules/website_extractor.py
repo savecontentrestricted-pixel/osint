@@ -5,6 +5,7 @@ Website Extractor - Emails, Phones, Links, Meta Tags
 
 import re
 import requests
+from .fast_cache import with_cache
 from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
 from typing import Dict, Any, List
@@ -94,6 +95,7 @@ def extract_meta(html: str, url: str) -> Dict[str, Any]:
         "h2": h2,
     }
 
+@with_cache("web", 1800, 21600)
 def website_extractor(url: str) -> Dict[str, Any]:
     if not url.startswith('http'):
         url = 'https://' + url

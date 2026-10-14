@@ -6,6 +6,7 @@ Example: example.com -> finds repos where example.com leaked with API keys
 """
 
 import requests
+from .fast_cache import with_cache
 import re
 import time
 
@@ -99,6 +100,7 @@ def github_search_code(query, max_results=10):
         result["error"] = str(e)[:300]
         return result
 
+@with_cache("ghl", 1800, 21600)
 def github_leak_hunter(query):
     """Main function"""
     # Clean query

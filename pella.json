@@ -4,7 +4,7 @@
   "buildCommand": "pip install -r requirements.txt",
   "startCommand": "python bot.py",
   "env": {
-    "BOT_TOKEN": {"required": true, "value": "8877252485:AAH9pE0gMvR_aPahpq2VAdswuhyfSUNcS5k"},
+    "BOT_TOKEN": {"required": true, "value": "PUT_YOUR_BOT_TOKEN_HERE"},
     "ADMIN_ID": {"required": true, "value": "8607774564"},
     "FORCE_CHANNEL": {"required": true, "value": "-1004393596502"},
     "FORCE_CHANNEL_LINK": {"required": true, "value": "https://t.me/osint_xpert"},

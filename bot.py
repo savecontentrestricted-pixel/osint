@@ -45,7 +45,11 @@ import threading
 import traceback
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
-BOT_VERSION = ("v2.0 — 🚀 v127.7 PARITY (utility-duniya-bot jaisa fast+stable+premium): "
+BOT_VERSION = ("v2.1 — ⚡ FAST-2 (poore bot me 2-layer cache: memory + DB): ab TG number, Pak number, "
+    "IP/DNS/WHOIS/SSL recon, website extractor, JS secret finder, GitHub leak hunter aur TeraBox — "
+    "SAB me cache hai. Wahi query dobara = INSTANT (0 ms), pehli call bhi warm hub se. "
+    "TG/Pak lookup ab pooled connection + 25s timeout (pehle 40s) | "
+    "v2.0 — 🚀 v127.7 PARITY (utility-duniya-bot jaisa fast+stable+premium): "
     "premium ke saare plan buttons FIX (upi:// url button Telegram reject karta tha -> poora message fail), "
     "persistent lookup cache (num/family/upi/tg/pak — ek baar dhoondha = 30 din INSTANT, restart ke baad bhi zinda), "
     "DB VAULT (deploy par users/premium/pending payments kabhi wipe nahi), rich /health, "
