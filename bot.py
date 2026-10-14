@@ -32,6 +32,7 @@ import os
 import asyncio
 import logging
 import json
+import html
 import tempfile
 import time
 from datetime import datetime
@@ -2199,19 +2200,19 @@ async def admin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 🎁 <b>Free Credits:</b> {FREE_CREDITS}
 
 <b>━━━━━━━━ Commands ━━━━━━━━</b>
-/approve <id> - Approve payment
-/reject <id> - Reject payment
-/addcredit <user_id> <amount> - Add credits
-/setcredit <user_id> <amount> - Set credits
-/grant <user_id> <days> - Grant premium
-/revoke <user_id> - Revoke premium
-/ban <user_id> - Ban user
-/unban <user_id> - Unban user
+/approve &lt;id&gt; - Approve payment
+/reject &lt;id&gt; - Reject payment
+/addcredit &lt;user_id&gt; &lt;amount&gt; - Add credits
+/setcredit &lt;user_id&gt; &lt;amount&gt; - Set credits
+/grant &lt;user_id&gt; &lt;days&gt; - Grant premium
+/revoke &lt;user_id&gt; - Revoke premium
+/ban &lt;user_id&gt; - Ban user
+/unban &lt;user_id&gt; - Unban user
 /stats - Detailed stats
 /payments - Pending payments
 /users - Recent users
 /vips - Premium users list
-/broadcast <msg> - Broadcast to all
+/broadcast &lt;msg&gt; - Broadcast to all
 
 <b>━━━━━━━━ Quick Actions ━━━━━━━━</b>
 """
@@ -2227,7 +2228,7 @@ async def approve_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not config.is_admin(update.effective_user.id):
         return
     if not context.args:
-        await update.message.reply_text("Use: /approve <payment_id>", parse_mode=ParseMode.HTML)
+        await update.message.reply_text("Use: /approve &lt;payment_id&gt;", parse_mode=ParseMode.HTML)
         return
     try:
         pid = int(context.args[0])
@@ -2272,7 +2273,7 @@ async def reject_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not config.is_admin(update.effective_user.id):
         return
     if not context.args:
-        await update.message.reply_text("Use: /reject <payment_id> [reason]", parse_mode=ParseMode.HTML)
+        await update.message.reply_text("Use: /reject &lt;payment_id&gt; [reason]", parse_mode=ParseMode.HTML)
         return
     try:
         pid = int(context.args[0])
@@ -2295,7 +2296,7 @@ async def addcredit_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not config.is_admin(update.effective_user.id):
         return
     if len(context.args) < 2:
-        await update.message.reply_text("Use: /addcredit <user_id> <amount>\nExample: /addcredit 123456 50", parse_mode=ParseMode.HTML)
+        await update.message.reply_text("Use: /addcredit &lt;user_id&gt; &lt;amount&gt;\nExample: /addcredit 123456 50", parse_mode=ParseMode.HTML)
         return
     try:
         uid = int(context.args[0])
@@ -2314,7 +2315,7 @@ async def setcredit_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not config.is_admin(update.effective_user.id):
         return
     if len(context.args) < 2:
-        await update.message.reply_text("Use: /setcredit <user_id> <amount>", parse_mode=ParseMode.HTML)
+        await update.message.reply_text("Use: /setcredit &lt;user_id&gt; &lt;amount&gt;", parse_mode=ParseMode.HTML)
         return
     try:
         uid = int(context.args[0])
@@ -2329,7 +2330,7 @@ async def grant_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not config.is_admin(update.effective_user.id):
         return
     if len(context.args) < 2:
-        await update.message.reply_text("Use: /grant <user_id> <days>\nExample: /grant 123456 30\nFor lifetime: /grant 123456 3650", parse_mode=ParseMode.HTML)
+        await update.message.reply_text("Use: /grant &lt;user_id&gt; &lt;days&gt;\nExample: /grant 123456 30\nFor lifetime: /grant 123456 3650", parse_mode=ParseMode.HTML)
         return
     try:
         uid = int(context.args[0])
@@ -2348,7 +2349,7 @@ async def revoke_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not config.is_admin(update.effective_user.id):
         return
     if not context.args:
-        await update.message.reply_text("Use: /revoke <user_id>", parse_mode=ParseMode.HTML)
+        await update.message.reply_text("Use: /revoke &lt;user_id&gt;", parse_mode=ParseMode.HTML)
         return
     try:
         uid = int(context.args[0])
@@ -2362,7 +2363,7 @@ async def ban_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not config.is_admin(update.effective_user.id):
         return
     if not context.args:
-        await update.message.reply_text("Use: /ban <user_id>", parse_mode=ParseMode.HTML)
+        await update.message.reply_text("Use: /ban &lt;user_id&gt;", parse_mode=ParseMode.HTML)
         return
     try:
         uid = int(context.args[0])
@@ -2376,7 +2377,7 @@ async def unban_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not config.is_admin(update.effective_user.id):
         return
     if not context.args:
-        await update.message.reply_text("Use: /unban <user_id>", parse_mode=ParseMode.HTML)
+        await update.message.reply_text("Use: /unban &lt;user_id&gt;", parse_mode=ParseMode.HTML)
         return
     try:
         uid = int(context.args[0])
@@ -2448,7 +2449,7 @@ async def broadcast_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not config.is_admin(update.effective_user.id):
         return
     if not context.args:
-        await update.message.reply_text("Use: /broadcast <message>", parse_mode=ParseMode.HTML)
+        await update.message.reply_text("Use: /broadcast &lt;message&gt;", parse_mode=ParseMode.HTML)
         return
     msg = " ".join(context.args)
     uids = all_user_ids()
