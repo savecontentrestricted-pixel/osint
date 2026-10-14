@@ -45,7 +45,10 @@ import threading
 import traceback
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
-BOT_VERSION = ("v2.2 — ⚡ FEEL-FAST (utility-duniya-bot jaisa instant feel): number bhejte hi TURANT "
+BOT_VERSION = ("v2.3 — 🔒 WEBHOOK SECRET (security fix): repo public hai, isliye ab /webhook par sirf "
+    "Telegram ke asli updates process hote hain (secret header ke bina 403). Pehle koi bhi fake admin "
+    "command bhej sakta tha. | "
+    "v2.2 — ⚡ FEEL-FAST (utility-duniya-bot jaisa instant feel): number bhejte hi TURANT "
     "(1 sec) hint dikhta hai — number valid, operator + circle approx (100% offline, 0 ms) — "
     "phir wahi message final card ban jata hai; galat number par API call hi nahi hoti (instant reply); "
     "wait time ab honest (5-10 sec) + 'dobara bhejo to INSTANT' note; har tool ka [TIMING] log "
@@ -64,6 +67,10 @@ BOT_VERSION = ("v2.2 — ⚡ FEEL-FAST (utility-duniya-bot jaisa instant feel): 
 BOT_TOKEN = os.getenv('BOT_TOKEN', '').strip()
 PORT = int(os.getenv('PORT','10000'))
 BOT_SELF_URL = (os.getenv('BOT_SELF_URL') or 'https://osint-hunter-hub-bot.onrender.com').rstrip('/')
+# v2.3 SECURITY: webhook secret — sirf Telegram ke asli updates process honge.
+# (repo public hai aur ADMIN_ID public — warna koi fake update bhej kar admin
+#  commands chala sakta tha. Secret Telegram header me aata hai.)
+WEBHOOK_SECRET = (os.getenv('WEBHOOK_SECRET') or '').strip()
 WEBHOOK_URL = (os.getenv('WEBHOOK_URL') or f"{BOT_SELF_URL}/webhook")
 
 app = None
@@ -92,6 +99,13 @@ class WebhookHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         try:
             if self.path == '/webhook':
+                # v2.3 SECURITY: Telegram ka secret header check (403 = chup-chaap reject)
+                if WEBHOOK_SECRET and self.headers.get('X-Telegram-Bot-Api-Secret-Token') != WEBHOOK_SECRET:
+                    self.send_response(403)
+                    self.send_header('Content-type', 'text/plain')
+                    self.end_headers()
+                    self.wfile.write(b'forbidden')
+                    return
                 content_length = int(self.headers.get('Content-Length', 0))
                 body = self.rfile.read(content_length)
                 try:
@@ -3276,7 +3290,8 @@ async def main_async():
     print("Setting webhook...")
     try:
         await app.bot.delete_webhook(drop_pending_updates=True)
-        await app.bot.set_webhook(url=WEBHOOK_URL, allowed_updates=["message","callback_query","my_chat_member"])
+        await app.bot.set_webhook(url=WEBHOOK_URL, allowed_updates=["message","callback_query","my_chat_member"],
+                                   secret_token=(WEBHOOK_SECRET or None))
         print(f"Webhook set to {WEBHOOK_URL}")
         import requests
         # Fast stable + payments live notification
