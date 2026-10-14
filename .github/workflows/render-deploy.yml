@@ -33,8 +33,17 @@ jobs:
           if [ "$COMMIT" = "${GITHUB_SHA:0:7}" ]; then
             echo "Is commit ka deploy already ho chuka/chal raha hai - skipping."; exit 0
           fi
-          curl -fsS -X POST -H "Authorization: Bearer $RENDER_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d '{"clearCache":"do_not_clear"}' "$API/deploys" \
-            | jq -r '(.deploy.id // .[0].deploy.id // "triggered")' || true
-          echo "Render deploy triggered for ${GITHUB_SHA:0:7} - hogaya ✅"
+          # Render ka API kabhi kabhi 500 deta hai — 3 baar try karo (60s gap)
+          for attempt in 1 2 3; do
+            CODE=$(curl -sS -o /tmp/deploy_resp.json -w "%{http_code}" -X POST \
+              -H "Authorization: Bearer $RENDER_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d '{"clearCache":"do_not_clear"}' "$API/deploys" || echo 000)
+            if [ "$CODE" = "201" ] || [ "$CODE" = "200" ]; then
+              echo "Render deploy triggered (attempt $attempt) for ${GITHUB_SHA:0:7} ✅"
+              cat /tmp/deploy_resp.json | head -c 300
+              exit 0
+            fi
+            echo "Attempt $attempt failed (HTTP $CODE): $(head -c 200 /tmp/deploy_resp.json 2>/dev/null)"
+            [ "$attempt" = "3" ] && exit 1 || sleep 60
+          done
