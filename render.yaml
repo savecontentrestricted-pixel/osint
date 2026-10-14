@@ -41,6 +41,12 @@ services:
         value: OSINT Hunter Hub
       - key: FREE_CREDITS
         value: 25
+      - key: FAMINFO_API_URL
+        value: https://utility-api-vu83.onrender.com/api
+      - key: FAMINFO_API_KEY
+        value: udb-SlhpCRCaziEfxTPvasAUHNFCPa9CYw6smolrP0QX
+      - key: FAMINFO_API_TIMEOUT
+        value: 40
       - key: BOT_SELF_URL
         value: https://osint-hunter-hub-bot.onrender.com
       - key: WEBHOOK_URL

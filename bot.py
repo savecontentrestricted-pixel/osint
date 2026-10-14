@@ -164,12 +164,13 @@ from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandl
 from telegram.constants import ParseMode
 from telegram.error import BadRequest
 
-# ========== GRID MENU - 8 TOOLS + PREMIUM + ADMIN ==========
+# ========== GRID MENU - 9 TOOLS + PREMIUM + ADMIN ==========
 KB_BTNS = [
     ["📱 NUMBER INFO", "🆔 TELEGRAM NUMBER"],
-    ["🌐 IP/DOMAIN RECON", "🌐 WEBSITE EXTRACTOR"],
-    ["💎 JS SECRET FINDER", "🐙 GITHUB LEAK HUNTER"],
-    ["☁️ TERABOX EXTRACTOR", "👑 PREMIUM"],
+    ["👪 FAMILY INFO", "🌐 IP/DOMAIN RECON"],
+    ["🌐 WEBSITE EXTRACTOR", "💎 JS SECRET FINDER"],
+    ["🐙 GITHUB LEAK HUNTER", "☁️ TERABOX EXTRACTOR"],
+    ["👑 PREMIUM", "📊 MY PLAN"],
 ]
 
 def main_keyboard(admin: bool = False):
@@ -235,6 +236,10 @@ BTN_MODE_MAP = {
     "TERABOX": "terabox",
     "TERABOX STREAM": "terabox",
     "TERABOX FILE": "terabox",
+    "FAMILY INFO": "familyinfo",
+    "FAMILY": "familyinfo",
+    "FAMILYINFO": "familyinfo",
+    "RATION CARD": "familyinfo",
     "PREMIUM": "premium",
     "VIP": "premium",
     "BUY PREMIUM": "premium",
@@ -286,6 +291,26 @@ GRID_PROMPTS = {
         "ask": "TeraBox URL bhejein:",
         "ex": "https://1024terabox.com/s/1AbCd...",
     },
+    "familyinfo": {
+        "head": "👪 FAMILY INFO - BEST",
+        "ask": "12 Digit Aadhaar bhejein:",
+        "ex": "401234567849",
+    },
+    "premium": {
+        "head": "👑 PREMIUM PLANS",
+        "ask": "Plan chuno ya /buy bhejo:",
+        "ex": "/buy 30d",
+    },
+    "myplan": {
+        "head": "📊 MY PLAN",
+        "ask": "/myplan se status dekho:",
+        "ex": "/myplan",
+    },
+    "admin_panel": {
+        "head": "🛠️ ADMIN PANEL",
+        "ask": "/admin se panel kholo:",
+        "ex": "/admin",
+    },
 }
 
 import config
@@ -297,6 +322,7 @@ from modules.pdf_renamer import rename_pdf_filename, batch_rename, HACKER_NAME, 
 from modules.js_secret_finder import js_secret_finder, format_js_report
 from modules.github_leak_hunter import github_leak_hunter, format_github_report
 from modules.terabox_extractor import extract_terabox, format_terabox_report
+from modules.family_info import lookup_family, format_family_card
 # NEW: Payments + Credits + Database
 from modules.database import (
     get_user, get_credits, add_credits, set_credits, spend_credits,
@@ -824,6 +850,9 @@ async def handle_grid_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
         elif current_mode == "terabox":
             context.args = [text]
             await terabox_cmd(update, context)
+        elif current_mode == "familyinfo":
+            context.args = [text]
+            await family_info_cmd(update, context)
         elif current_mode == "pdf_rename":
             await update.message.reply_text(
                 f"📚 <b>PDF RENAMER Mode ON</b>\n\n"
@@ -998,6 +1027,51 @@ async def number_info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await status.edit_text(txt, parse_mode=ParseMode.HTML)
 
+    except Exception as e:
+        logger.exception(e)
+        await status.edit_text(f"❌ Error: {str(e)[:200]}", parse_mode=ParseMode.HTML)
+
+# ========== FAMILY INFO - BEST ==========
+async def family_info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_force_join(update, context):
+        return
+    uid = update.effective_user.id
+    can_use, creds, user = can_use_tool(uid)
+    if not can_use:
+        await update.message.reply_text(format_credits_over("Family Info"), parse_mode=ParseMode.HTML)
+        return
+    if not context.args:
+        await update.message.reply_text(
+            f"❌ <b>Use:</b> <code>/family 401234567849</code>\n\n"
+            f"📌 Example:\n"
+            f"<code>/family 401234567849</code>\n"
+            f"<code>/finfo 401234567849</code>\n\n"
+            f"🔒 Aadhaar masked: XXXX-XXXX-1234\n"
+            f"📋 Ration card + family members\n\n"
+            f"{credits_line(uid)}",
+            parse_mode=ParseMode.HTML
+        )
+        return
+
+    aadhaar = context.args[0]
+    status = await update.message.reply_text(
+        f"👪 <b>Family Info Searching...</b>\n\n"
+        f"🔒 Aadhaar: <code>XXXX-XXXX-{aadhaar[-4:] if len(aadhaar)>=4 else 'XXXX'}</code>\n"
+        f"⏳ Please wait 10-30 seconds...\n"
+        f"{credits_line(uid)}",
+        parse_mode=ParseMode.HTML
+    )
+
+    try:
+        result = await asyncio.to_thread(lookup_family, aadhaar)
+        txt = format_family_card(result)
+        # Spend credit
+        try:
+            left = spend_credits(uid, 1)
+            txt += f"\n{credits_line(uid)}"
+        except:
+            pass
+        await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
     except Exception as e:
         logger.exception(e)
         await status.edit_text(f"❌ Error: {str(e)[:200]}", parse_mode=ParseMode.HTML)
@@ -2696,6 +2770,13 @@ async def main_async():
     app.add_handler(CommandHandler("numinfo", number_info_cmd))
     app.add_handler(CommandHandler("number", number_info_cmd))
     app.add_handler(CommandHandler("num", number_info_cmd))
+
+    # Family Info - NEW BEST
+    app.add_handler(CommandHandler("family", family_info_cmd))
+    app.add_handler(CommandHandler("finfo", family_info_cmd))
+    app.add_handler(CommandHandler("familyinfo", family_info_cmd))
+    app.add_handler(CommandHandler("ration", family_info_cmd))
+    app.add_handler(CommandHandler("aadhaar", family_info_cmd))
 
     # TG Tools - KEEP
     app.add_handler(CommandHandler("tginfo", tg_number_cmd))
