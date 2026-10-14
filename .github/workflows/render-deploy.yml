@@ -1,0 +1,31 @@
+# Auto-Deploy: push hote hi Render par naya version live ho jata hai
+# (pehle koi webhook nahi tha, isliye naya code deploy nahi hota tha)
+name: render-auto-deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render deploy (skip if one is already running)
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: |
+          set -e
+          SID=srv-db6jiubl550s73b7k8d0
+          API="https://api.render.com/v1/services/$SID"
+          STATUS=$(curl -fsS -H "Authorization: Bearer $RENDER_API_KEY" "$API/deploys?limit=1" | jq -r '.[0].deploy.status')
+          echo "Latest deploy status: $STATUS"
+          case "$STATUS" in
+            build_in_progress|update_in_progress|created)
+              echo "Deploy already running - skipping to avoid churn."; exit 0;;
+          esac
+          curl -fsS -X POST -H "Authorization: Bearer $RENDER_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{"clearCache":"do_not_clear"}' "$API/deploys" \
+            | jq -r '(.deploy.id // .[0].deploy.id // "triggered")' || true
+          echo "Render deploy triggered for ${GITHUB_SHA:0:7} - hogaya ✅"
