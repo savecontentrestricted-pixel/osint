@@ -1,6 +1,6 @@
 """
-Number Info Tool - Same as utility-duniya-bot
-Uses utility-api-vu83 gateway
+Number Info Tool - ULTRA FAST - Same as utility-duniya-bot
+Uses utility-api-vu83 gateway with caching + session pooling
 """
 
 import os
@@ -8,10 +8,11 @@ import re
 import time
 import requests
 from typing import Dict, Any
+from .fast_cache import get_session, api_cache_get, api_cache_set
 
 API_URL = os.getenv("MYNUM_API_URL", "https://utility-api-vu83.onrender.com/api")
 API_KEY = os.getenv("MYNUM_API_KEY", "udb-SlhpCRCaziEfxTPvasAUHNFCPa9CYw6smolrP0QX")
-TIMEOUT = 40
+TIMEOUT = 25  # Reduced from 40 for speed, with retry
 
 def clean_number(num: str) -> str:
     d = re.sub(r'\D', '', str(num))
@@ -36,12 +37,20 @@ def lookup_number(number: str) -> Dict[str, Any]:
     if not digits:
         return {"ok": False, "error": "Sahi 10-digit number bhejo. Example: 9876543210"}
 
+    # Check cache first - 5 min TTL - ULTRA FAST
+    cached = api_cache_get("num", digits)
+    if cached:
+        cached = cached.copy()
+        cached["ms"] = 0
+        cached["cached"] = True
+        return cached
+
     try:
         t0 = time.time()
-        r = requests.get(
+        session = get_session()
+        r = session.get(
             API_URL,
             params={"key": API_KEY, "tool": "num", "term": digits},
-            headers={"User-Agent": "OSINT-Bot/1.0"},
             timeout=TIMEOUT
         )
         ms = int((time.time() - t0)*1000)
@@ -59,11 +68,9 @@ def lookup_number(number: str) -> Dict[str, Any]:
         if not d or not isinstance(d, dict):
             return {"ok": False, "not_found": True, "error": "❌ No records found for this number in any database.", "ms": ms}
 
-        # Check if has owner_name
         if not any(k.startswith("owner_name") for k in d.keys()):
             return {"ok": False, "not_found": True, "error": "❌ No records found for this number in any database.", "ms": ms}
 
-        # Parse owner
         owner = {
             "name": (d.get("owner_name") or "").strip(),
             "father": (d.get("father_name") or "").strip(),
@@ -73,13 +80,11 @@ def lookup_number(number: str) -> Dict[str, Any]:
             "circle": (d.get("circle") or "").strip(),
             "aadhaar": mask_aadhaar(d.get("aadhar_card_no")),
         }
-        # Clean empty
         owner = {k:v for k,v in owner.items() if v and v.lower() not in ("na","n/a","none","null","-")}
 
-        # Extra records count
         rec_count = len([k for k in d.keys() if k.startswith("owner_name")])
 
-        return {
+        result = {
             "ok": True,
             "number": digits,
             "owner": owner,
@@ -88,6 +93,9 @@ def lookup_number(number: str) -> Dict[str, Any]:
             "ms": ms,
             "raw": d
         }
+        # Cache success for 5 min
+        api_cache_set("num", digits, result, ttl=300)
+        return result
 
     except Exception as e:
         return {"ok": False, "error": f"Lookup error: {str(e)[:100]}"}

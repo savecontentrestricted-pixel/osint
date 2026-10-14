@@ -1,5 +1,5 @@
 """
-💸 UPI INFO - BEST - OSINT Hunter Hub
+💸 UPI INFO - BEST - ULTRA FAST - OSINT Hunter Hub
 API: utility-api-vu83 - lynxosint__upi / upi
 UPI ID → Name + Bank + Valid + App
 Your API key: udb-SlhpCRCaziEfxTPvasAUHNFCPa9CYw6smolrP0QX
@@ -10,22 +10,18 @@ import os
 import re
 import time
 import requests
+from .fast_cache import get_session, api_cache_get, api_cache_set
 
 API_URL = os.getenv("UPIINFO_API_URL", "https://utility-api-vu83.onrender.com/api").strip()
 API_KEY = os.getenv("UPIINFO_API_KEY", "udb-SlhpCRCaziEfxTPvasAUHNFCPa9CYw6smolrP0QX").strip()
-TIMEOUT = int(os.getenv("UPIINFO_API_TIMEOUT", "30") or 30)
+TIMEOUT = int(os.getenv("UPIINFO_API_TIMEOUT", "20") or 20)
 
-# Also support generic MYNUM API env
 if not API_URL:
     API_URL = os.getenv("MYNUM_API_URL", "https://utility-api-vu83.onrender.com/api").strip()
 if not API_KEY:
     API_KEY = os.getenv("MYNUM_API_KEY", "udb-SlhpCRCaziEfxTPvasAUHNFCPa9CYw6smolrP0QX").strip()
 
 def lookup_upi(upi_id: str) -> dict:
-    """
-    Lookup UPI info
-    Returns dict with ok, data, etc
-    """
     start = time.time()
     upi_id = str(upi_id).strip()
     
@@ -36,23 +32,26 @@ def lookup_upi(upi_id: str) -> dict:
             "ms": int((time.time() - start) * 1000)
         }
     
-    # Try tool names
+    # Cache check - ULTRA FAST
+    cached = api_cache_get("upi", upi_id.lower())
+    if cached:
+        cached = cached.copy()
+        cached["ms"] = 0
+        cached["cached"] = True
+        return cached
+    
+    session = get_session()
     for tool in ["lynxosint__upi", "upi"]:
         try:
-            params = {
-                "key": API_KEY,
-                "tool": tool,
-                "term": upi_id
-            }
-            resp = requests.get(API_URL, params=params, timeout=TIMEOUT)
+            params = {"key": API_KEY, "tool": tool, "term": upi_id}
+            resp = session.get(API_URL, params=params, timeout=TIMEOUT)
             if resp.status_code == 200:
                 try:
                     j = resp.json()
-                    # Check if ok true and has data with success
                     if j.get("ok") and j.get("data"):
                         data = j["data"]
                         if isinstance(data, dict) and data.get("success"):
-                            return {
+                            result = {
                                 "ok": True,
                                 "data": data,
                                 "raw": j.get("raw", ""),
@@ -60,8 +59,8 @@ def lookup_upi(upi_id: str) -> dict:
                                 "source": "utility-api",
                                 "tool": tool
                             }
-                        # Also check if data itself is success false? Then not found
-                    # If ok false and why notfound, return no data
+                            api_cache_set("upi", upi_id.lower(), result, ttl=300)
+                            return result
                     if not j.get("ok") and j.get("why") == "notfound":
                         return {
                             "ok": False,

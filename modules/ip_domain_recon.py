@@ -180,9 +180,8 @@ def ssl_check(domain: str) -> Dict[str, Any]:
         return {"ok": False, "error": f"SSL check error: {str(e)} - maybe no SSL or port 443 closed"}
 
 def full_recon(target: str) -> Dict[str, Any]:
-    """Full recon - auto detect IP or domain"""
+    """Full recon - ULTRA FAST with concurrent execution"""
     target = target.strip()
-    # Check if IP
     is_ip = False
     try:
         socket.inet_aton(target)
@@ -191,14 +190,30 @@ def full_recon(target: str) -> Dict[str, Any]:
         pass
 
     if is_ip:
+        # Single IP lookup - fast
         ip_info = ip_lookup(target)
         return {"type": "ip", "target": target, "ip_info": ip_info}
     else:
-        # Domain
         domain = re.sub(r'^https?://', '', target).split('/')[0]
-        dns_info = dns_lookup(domain)
-        whois_info = whois_lookup(domain)
-        ssl_info = ssl_check(domain)
+        # Concurrent DNS + WHOIS + SSL for speed (was sequential 3x slow)
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+            f_dns = executor.submit(dns_lookup, domain)
+            f_whois = executor.submit(whois_lookup, domain)
+            f_ssl = executor.submit(ssl_check, domain)
+            try:
+                dns_info = f_dns.result(timeout=15)
+            except:
+                dns_info = {"ok": False, "error": "DNS timeout"}
+            try:
+                whois_info = f_whois.result(timeout=15)
+            except:
+                whois_info = {"ok": False, "error": "WHOIS timeout"}
+            try:
+                ssl_info = f_ssl.result(timeout=15)
+            except:
+                ssl_info = {"ok": False, "error": "SSL timeout"}
+        
         ip_info = None
         if dns_info.get("ip"):
             ip_info = ip_lookup(dns_info["ip"])

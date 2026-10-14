@@ -8,10 +8,11 @@ import os
 import re
 import time
 import requests
+from .fast_cache import get_session, api_cache_get, api_cache_set
 
 API_URL = os.getenv("FAMINFO_API_URL", "https://utility-api-vu83.onrender.com/api").strip()
 API_KEY = os.getenv("FAMINFO_API_KEY", "udb-SlhpCRCaziEfxTPvasAUHNFCPa9CYw6smolrP0QX").strip()
-TIMEOUT = int(os.getenv("FAMINFO_API_TIMEOUT", "40") or 40)
+TIMEOUT = int(os.getenv("FAMINFO_API_TIMEOUT", "25") or 25)  # Reduced for speed
 
 BUILTIN_URL = "https://jgvicvhgfwcfndgookul.supabase.co/functions/v1/bot-api"
 BUILTIN_KEY = "Demo"
@@ -19,22 +20,16 @@ BUILTIN_KEY = "Demo"
 NUM_RE = re.compile(r"\D")
 
 def _clean_aadhaar(aadhaar: str) -> str:
-    """Clean to 12 digits"""
     digits = NUM_RE.sub("", str(aadhaar))
     return digits
 
 def _mask_aadhaar(aadhaar: str) -> str:
-    """Mask: XXXX-XXXX-1234"""
     d = _clean_aadhaar(aadhaar)
     if len(d) == 12:
         return f"XXXX-XXXX-{d[-4:]}"
     return "XXXX-XXXX-XXXX"
 
 def lookup_family(aadhaar: str) -> dict:
-    """
-    Lookup family info by Aadhaar
-    Returns dict with success, data, etc
-    """
     start = time.time()
     aadhaar_clean = _clean_aadhaar(aadhaar)
     
@@ -46,16 +41,25 @@ def lookup_family(aadhaar: str) -> dict:
             "ms": int((time.time() - start) * 1000)
         }
     
+    # Cache check - ULTRA FAST
+    cached = api_cache_get("family", aadhaar_clean)
+    if cached:
+        cached = cached.copy()
+        cached["ms"] = 0
+        cached["cached"] = True
+        return cached
+    
     masked = _mask_aadhaar(aadhaar_clean)
     
-    # Try primary API
+    # Try primary API with session pooling
     try:
+        session = get_session()
         params = {
             "key": API_KEY,
             "tool": "familyinfo",
             "term": aadhaar_clean
         }
-        resp = requests.get(API_URL, params=params, timeout=TIMEOUT)
+        resp = session.get(API_URL, params=params, timeout=TIMEOUT)
         if resp.status_code == 200:
             try:
                 data = resp.json()
@@ -83,30 +87,46 @@ def lookup_family(aadhaar: str) -> dict:
                         "source": "utility-api"
                     }
                 else:
-                    # Try alternative parsing
                     if isinstance(data, dict) and data.get("data"):
-                        return {
+                        result = {
                             "ok": True,
                             "data": data["data"],
                             "masked": masked,
                             "ms": int((time.time() - start) * 1000),
                             "source": "utility-api"
                         }
+                        api_cache_set("family", aadhaar_clean, result, ttl=300)
+                        return result
             except Exception as e:
                 print(f"Family primary JSON parse error: {e}")
-                # Continue to fallback
                 pass
+        # Cache not found? Try parsing anyway
+        try:
+            data = resp.json()
+            if isinstance(data, dict) and data.get("data"):
+                result = {
+                    "ok": True,
+                    "data": data["data"],
+                    "masked": masked,
+                    "ms": int((time.time() - start) * 1000),
+                    "source": "utility-api"
+                }
+                api_cache_set("family", aadhaar_clean, result, ttl=300)
+                return result
+        except:
+            pass
     except Exception as e:
         print(f"Family primary API error: {e}")
     
-    # Fallback to supabase
+    # Fallback to supabase with session pooling
     try:
+        session = get_session()
         params = {
             "key": BUILTIN_KEY,
             "tool": "familyinfo",
             "term": aadhaar_clean
         }
-        resp = requests.get(BUILTIN_URL, params=params, timeout=30)
+        resp = session.get(BUILTIN_URL, params=params, timeout=20)
         if resp.status_code == 200:
             try:
                 data = resp.json()
@@ -120,13 +140,15 @@ def lookup_family(aadhaar: str) -> dict:
                             "ms": int((time.time() - start) * 1000),
                             "raw": data
                         }
-                    return {
+                    result = {
                         "ok": True,
                         "data": d,
                         "masked": masked,
                         "ms": int((time.time() - start) * 1000),
                         "source": "supabase"
                     }
+                    api_cache_set("family", aadhaar_clean, result, ttl=300)
+                    return result
             except Exception as e:
                 print(f"Family fallback JSON error: {e}")
     except Exception as e:

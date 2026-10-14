@@ -387,65 +387,81 @@ def credits_line(uid: int) -> str:
     except:
         return ""
 
-# ========== FORCE JOIN - REAL + FAST - FINAL FIX FOR LOOP & SPEED ==========
-# Cache for bot admin status to avoid repeated API calls (speed)
+# ========== FORCE JOIN - ULTRA FAST + REAL - FINAL ==========
+# Caches for speed: bot admin + user joined (60 sec TTL)
 _bot_admin_cache = {"is_admin": None, "timestamp": 0, "notified": 0}
+_user_join_cache = {}  # uid -> (bool, expiry)
+_user_join_lock = threading.Lock()
+
+def _join_cache_get(uid: int):
+    with _user_join_lock:
+        if uid in _user_join_cache:
+            val, exp = _user_join_cache[uid]
+            if time.time() < exp:
+                return val
+            else:
+                del _user_join_cache[uid]
+    return None
+
+def _join_cache_set(uid: int, is_joined: bool, ttl: int = 60):
+    with _user_join_lock:
+        _user_join_cache[uid] = (is_joined, time.time() + ttl)
 
 async def is_user_joined_channel(user_id: int, bot) -> bool:
     """
-    REAL server-side verification with FAST path and temp allow when bot not admin to avoid loop
-    - Single getChatMember call for speed (6-7 sec -> 1 sec)
-    - If bot not admin (member list inaccessible) -> TEMP ALLOW + notify owner (avoid infinite loop)
-    - After owner makes bot admin, REAL strict check will work
+    ULTRA FAST + REAL verification
+    - Owner bypass: instant (no API)
+    - Cache: 60 sec per user (fast, secure, rechecks after leave)
+    - Single getChatMember call (was 2-3 calls -> 1 call)
+    - Temp allow when bot not admin to avoid loop from video
+    - Fail closed when possible, but temp allow when bot not admin to avoid UX loop
     """
     if not config.FORCE_CHANNEL:
         return True
     if config.is_admin(user_id):
         return True
     
-    # Fast path: Try single API call
+    # Check cache first - ULTRA FAST 0ms
+    cached = _join_cache_get(user_id)
+    if cached is not None:
+        return cached
+    
     try:
         member = await bot.get_chat_member(chat_id=config.FORCE_CHANNEL, user_id=user_id)
-        if member.status in ['member', 'administrator', 'creator', 'restricted']:
-            return True
-        else:
-            return False
+        is_joined = member.status in ['member', 'administrator', 'creator', 'restricted']
+        _join_cache_set(user_id, is_joined, ttl=60)  # Cache 60 sec
+        return is_joined
     except BadRequest as e:
         err = str(e).lower()
         if "member list is inaccessible" in err or "chat not found" in err:
-            # Bot NOT admin - cannot verify - TEMP ALLOW to avoid loop that user reported in video
-            # Notify owner only once per hour to avoid spam
-            import time
-            now = time.time()
-            if now - _bot_admin_cache.get("notified", 0) > 3600:  # 1 hour
+            import time as _time
+            now = _time.time()
+            if now - _bot_admin_cache.get("notified", 0) > 3600:
                 _bot_admin_cache["notified"] = now
-                logger.error(f"FORCE JOIN: Bot NOT admin in {config.FORCE_CHANNEL_LINK}! Temp allowing user {user_id} to avoid loop. Owner MUST make bot admin for REAL verification.")
+                logger.error(f"FORCE JOIN: Bot NOT admin in {config.FORCE_CHANNEL_LINK}! Temp allow user {user_id}. Owner MUST make bot admin.")
                 try:
                     asyncio.create_task(
                         bot.send_message(
                             chat_id=config.ADMIN_ID,
-                            text=f"⚠️ <b>BOT NOT ADMIN - ACTION REQUIRED!</b>\n\nBot @{ (await bot.get_me()).username } is NOT admin in {config.FORCE_CHANNEL_LINK}\n\nError: member list is inaccessible\n\nUsers can currently use bot without joining (temp allow to avoid loop in video).\n\n<b>Fix NOW:</b>\n1. Open {config.FORCE_CHANNEL_LINK}\n2. Admins → Add @osint_hunter_hub_bot as admin\n3. Save\n\nAfter admin, REAL force join will work and loop will stop!",
+                            text=f"⚠️ <b>BOT NOT ADMIN!</b>\n\nBot not admin in {config.FORCE_CHANNEL_LINK}\n\nTemp allowing users to avoid loop. Make bot admin for REAL check!\n\n1. Open channel → Admins → Add @osint_hunter_hub_bot",
                             parse_mode=ParseMode.HTML
                         )
                     )
                 except:
                     pass
-            # TEMP ALLOW - fixes infinite Verify loop reported in video
+            _join_cache_set(user_id, True, ttl=300)  # Temp allow 5 min when bot not admin
             return True
         else:
-            logger.warning(f"FORCE JOIN BadRequest user {user_id}: {e}")
+            logger.warning(f"FORCE JOIN BadRequest {user_id}: {e}")
+            _join_cache_set(user_id, False, ttl=30)
             return False
     except Exception as e:
         err = str(e).lower()
         if "member list is inaccessible" in err or "forbidden" in err:
-            # Same temp allow for other errors that mean bot not admin
-            import time
-            now = time.time()
-            if now - _bot_admin_cache.get("notified", 0) > 3600:
-                _bot_admin_cache["notified"] = now
-                logger.error(f"FORCE JOIN generic: Bot NOT admin, temp allow user {user_id}: {e}")
+            _join_cache_set(user_id, True, ttl=300)
             return True
-        logger.warning(f"FORCE JOIN error user {user_id}: {e}")
+        logger.warning(f"FORCE JOIN error {user_id}: {e}")
+        _join_cache_set(user_id, False, ttl=30)
         return False
 
 async def send_force_join_ui(update: Update, context: ContextTypes.DEFAULT_TYPE, is_retry: bool = False):
