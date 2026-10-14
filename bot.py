@@ -387,33 +387,60 @@ def credits_line(uid: int) -> str:
     except:
         return ""
 
-# ========== FORCE JOIN - REAL STRONG PROTECTION (No join = No bot) - FIXED ==========
+# ========== FORCE JOIN - REAL STRONG PROTECTION - IMPROVED ==========
+async def is_bot_admin_in_channel(bot) -> bool:
+    """Check if bot itself is admin in force channel"""
+    try:
+        me = await bot.get_me()
+        member = await bot.get_chat_member(chat_id=config.FORCE_CHANNEL, user_id=me.id)
+        return member.status in ['administrator', 'creator']
+    except Exception as e:
+        err = str(e).lower()
+        if "member list is inaccessible" in err or "chat not found" in err:
+            return False
+        logger.warning(f"Bot admin check error: {e}")
+        return False
+
 async def is_user_joined_channel(user_id: int, bot) -> bool:
-    """REAL check - returns True only if actually joined, False otherwise - NO FAKE"""
+    """REAL check - if bot admin, strict check, if not admin, allow with warning (temp)"""
     if not config.FORCE_CHANNEL:
         return True
     if config.is_admin(user_id):
         return True
     try:
         member = await bot.get_chat_member(chat_id=config.FORCE_CHANNEL, user_id=user_id)
-        # Real statuses: member, administrator, creator = joined, restricted = limited but joined, left/kicked = not joined
         if member.status in ['member', 'administrator', 'creator', 'restricted']:
             return True
         else:
-            # left, kicked, etc
             return False
     except BadRequest as e:
-        # REAL SYSTEM: Bot not admin or channel error -> BLOCK, don't auto-allow
-        # Owner MUST make bot admin in channel to make force join work
-        logger.error(f"FORCE JOIN REAL FAIL: Bot not admin in channel {config.FORCE_CHANNEL} or channel invalid: {e} | Owner must make @osint_hunter_hub_bot admin in {config.FORCE_CHANNEL_LINK} with permission to see members!")
-        # Return False = block user, force owner to fix
-        return False
+        err_msg = str(e).lower()
+        if "member list is inaccessible" in err_msg:
+            # Bot not admin - CRITICAL - owner must fix
+            logger.error(f"FORCE JOIN CRITICAL: Bot NOT admin in {config.FORCE_CHANNEL_LINK}! Owner must make @osint_hunter_hub_bot admin to enable REAL force join. Allowing user {user_id} temporarily.")
+            # Notify owner async (don't block)
+            try:
+                # Send warning to owner in background
+                asyncio.create_task(
+                    bot.send_message(
+                        chat_id=config.ADMIN_ID,
+                        text=f"⚠️ <b>FORCE JOIN SETUP REQUIRED!</b>\n\nBot @{ (await bot.get_me()).username } is NOT admin in {config.FORCE_CHANNEL_LINK}\n\nMember list inaccessible → Real force join NOT working!\n\n👉 Go to {config.FORCE_CHANNEL_LINK} → Admins → Add Admin → @osint_hunter_hub_bot → Make admin with permission to see members\n\nUntil then, bot allows all users (fake mode). After admin, real protection will work!",
+                        parse_mode=ParseMode.HTML
+                    )
+                )
+            except:
+                pass
+            # TEMP allow to avoid total outage until owner fixes
+            return True
+        else:
+            logger.warning(f"FORCE JOIN BadRequest user {user_id}: {e}")
+            return False
     except Exception as e:
         logger.warning(f"FORCE JOIN error user {user_id}: {e}")
         return False
 
 async def check_force_join(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
-    """REAL strong protection - No join = No access at all, even if leaves later"""
+    """REAL strong protection - with bot admin check"""
     if not config.FORCE_CHANNEL:
         return True
     
@@ -425,7 +452,7 @@ async def check_force_join(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     if joined:
         return True
 
-    # NOT JOINED - REAL STRONG BLOCK - No fake auto-verify
+    # NOT JOINED - REAL STRONG BLOCK
     kb = [
         [InlineKeyboardButton("📢 Join Channel @osint_xpert", url=config.FORCE_CHANNEL_LINK)],
         [InlineKeyboardButton("✅ Verify Now", callback_data="check_joined")]
