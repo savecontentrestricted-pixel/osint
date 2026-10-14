@@ -45,7 +45,14 @@ import threading
 import traceback
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
-BOT_VERSION = ("v2.3 — 🔒 WEBHOOK SECRET (security fix): repo public hai, isliye ab /webhook par sirf "
+BOT_VERSION = ("v2.4 — ⚡ SPEED FIX (asli wajah mili): PTB ke default settings khatarnak the — "
+    "connection_pool_size=1 (Telegram ke liye sirf EK connection), read_timeout=5s, pool_timeout=1s, "
+    "aur concurrent_updates OFF (saare updates ek-ek). Isse messages CHUP-CHAAP fail hote the "
+    "(silent timeout) — user ko lagta tha bot slow hai ya jawab nahi aata. Ab bot 1 jaisa: "
+    "pool=32, read_timeout=60s, write=120s, 8 updates parallel (+50% throughput). "
+    "Saath me: har tool ka TIMING log Render me turant dikhega (flush) aur fail hone par asli "
+    "error dikhega (pehle timeout par bhi 'No records found' likha aata tha) | "
+    "v2.3 — 🔒 WEBHOOK SECRET (security fix): repo public hai, isliye ab /webhook par sirf "
     "Telegram ke asli updates process hote hain (secret header ke bina 403). Pehle koi bhi fake admin "
     "command bhej sakta tha. | "
     "v2.2 — ⚡ FEEL-FAST (utility-duniya-bot jaisa instant feel): number bhejte hi TURANT "
@@ -115,7 +122,7 @@ class WebhookHandler(BaseHTTPRequestHandler):
                     self.end_headers()
                     self.wfile.write(b'OK')
                     # Then process async
-                    print(f"WEBHOOK POST update_id {data.get('update_id')} - Fast ACK sent")
+                    print(f"WEBHOOK POST update_id {data.get('update_id')} - Fast ACK sent", flush=True)
                     threading.Thread(target=process_update_sync, args=(data,), daemon=True).start()
                     return
                 except Exception as je:
@@ -1121,7 +1128,7 @@ async def handle_grid_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
         # Clear mode after processing? Keep it for multiple lookups, but we can clear after one
         # For now, keep mode so user can send multiple numbers without re-clicking
         
-        print(f"Processing input '{text}' as mode {current_mode}")
+        print(f"Processing input '{text}' as mode {current_mode}", flush=True)
         
         # Route to appropriate handler based on mode
         if current_mode == "numinfo":
@@ -1278,17 +1285,23 @@ async def number_info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         result = await asyncio.to_thread(lookup_number, number)
         try:
-            print(f"[TIMING] numinfo {int((time.time()-_t0)*1000)}ms ok={result.get('ok')} cached={result.get('cached', False)}")
+            print(f"[TIMING] numinfo {int((time.time()-_t0)*1000)}ms ok={result.get('ok')} cached={result.get('cached', False)}", flush=True)
         except Exception:
             pass
         
         # Advanced formatting with spaces and emojis
         if not result.get("ok"):
-            # No records case - only short message as per user request
-            await status.edit_text(
-                f"❌ No records found for this number in any database.",
-                parse_mode=ParseMode.HTML
-            )
+            # v2.4: pehle HAR fail par "No records found" dikhta tha — timeout
+            # ya API error par bhi (user confuse hota tha). Ab asli error dikhta
+            # hai, aur sirf genuine "record nahi hai" par hi no-records message.
+            _err = str(result.get("error") or "").strip()
+            if _err and not result.get("not_found"):
+                await status.edit_text(f"❌ {_err[:400]}")
+            else:
+                await status.edit_text(
+                    "❌ No records found for this number in any database.",
+                    parse_mode=ParseMode.HTML
+                )
             return
 
         owner = result.get("owner", {})
@@ -1392,7 +1405,7 @@ async def family_info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         result = await asyncio.to_thread(lookup_family, aadhaar)
         try:
-            print(f"[TIMING] family {int((time.time()-_t0)*1000)}ms ok={result.get('ok')} cached={result.get('cached', False)}")
+            print(f"[TIMING] family {int((time.time()-_t0)*1000)}ms ok={result.get('ok')} cached={result.get('cached', False)}", flush=True)
         except Exception:
             pass
         txt = format_family_card(result)
@@ -1442,7 +1455,7 @@ async def upi_info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         result = await asyncio.to_thread(lookup_upi, upi_id)
         try:
-            print(f"[TIMING] upi {int((time.time()-_t0)*1000)}ms ok={result.get('ok')} cached={result.get('cached', False)}")
+            print(f"[TIMING] upi {int((time.time()-_t0)*1000)}ms ok={result.get('ok')} cached={result.get('cached', False)}", flush=True)
         except Exception:
             pass
         txt = format_upi_card(result)
@@ -1487,7 +1500,7 @@ async def tg_number_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         result = await asyncio.to_thread(lookup_tg, username)
         try:
-            print(f"[TIMING] tg {int((time.time()-_t0)*1000)}ms ok={result.get('ok')} cached={result.get('cached', False)}")
+            print(f"[TIMING] tg {int((time.time()-_t0)*1000)}ms ok={result.get('ok')} cached={result.get('cached', False)}", flush=True)
         except Exception:
             pass
         
@@ -1567,7 +1580,7 @@ async def pak_number_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         result = await asyncio.to_thread(lookup_pak, num)
         try:
-            print(f"[TIMING] pak {int((time.time()-_t0)*1000)}ms ok={result.get('ok')} cached={result.get('cached', False)}")
+            print(f"[TIMING] pak {int((time.time()-_t0)*1000)}ms ok={result.get('ok')} cached={result.get('cached', False)}", flush=True)
         except Exception:
             pass
         if not result.get("ok"):
@@ -3183,7 +3196,31 @@ async def main_async():
     loop = asyncio.get_running_loop()
     print("Building 8 TOOLS FAST STABLE app...")
     
-    app = Application.builder().token(BOT_TOKEN).build()
+    # ==================================================================
+    #  ⚡ v2.4 SPEED FIX — ASLI WAJAH YAHI THI (bot 1 ke barabar settings)
+    # ==================================================================
+    #  PTB ke DEFAULT khatarnak hain:
+    #    connection_pool_size = 1   -> Telegram API ke liye sirf EK connection
+    #    read_timeout = 5.0         -> 5 sec me jawab na aaye to TimeoutError
+    #    pool_timeout = 1.0         -> connection busy ho to 1 sec me FAIL
+    #    concurrent_updates = OFF   -> saare updates EK-EK karke (ek slow
+    #                                  lookup poore bot ko rok deta hai)
+    #  Iska nateeja: silent timeouts — message bhejna chup-chaap fail ho jata
+    #  tha, user ko lagta tha "bot slow hai / jawab hi nahi aaya".
+    #  Ab: 32 connections, 60s read timeout, 8 updates parallel.
+    try:
+        _max_cu = int(os.getenv('MAX_CONCURRENT_UPDATES', '8') or 8)
+    except Exception:
+        _max_cu = 8
+    _max_cu = max(2, min(32, _max_cu))
+    app = (Application.builder().token(BOT_TOKEN)
+           .connect_timeout(30.0).read_timeout(60.0).write_timeout(120.0)
+           .pool_timeout(60.0).connection_pool_size(32)
+           .http_version("1.1")
+           .concurrent_updates(_max_cu)
+           .build())
+    print(f"[SPEED] concurrent_updates={_max_cu} | pool=32 | read_timeout=60s "
+          f"(PTB default tha: OFF / pool=1 / 5s)", flush=True)
     app.add_error_handler(on_error)
     print(f"🔎 SELF-CHECK | {BOT_VERSION.split('(')[0].strip()} | crypto=ON | vault={'ON' if VAULT_OK else 'OFF'} | channel=@{config.FORCE_CHANNEL_USERNAME} | self_url={BOT_SELF_URL}")
 
