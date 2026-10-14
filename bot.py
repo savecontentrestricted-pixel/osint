@@ -950,13 +950,13 @@ async def number_info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 """
 
         if circle:
-            txt += f"🌐 <b>Circle:</b> {circle}\n\n"
+            txt += f"🌐 <b>Circle:</b> {html.escape(str(circle)[:50])}\n\n"
 
         if owner.get("name"):
-            txt += f"👤 <b>Name:</b> {owner.get('name')}\n\n"
+            txt += f"👤 <b>Name:</b> {html.escape(str(owner.get('name',''))[:100])}\n\n"
 
         if owner.get("father"):
-            txt += f"👨‍👦 <b>Father Name:</b> {owner.get('father')}\n\n"
+            txt += f"👨‍👦 <b>Father Name:</b> {html.escape(str(owner.get('father',''))[:100])}\n\n"
 
         if owner.get("phone"):
             txt += f"📱 <b>Mobile:</b> <code>{owner.get('phone')}</code>\n\n"
@@ -965,7 +965,7 @@ async def number_info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             txt += f"📱 <b>Alt Mobile:</b> <code>{owner.get('alt_phone')}</code>\n\n"
 
         if owner.get("address"):
-            txt += f"🏠 <b>Address:</b>\n{owner.get('address')[:300]}\n\n"
+            txt += f"🏠 <b>Address:</b>\n{html.escape(str(owner.get('address',''))[:300])}\n\n"
 
         if owner.get("aadhaar"):
             txt += f"🆔 <b>Aadhaar:</b> <code>{owner.get('aadhaar')}</code> (masked)\n\n"
