@@ -2188,7 +2188,27 @@ async def premium_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("📦 50C ₹29", callback_data="buy_c50"), InlineKeyboardButton("📦 100C ₹49", callback_data="buy_c100"), InlineKeyboardButton("📦 250C ₹99", callback_data="buy_c250")],
         [InlineKeyboardButton("📊 My Plan", callback_data="myplan"), InlineKeyboardButton("📢 Channel", url=config.FORCE_CHANNEL_LINK)]
     ]
-    await update.message.reply_text(txt, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(kb))
+    # Try to send with QR for default plan (30D) - per user request QR wala
+    try:
+        # Default QR for 30D plan ₹49
+        default_plan = PLANS.get("30d") or list(PLANS.values())[0]
+        qr_bio = await asyncio.to_thread(generate_upi_qr, default_plan['amount'], default_plan['name'], f"OSINT {default_plan['name']}")
+        if qr_bio:
+            await update.message.reply_photo(
+                photo=qr_bio,
+                caption=txt[:1000],
+                parse_mode=ParseMode.HTML,
+                reply_markup=InlineKeyboardMarkup(kb)
+            )
+        else:
+            await update.message.reply_text(txt, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(kb))
+    except Exception as e:
+        print(f"premium_cmd QR error: {e}")
+        try:
+            await update.message.reply_text(txt, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(kb))
+        except Exception as e2:
+            print(f"premium_cmd text also failed: {e2}")
+            await update.message.reply_text(f"Premium plans: /buy 30d etc\nUPI: {UPI_ID}", reply_markup=InlineKeyboardMarkup(kb))
 
 async def myplan_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_force_join(update, context):
