@@ -53,42 +53,69 @@ loop = None
 
 class WebhookHandler(BaseHTTPRequestHandler):
     def do_GET(self):
-        self.send_response(200)
-        self.send_header('Content-type','text/html')
-        self.end_headers()
-        if self.path == '/webhook':
-            self.wfile.write(b'Webhook endpoint - POST only')
-        else:
-            html = b"<html><body><h1>OSINT Hunter Hub FULL 11 TOOLS WEBHOOK LIVE - GRID 2-col</h1><p>All 11 tools working</p><p>Webhook: /webhook</p></body></html>"
-            self.wfile.write(html)
+        # Fast health check for Render - must respond <100ms
+        try:
+            self.send_response(200)
+            self.send_header('Content-type','text/html')
+            self.send_header('Cache-Control','no-cache')
+            self.end_headers()
+            if self.path in ['/health', '/ping', '/healthz']:
+                self.wfile.write(b'OK - Bot Alive')
+            elif self.path == '/webhook':
+                self.wfile.write(b'Webhook endpoint - POST only')
+            else:
+                html = b"<html><body><h1>OSINT Hunter Hub 8 TOOLS FAST STABLE LIVE</h1><p>All 8 tools working - No delay</p><p>Webhook: /webhook</p><p>Health: /health</p></body></html>"
+                self.wfile.write(html)
+        except:
+            pass
     
     def do_POST(self):
         try:
             if self.path == '/webhook':
                 content_length = int(self.headers.get('Content-Length', 0))
                 body = self.rfile.read(content_length)
-                data = json.loads(body)
-                print(f"WEBHOOK POST update_id {data.get('update_id')}")
-                threading.Thread(target=process_update_sync, args=(data,), daemon=True).start()
-                self.send_response(200)
-                self.end_headers()
-                self.wfile.write(b'OK')
+                try:
+                    data = json.loads(body)
+                    # Fast ack first - critical for no delay
+                    self.send_response(200)
+                    self.end_headers()
+                    self.wfile.write(b'OK')
+                    # Then process async
+                    print(f"WEBHOOK POST update_id {data.get('update_id')} - Fast ACK sent")
+                    threading.Thread(target=process_update_sync, args=(data,), daemon=True).start()
+                    return
+                except Exception as je:
+                    print(f"JSON parse error: {je}")
+                    self.send_response(200)
+                    self.end_headers()
+                    self.wfile.write(b'OK')
+                    return
             else:
                 self.send_response(404)
                 self.end_headers()
         except Exception as e:
             print(f"Webhook POST error: {e}")
-            traceback.print_exc()
-            self.send_response(500)
-            self.end_headers()
+            try:
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(b'OK')
+            except:
+                pass
     
     def log_message(self, *args): pass
 
 def process_update_sync(data):
     try:
         global loop
-        if loop:
+        # Wait for loop to be ready max 5 sec
+        for _ in range(50):
+            if loop and app:
+                break
+            time.sleep(0.1)
+        if loop and app:
             asyncio.run_coroutine_threadsafe(handle_update(data), loop)
+        else:
+            print("Loop/App not ready, dropping update", data.get('update_id'))
     except Exception as e:
         print(f"process_update_sync error: {e}")
         traceback.print_exc()
@@ -106,7 +133,7 @@ async def handle_update(data):
 
 def keepalive():
     try:
-        print(f"WEBHOOK server on 0.0.0.0:{PORT} -> {WEBHOOK_URL}")
+        print(f"WEBHOOK server on 0.0.0.0:{PORT} -> {WEBHOOK_URL} - FAST STABLE MODE")
         HTTPServer(('0.0.0.0', PORT), WebhookHandler).serve_forever()
     except Exception as e:
         print(f"Keepalive error: {e}")
@@ -114,14 +141,22 @@ def keepalive():
 
 threading.Thread(target=keepalive, daemon=False).start()
 
-try:
-    import requests
-    token = os.getenv('BOT_TOKEN','')
-    if token:
-        requests.post(f'https://api.telegram.org/bot{token}/sendMessage', data={'chat_id': '8607774564', 'text': '🚀 FULL 11 TOOLS WEBHOOK GRID starting...'}, timeout=5)
-        requests.post(f'https://api.telegram.org/bot{token}/sendMessage', data={'chat_id': '6919943679', 'text': '🚀 FULL 11 TOOLS WEBHOOK GRID starting...'}, timeout=5)
-except Exception as e:
-    print(f"Notify failed: {e}")
+# Self-ping to prevent Render sleep (every 10 min)
+def self_ping_loop():
+    time.sleep(30)
+    while True:
+        try:
+            import requests
+            # Ping own health endpoint to keep alive
+            requests.get(f"http://127.0.0.1:{PORT}/health", timeout=5)
+            print("Self-ping OK - keeping alive")
+        except Exception as e:
+            print(f"Self-ping fail: {e}")
+        time.sleep(600)  # 10 min
+
+threading.Thread(target=self_ping_loop, daemon=True).start()
+
+# Removed spam starting message - only notify after full init in main_async
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters, CallbackQueryHandler
