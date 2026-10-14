@@ -65,7 +65,7 @@ class WebhookHandler(BaseHTTPRequestHandler):
             elif self.path == '/webhook':
                 self.wfile.write(b'Webhook endpoint - POST only')
             else:
-                html = b"<html><body><h1>OSINT Hunter Hub 8 TOOLS FAST STABLE LIVE</h1><p>All 8 tools working - No delay</p><p>Webhook: /webhook</p><p>Health: /health</p></body></html>"
+                html = b"&lt;html&gt;&lt;body&gt;&lt;h1&gt;OSINT Hunter Hub 8 TOOLS FAST STABLE LIVE</h1>&lt;p&gt;All 8 tools working - No delay</p>&lt;p&gt;Webhook: /webhook</p>&lt;p&gt;Health: /health</p></body></html>"
                 self.wfile.write(html)
         except:
             pass

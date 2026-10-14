@@ -74,7 +74,7 @@ def format_plans() -> str:
 👤 <b>Name:</b> {UPI_NAME}
 
 <b>Kaise kharidein:</b>
-1️⃣ /buy <plan> - jaise /buy 30d
+1️⃣ /buy &lt;plan&gt; - jaise /buy 30d
 2️⃣ UPI se payment karo
 3️⃣ Screenshot + UTR bhejo
 4️⃣ Owner 5-10 min me approve karega
