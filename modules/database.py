@@ -144,6 +144,20 @@ def _create_schema(con):
         cur.execute("CREATE INDEX IF NOT EXISTS idx_ledger_user ON premium_ledger(user_id)")
     except:
         pass
+
+    # v2.0 — PERSISTENT LOOKUP CACHE (provider 8-11 sec leta hai;
+    # ek baar dhoondha hua jawab ab 30 din INSTANT + vault backup se restart ke baad bhi zinda)
+    cur.execute("""CREATE TABLE IF NOT EXISTS lookup_cache(
+        key TEXT PRIMARY KEY,
+        value TEXT DEFAULT '',
+        ts INTEGER DEFAULT 0,
+        ttl INTEGER DEFAULT 0,
+        hits INTEGER DEFAULT 0
+    )""")
+    try:
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_lookup_ts ON lookup_cache(ts)")
+    except:
+        pass
     
     # Migrate old columns if needed
     try:
@@ -602,3 +616,91 @@ def meta_set(key: str, value: str) -> bool:
         return True
     except:
         return False
+
+
+# ========== v2.0 PERSISTENT LOOKUP CACHE ==========
+# Provider naye number par 8-11 second leta hai. Ek baar dhoondha hua jawab
+# DB me 30 din rehta hai -> dobara INSTANT (0 ms). Vault backup se deploy ke
+# baad bhi zinda rehta hai. Sab kuch guarded — koi error bot ko na todhe.
+
+def cache_get(key: str):
+    try:
+        now = int(time.time())
+        con = db()
+        cur = con.cursor()
+        cur.execute("SELECT value, ts, ttl FROM lookup_cache WHERE key=?", (str(key),))
+        row = cur.fetchone()
+        if not row:
+            con.close()
+            return None
+        val, ts, ttl = row[0], int(row[1] or 0), int(row[2] or 0)
+        if ttl > 0 and (now - ts) > ttl:
+            con.close()
+            return None
+        con.close()
+        return json.loads(val) if val else None
+    except Exception:
+        return None
+
+
+def cache_put(key: str, value, ttl: int = 2592000) -> bool:
+    try:
+        blob = json.dumps(value, ensure_ascii=False)
+        con = db()
+        con.execute(
+            "INSERT INTO lookup_cache(key,value,ts,ttl,hits) VALUES(?,?,?,?,0) "
+            "ON CONFLICT(key) DO UPDATE SET value=excluded.value, "
+            "ts=excluded.ts, ttl=excluded.ttl",
+            (str(key), blob, int(time.time()), int(ttl)))
+        con.commit()
+        con.close()
+        return True
+    except Exception:
+        return False
+
+
+def cache_hit_bump(key: str) -> None:
+    try:
+        con = db()
+        con.execute("UPDATE lookup_cache SET hits = hits + 1 WHERE key=?", (str(key),))
+        con.commit()
+        con.close()
+    except Exception:
+        pass
+
+
+def cache_stats() -> dict:
+    try:
+        con = db()
+        cur = con.cursor()
+        now = int(time.time())
+        cur.execute("SELECT COUNT(*), COALESCE(SUM(hits),0) FROM lookup_cache")
+        row = cur.fetchone() or (0, 0)
+        total, hits = int(row[0] or 0), int(row[1] or 0)
+        cur.execute("SELECT COUNT(*) FROM lookup_cache WHERE ttl=0 OR (?-ts)<=ttl", (now,))
+        live = int((cur.fetchone() or (0,))[0] or 0)
+        con.close()
+        return {"total": total, "live": live, "hits": hits}
+    except Exception:
+        return {"total": 0, "live": 0, "hits": 0}
+
+
+def cache_prune(max_rows: int = 5000) -> int:
+    try:
+        con = db()
+        cur = con.cursor()
+        now = int(time.time())
+        cur.execute("DELETE FROM lookup_cache WHERE ttl>0 AND (?-ts)>ttl", (now,))
+        gone = cur.rowcount or 0
+        cur.execute("SELECT COUNT(*) FROM lookup_cache")
+        left = int((cur.fetchone() or (0,))[0] or 0)
+        if left > max_rows:
+            cur.execute("DELETE FROM lookup_cache WHERE key IN ("
+                        "  SELECT key FROM lookup_cache ORDER BY ts ASC LIMIT ?)",
+                        (left - max_rows,))
+            gone += cur.rowcount or 0
+        con.commit()
+        con.close()
+        return int(gone)
+    except Exception:
+        return 0

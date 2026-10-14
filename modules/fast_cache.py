@@ -69,12 +69,18 @@ def cache_stats() -> Dict:
     with _cache_lock:
         total = _cache_hits + _cache_miss
         hit_rate = (_cache_hits / total * 100) if total > 0 else 0
-        return {
+        out = {
             "hits": _cache_hits,
             "miss": _cache_miss,
             "hit_rate": f"{hit_rate:.1f}%",
             "size": len(_cache)
         }
+        try:
+            from modules.database import cache_stats as _dcs
+            out["persistent"] = _dcs()
+        except Exception:
+            out["persistent"] = {"total": 0, "live": 0, "hits": 0}
+        return out
 
 # Force join cache - 60 sec TTL per user (fast but secure)
 _force_join_cache: Dict[int, tuple] = {}  # user_id -> (is_joined, expiry)
@@ -105,8 +111,48 @@ def force_join_cache_clear(uid: int = None):
 def api_cache_key(tool: str, term: str) -> str:
     return f"{tool}:{term.lower().strip()}"
 
+# v2.0 — persistent (DB) cache layer so restart/deploy ke baad bhi instant
+_db_writes = 0
+
+def _db_cache_get(dbkey: str):
+    try:
+        from modules.database import cache_get as _g
+        return _g(dbkey)
+    except Exception:
+        return None
+
 def api_cache_get(tool: str, term: str) -> Optional[Dict]:
-    return cache_get(api_cache_key(tool, term))
+    key = api_cache_key(tool, term)
+    mem = cache_get(key)
+    if mem is not None:
+        return mem
+    # DB (persistent) hit — 0 ms, koi network call nahi
+    pc = _db_cache_get(f"osint:{key}")
+    if isinstance(pc, dict) and pc:
+        try:
+            cache_set(key, pc, 300)
+        except Exception:
+            pass
+        try:
+            from modules.database import cache_hit_bump as _b
+            _b(f"osint:{key}")
+        except Exception:
+            pass
+        return pc
+    return None
 
 def api_cache_set(tool: str, term: str, data: Dict, ttl: int = 300):
-    cache_set(api_cache_key(tool, term), data, ttl)
+    global _db_writes
+    key = api_cache_key(tool, term)
+    cache_set(key, data, ttl)
+    try:
+        from modules.database import cache_put as _p, cache_prune as _pr
+        if isinstance(data, dict) and data.get("ok"):
+            _p(f"osint:{key}", data, 2592000)          # success = 30 din
+        elif isinstance(data, dict) and data.get("not_found"):
+            _p(f"osint:{key}", data, 21600)            # no-record = 6 ghante
+        _db_writes += 1
+        if _db_writes % 50 == 0:
+            _pr()
+    except Exception:
+        pass

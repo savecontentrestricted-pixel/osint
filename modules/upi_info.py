@@ -2,7 +2,7 @@
 💸 UPI INFO - BEST - ULTRA FAST - OSINT Hunter Hub
 API: utility-api-vu83 - lynxosint__upi / upi
 UPI ID → Name + Bank + Valid + App
-Your API key: udb-SlhpCRCaziEfxTPvasAUHNFCPa9CYw6smolrP0QX
+Your API key: 
 Tested: kumaranil98787@axl → ANIL KUMAR, Axis Bank, PhonePe, SAVINGS, valid true
 """
 
@@ -13,13 +13,13 @@ import requests
 from .fast_cache import get_session, api_cache_get, api_cache_set
 
 API_URL = os.getenv("UPIINFO_API_URL", "https://utility-api-vu83.onrender.com/api").strip()
-API_KEY = os.getenv("UPIINFO_API_KEY", "udb-SlhpCRCaziEfxTPvasAUHNFCPa9CYw6smolrP0QX").strip()
+API_KEY = os.getenv("UPIINFO_API_KEY", "").strip()
 TIMEOUT = int(os.getenv("UPIINFO_API_TIMEOUT", "20") or 20)
 
 if not API_URL:
     API_URL = os.getenv("MYNUM_API_URL", "https://utility-api-vu83.onrender.com/api").strip()
 if not API_KEY:
-    API_KEY = os.getenv("MYNUM_API_KEY", "udb-SlhpCRCaziEfxTPvasAUHNFCPa9CYw6smolrP0QX").strip()
+    API_KEY = os.getenv("MYNUM_API_KEY", "").strip()
 
 def lookup_upi(upi_id: str) -> dict:
     start = time.time()

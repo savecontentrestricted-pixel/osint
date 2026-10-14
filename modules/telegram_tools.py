@@ -10,7 +10,7 @@ import requests
 from typing import Dict, Any
 
 API_URL = os.getenv("MYNUM_API_URL", "https://utility-api-vu83.onrender.com/api")
-API_KEY = os.getenv("MYNUM_API_KEY", "udb-SlhpCRCaziEfxTPvasAUHNFCPa9CYw6smolrP0QX")
+API_KEY = os.getenv("MYNUM_API_KEY", "")
 TIMEOUT = 40
 
 def clean_input(text: str) -> str:

@@ -11,7 +11,7 @@ import requests
 from .fast_cache import get_session, api_cache_get, api_cache_set
 
 API_URL = os.getenv("FAMINFO_API_URL", "https://utility-api-vu83.onrender.com/api").strip()
-API_KEY = os.getenv("FAMINFO_API_KEY", "udb-SlhpCRCaziEfxTPvasAUHNFCPa9CYw6smolrP0QX").strip()
+API_KEY = os.getenv("FAMINFO_API_KEY", "").strip()
 TIMEOUT = int(os.getenv("FAMINFO_API_TIMEOUT", "25") or 25)  # Reduced for speed
 
 BUILTIN_URL = "https://jgvicvhgfwcfndgookul.supabase.co/functions/v1/bot-api"

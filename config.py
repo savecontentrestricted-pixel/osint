@@ -4,7 +4,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Bot Token - Provided by user: @osint_hunter_hub_bot
-BOT_TOKEN = os.getenv("BOT_TOKEN", "8877252485:AAFA17x1puWA_maPksJs3RWaPIySmlxpTUg").strip()
+# v2.0 SECURITY: token ab sirf Render env se (pehle public repo me hardcoded tha!)
+BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
 
 # Telegram API - my.telegram.org
 API_ID = int(os.getenv("API_ID", "0") or 0)
@@ -35,7 +36,8 @@ BRAND_TAG = os.getenv("BRAND_TAG", "@Supermannn_x").strip()
 
 # APIs
 MYNUM_API_URL = os.getenv("MYNUM_API_URL", "https://utility-api-vu83.onrender.com/api").strip()
-MYNUM_API_KEY = os.getenv("MYNUM_API_KEY", "udb-SlhpCRCaziEfxTPvasAUHNFCPa9CYw6smolrP0QX").strip()
+# v2.0 SECURITY: API key sirf env se (public repo me hardcoded nahi)
+MYNUM_API_KEY = os.getenv("MYNUM_API_KEY", "").strip()
 
 def is_admin(uid: int) -> bool:
     return uid in ADMINS

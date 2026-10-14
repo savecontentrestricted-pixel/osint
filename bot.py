@@ -45,9 +45,17 @@ import threading
 import traceback
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
-BOT_TOKEN = os.getenv('BOT_TOKEN', '8877252485:AAFA17x1puWA_maPksJs3RWaPIySmlxpTUg').strip()
+BOT_VERSION = ("v2.0 — 🚀 v127.7 PARITY (utility-duniya-bot jaisa fast+stable+premium): "
+    "premium ke saare plan buttons FIX (upi:// url button Telegram reject karta tha -> poora message fail), "
+    "persistent lookup cache (num/family/upi/tg/pak — ek baar dhoondha = 30 din INSTANT, restart ke baad bhi zinda), "
+    "DB VAULT (deploy par users/premium/pending payments kabhi wipe nahi), rich /health, "
+    "crash-shield + watchdog (RAM/hang auto-restart), keepalive public-URL 5 min + hub warm, "
+    "hardcoded secrets hataye, Dockerfile")
+# v2.0 SECURITY: token sirf Render env se (pehle public repo me hardcoded tha!)
+BOT_TOKEN = os.getenv('BOT_TOKEN', '').strip()
 PORT = int(os.getenv('PORT','10000'))
-WEBHOOK_URL = f"https://osint-hunter-hub-bot.onrender.com/webhook"
+BOT_SELF_URL = (os.getenv('BOT_SELF_URL') or 'https://osint-hunter-hub-bot.onrender.com').rstrip('/')
+WEBHOOK_URL = (os.getenv('WEBHOOK_URL') or f"{BOT_SELF_URL}/webhook")
 
 app = None
 loop = None
@@ -60,12 +68,14 @@ class WebhookHandler(BaseHTTPRequestHandler):
             self.send_header('Content-type','text/html')
             self.send_header('Cache-Control','no-cache')
             self.end_headers()
-            if self.path in ['/health', '/ping', '/healthz']:
-                self.wfile.write(b'OK - Bot Alive')
+            if self.path in ['/ping', '/ping/']:
+                self.wfile.write(b'OK')                      # ultra fast - pinger/cron ke liye
+            elif self.path in ['/health', '/healthz']:
+                self.wfile.write(health_html().encode('utf-8', 'ignore'))
             elif self.path == '/webhook':
                 self.wfile.write(b'Webhook endpoint - POST only')
             else:
-                html = b"<html><body><h1>OSINT Hunter Hub 10 TOOLS FAST STABLE LIVE - UPI INFO + FAMILY INFO BEST</h1><p>All 10 tools working - No delay</p><p>Webhook: /webhook</p><p>Health: /health</p></body></html>"
+                html = b"<html><body><h1>OSINT Hunter Hub - 11 TOOLS FAST STABLE LIVE</h1><p>Webhook: /webhook | Health: /health | Ping: /ping</p></body></html>"
                 self.wfile.write(html)
         except:
             pass
@@ -122,15 +132,22 @@ def process_update_sync(data):
         traceback.print_exc()
 
 async def handle_update(data):
+    uid_tag = data.get('update_id')
     try:
         from telegram import Update
         global app
+        with _INFLIGHT_LOCK:
+            _INFLIGHT[uid_tag] = time.time()
         if app:
             update = Update.de_json(data, app.bot)
             await app.process_update(update)
     except Exception as e:
+        CRASH["caught"] += 1
         print(f"handle_update error: {e}")
         traceback.print_exc()
+    finally:
+        with _INFLIGHT_LOCK:
+            _INFLIGHT.pop(uid_tag, None)
 
 def keepalive():
     try:
@@ -142,18 +159,23 @@ def keepalive():
 
 threading.Thread(target=keepalive, daemon=False).start()
 
-# Self-ping to prevent Render sleep (every 10 min)
+# v2.0 KEEPALIVE: PUBLIC url ping (localhost ping Render ke spin-down ko nahi rokta!)
+# + API hub bhi warm rakho (warna pehli tool call 12 sec leti hai)
 def self_ping_loop():
-    time.sleep(30)
+    time.sleep(25)  # pehla ping 25s -> cold start ki jagah turant warm
+    print(f"Keepalive pinger ON -> {BOT_SELF_URL}/ping + API hub (har 5 min)")
     while True:
         try:
             import requests
-            # Ping own health endpoint to keep alive
-            requests.get(f"http://127.0.0.1:{PORT}/health", timeout=5)
-            print("Self-ping OK - keeping alive")
+            requests.get(f"{BOT_SELF_URL}/ping", timeout=10)
         except Exception as e:
-            print(f"Self-ping fail: {e}")
-        time.sleep(600)  # 10 min
+            print(f"Keepalive fail: {e}")
+        try:
+            import requests as _rq
+            _rq.get("https://utility-api-vu83.onrender.com/health", timeout=10)
+        except Exception:
+            pass
+        time.sleep(300)  # 5 min (pehle 10 min tha)
 
 threading.Thread(target=self_ping_loop, daemon=True).start()
 
@@ -346,6 +368,186 @@ from modules.upi_qr import generate_upi_qr
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+# ========== v2.0 — VAULT + HEALTH + CRASH-SHIELD + WATCHDOG ==========
+START_TS = time.time()
+CRASH = {"caught": 0, "fatal": 0}
+_INFLIGHT = {}
+_INFLIGHT_LOCK = threading.Lock()
+
+
+def _ram_mb() -> int:
+    try:
+        with open("/proc/self/status", "r") as f:
+            for line in f:
+                if line.startswith("VmRSS:"):
+                    return int(int(line.split()[1]) / 1024)
+    except Exception:
+        pass
+    try:
+        import resource
+        return int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024)
+    except Exception:
+        return 0
+
+
+def _fmt_age(ts) -> str:
+    try:
+        ts = float(ts or 0)
+    except Exception:
+        return "never"
+    if not ts:
+        return "never"
+    s = int(time.time() - ts)
+    if s < 90:
+        return f"{s}s pehle"
+    if s < 5400:
+        return f"{s//60} min pehle"
+    return f"{s//3600}h pehle"
+
+
+# VAULT: naye deploy par DB khaali mile to GitHub (branch vault-backup) se
+# encrypted backup wapas laao — users/premium/pending payments kabhi na khoye
+try:
+    import modules.vault as vault
+    vault.boot_restore()
+    vault.start_backup_loop()
+    VAULT_OK = True
+except Exception as _ve:
+    VAULT_OK = False
+    print(f"[VAULT] init skip: {_ve}")
+
+
+def health_html() -> str:
+    """Rich /health (utility-duniya-bot jaisa) — kabhi crash na kare."""
+    try:
+        commit = (os.getenv("RENDER_GIT_COMMIT") or "")[:7] or "local"
+        up = int((time.time() - START_TS) / 60)
+        cstats = {}
+        db_c = {"live": 0, "total": 0, "hits": 0}
+        users = prem = pend = 0
+        try:
+            from modules.fast_cache import cache_stats as _fs
+            cstats = _fs()
+        except Exception:
+            pass
+        try:
+            from modules.database import (cache_stats as _dcs, all_user_ids,
+                                          premium_users, pending_payments_count)
+            db_c = _dcs()
+            users = len(all_user_ids())
+            prem = len(premium_users())
+            pend = pending_payments_count()
+        except Exception:
+            pass
+        vstat = {}
+        if VAULT_OK:
+            try:
+                vstat = vault.status()
+            except Exception:
+                vstat = {}
+        out = (
+            "<h1>🚀 OSINT Hunter Hub — LIVE</h1>"
+            "<p style='font-family:monospace'>"
+            f"version: {BOT_VERSION}<br>"
+            f"commit: {commit} | branch: {os.getenv('RENDER_GIT_BRANCH') or 'main'} | mode: WEBHOOK | up: {up}m | ram: {_ram_mb()}MB<br>"
+            f"users: {users} | premium: {prem} | pending payments: {pend}<br>"
+            f"lookup-cache: {db_c.get('live', 0)} live / {db_c.get('total', 0)} total | instant hits: {db_c.get('hits', 0)}<br>"
+            f"memory-cache: {cstats.get('hit_rate', '-')} hit rate ({cstats.get('size', 0)} items)<br>"
+            f"vault: {'ON' if VAULT_OK else 'OFF'} | last backup: {_fmt_age(vstat.get('last_ok', 0))}"
+            f" | backups: {vstat.get('count', 0)} | restore: {vstat.get('restored') or '-'}"
+            + (f" | err: {str(vstat.get('last_err'))[:90]}" if vstat.get('last_err') else "")
+            + f"<br>crash-shield: caught={CRASH['caught']} fatal={CRASH['fatal']}"
+            "</p>"
+        )
+        return out
+    except Exception as e:
+        return f"OK - Bot Alive ({e})"
+
+
+def watchdog_loop():
+    """RAM guard + hang guard (utility-duniya-bot jaisa auto-restart)."""
+    mem_limit = int(os.getenv("MEM_RESTART_MB", "470") or 470)
+    hang_limit = int(os.getenv("HANG_RESTART_SECONDS", "900") or 900)
+    while True:
+        time.sleep(60)
+        try:
+            rss = _ram_mb()
+            if mem_limit and rss and rss > mem_limit:
+                print(f"WATCHDOG: RAM {rss}MB > {mem_limit}MB — auto restart")
+                CRASH["fatal"] += 1
+                os._exit(7)
+        except Exception:
+            pass
+        try:
+            now = time.time()
+            with _INFLIGHT_LOCK:
+                stuck = [(k, int(now - v)) for k, v in list(_INFLIGHT.items()) if now - v > hang_limit]
+            if stuck:
+                print(f"WATCHDOG: update hung >{hang_limit}s {stuck[:3]} — auto restart")
+                CRASH["fatal"] += 1
+                os._exit(8)
+        except Exception:
+            pass
+
+
+threading.Thread(target=watchdog_loop, daemon=True).start()
+
+
+async def on_error(update, context):
+    """Crash-shield: koi bhi error user ko silence na kare."""
+    CRASH["caught"] += 1
+    try:
+        print(f"CRASH-SHIELD caught #{CRASH['caught']}: {str(context.error)[:300]}")
+        logger.error("Exception while handling an update:", exc_info=context.error)
+    except Exception:
+        pass
+    try:
+        if update and getattr(update, "effective_message", None):
+            await update.effective_message.reply_text("⚠️ Thodi technical dikkat aayi — dobara try karo.")
+    except Exception:
+        pass
+
+
+async def vault_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not config.is_admin(update.effective_user.id):
+        return
+    if not VAULT_OK:
+        await update.message.reply_text("❌ Vault OFF (VAULT_GITHUB_TOKEN set karo)")
+        return
+    st = vault.status()
+    txt = (
+        "🛡️ <b>VAULT STATUS</b>\n\n"
+        f"Repo: <code>{st.get('repo')}</code>\n"
+        f"Token: {'✅ set' if st.get('token_set') else '❌ missing'}\n"
+        f"DB: <code>{st.get('db_path')}</code>\n"
+        f"Users in DB: {st.get('db_users', 0)} | size: {st.get('db_bytes', 0)} bytes\n"
+        f"Last backup: {_fmt_age(st.get('last_ok', 0))} ({st.get('last_bytes', 0)} bytes, total {st.get('count', 0)})\n"
+        f"Restore at boot: {st.get('restored') or '-'}\n"
+        f"Last error: {st.get('last_err') or 'none'}"
+    )
+    await update.message.reply_text(txt, parse_mode=ParseMode.HTML)
+
+
+async def backup_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not config.is_admin(update.effective_user.id):
+        return
+    if not VAULT_OK:
+        await update.message.reply_text("❌ Vault OFF")
+        return
+    m = await update.message.reply_text("⏳ Backup chal raha hai...")
+    ok = await asyncio.to_thread(vault.backup_now, True)
+    await m.edit_text("✅ Backup ho gaya! /vault se dekho" if ok else "❌ Backup fail — /vault dekho")
+
+
+async def restore_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not config.is_admin(update.effective_user.id):
+        return
+    if not VAULT_OK:
+        await update.message.reply_text("❌ Vault OFF")
+        return
+    res = await asyncio.to_thread(vault.boot_restore)
+    await update.message.reply_text(f"🛡️ Restore: {res}")
 
 # ========== CREDITS CHECK - FAST ==========
 def can_use_tool(uid: int) -> tuple:
@@ -2251,7 +2453,7 @@ async def buy_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     get_user(uid, update.effective_user.first_name or "", update.effective_user.username or "")
     txt = format_plan_detail(plan_key)
     kb = [
-        [InlineKeyboardButton(f"💳 Pay ₹{plan['amount']} via UPI", url=get_upi_link(plan['amount'], f"OSINT {plan['name']}"))],
+        [InlineKeyboardButton("📢 Channel", url=config.FORCE_CHANNEL_LINK)],
         [InlineKeyboardButton("✅ Paid - Send Screenshot", callback_data=f"paid_{plan_key}")],
         [InlineKeyboardButton("📖 How to Pay?", callback_data="howtopay")]
     ]
@@ -2378,6 +2580,11 @@ async def handle_payment_screenshot(update: Update, context: ContextTypes.DEFAUL
         except Exception as e:
             print(f"Screenshot update failed: {e}")
         
+        try:
+            if VAULT_OK:
+                vault.backup_soon()
+        except Exception:
+            pass
         await update.message.reply_text(
             f"✅ Screenshot received for Payment ID <code>{pid}</code>!\n\n"
             f"⏳ Owner verification me 5-10 min lagega\n"
@@ -2520,6 +2727,11 @@ async def approve_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             pass
     
     set_payment_status(pid, "approved", update.effective_user.id, "Approved by admin")
+    try:
+        if VAULT_OK:
+            vault.backup_soon()
+    except Exception:
+        pass
 
 async def reject_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not config.is_admin(update.effective_user.id):
@@ -2757,7 +2969,7 @@ async def help_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             try:
                 txt = format_plan_detail(plan_key)
                 kb = [
-                    [InlineKeyboardButton(f"💳 Pay ₹{plan['amount']} via UPI", url=get_upi_link(plan['amount'], f"OSINT {plan['name']}"))],
+                    [InlineKeyboardButton("📢 Channel", url=config.FORCE_CHANNEL_LINK)],
                     [InlineKeyboardButton("✅ Paid - Send Screenshot", callback_data=f"paid_{plan_key}")],
                     [InlineKeyboardButton("📖 How to Pay?", callback_data="howtopay")]
                 ]
@@ -2902,6 +3114,8 @@ async def main_async():
     print("Building 8 TOOLS FAST STABLE app...")
     
     app = Application.builder().token(BOT_TOKEN).build()
+    app.add_error_handler(on_error)
+    print(f"🔎 SELF-CHECK | {BOT_VERSION.split('(')[0].strip()} | crypto=ON | vault={'ON' if VAULT_OK else 'OFF'} | channel=@{config.FORCE_CHANNEL_USERNAME} | self_url={BOT_SELF_URL}")
 
     # Core
     app.add_handler(CommandHandler("start", start))
@@ -2985,6 +3199,9 @@ async def main_async():
     app.add_handler(CommandHandler("payments", payments_cmd))
     app.add_handler(CommandHandler("users", users_cmd))
     app.add_handler(CommandHandler("vips", vips_cmd))
+    app.add_handler(CommandHandler("vault", vault_cmd))
+    app.add_handler(CommandHandler("backup", backup_cmd))
+    app.add_handler(CommandHandler("restore", restore_cmd))
     app.add_handler(CommandHandler("broadcast", broadcast_cmd))
 
     # Grid handler - must be before document handlers

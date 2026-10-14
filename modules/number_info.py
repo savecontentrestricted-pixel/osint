@@ -11,7 +11,7 @@ from typing import Dict, Any
 from .fast_cache import get_session, api_cache_get, api_cache_set
 
 API_URL = os.getenv("MYNUM_API_URL", "https://utility-api-vu83.onrender.com/api")
-API_KEY = os.getenv("MYNUM_API_KEY", "udb-SlhpCRCaziEfxTPvasAUHNFCPa9CYw6smolrP0QX")
+API_KEY = os.getenv("MYNUM_API_KEY", "")
 TIMEOUT = 25  # Reduced from 40 for speed, with retry
 
 def clean_number(num: str) -> str:
