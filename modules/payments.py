@@ -5,6 +5,7 @@ UPI: kumaranil98787@axl
 
 import os
 import urllib.parse
+import html
 
 UPI_ID = os.getenv("UPI_ID", "kumaranil98787@axl").strip()
 UPI_NAME = os.getenv("UPI_NAME", "OSINT Hunter Hub").strip()
@@ -30,6 +31,11 @@ def get_upi_link(amount: int, note: str = "OSINT Premium") -> str:
     if not UPI_ID:
         return ""
     return f"upi://pay?pa={_q(UPI_ID)}&pn={_q(UPI_NAME)}&am={amount}&cu=INR&tn={_q(note)}"
+
+def get_upi_link_escaped(amount: int, note: str = "OSINT Premium") -> str:
+    """Escaped for HTML"""
+    link = get_upi_link(amount, note)
+    return html.escape(link)
 
 def format_plans() -> str:
     txt = f"""
@@ -70,8 +76,8 @@ def format_plans() -> str:
 📦 250 Credits - ₹99 → /buy c250
 
 <b>━━━━━━━━ Payment ━━━━━━━━</b>
-💳 <b>UPI ID:</b> <code>{UPI_ID}</code>
-👤 <b>Name:</b> {UPI_NAME}
+💳 <b>UPI ID:</b> <code>{upi_id_esc}</code>
+👤 <b>Name:</b> {upi_name_esc}
 
 <b>Kaise kharidein:</b>
 1️⃣ /buy &lt;plan&gt; - jaise /buy 30d
@@ -90,33 +96,36 @@ def format_plan_detail(plan_key: str) -> str:
         return "❌ Invalid plan. /premium se plans dekho"
     
     upi_link = get_upi_link(plan['amount'], f"OSINT {plan['name']}")
+    upi_link_esc = html.escape(upi_link)
+    upi_id_esc = html.escape(UPI_ID)
+    upi_name_esc = html.escape(UPI_NAME)
     
     if plan['days'] > 0:
         txt = f"""
 ╔══════════════════════════════════════╗
-║  💳 <b>{plan['name']}</b>  ║
+║  💳 <b>{html.escape(plan['name'])}</b>  ║
 ╚══════════════════════════════════════╝
 
-📦 <b>Plan:</b> {plan['desc']}
+📦 <b>Plan:</b> {html.escape(plan['desc'])}
 💰 <b>Amount:</b> ₹{plan['amount']}
 ⏰ <b>Duration:</b> {plan['days']} days unlimited
 
-💳 <b>UPI ID:</b> <code>{UPI_ID}</code>
-👤 <b>Name:</b> {UPI_NAME}
+💳 <b>UPI ID:</b> <code>{upi_id_esc}</code>
+👤 <b>Name:</b> {upi_name_esc}
 
 🔗 <b>UPI Link:</b>
-<code>{upi_link}</code>
+<code>{upi_link_esc}</code>
 
 <b>━━━━━━━━ Steps ━━━━━━━━</b>
 1️⃣ UPI ID pe ₹{plan['amount']} bhejo
-   <code>{UPI_ID}</code>
+   <code>{upi_id_esc}</code>
 
 2️⃣ Payment ka screenshot lo
 
 3️⃣ Screenshot yahan bhejo + UTR (12 digit)
 
 4️⃣ Example:
-   <code>/pay {plan_key} UTR1234567890</code>
+   <code>/pay {html.escape(plan_key)} UTR1234567890</code>
    Phir screenshot bhejo
 
 ⏳ Owner 5-10 min me verify karke premium dega!
@@ -126,21 +135,21 @@ def format_plan_detail(plan_key: str) -> str:
     else:
         txt = f"""
 ╔══════════════════════════════════════╗
-║  📦 <b>{plan['name']}</b>  ║
+║  📦 <b>{html.escape(plan['name'])}</b>  ║
 ╚══════════════════════════════════════╝
 
-📦 <b>Pack:</b> {plan['desc']}
+📦 <b>Pack:</b> {html.escape(plan['desc'])}
 💰 <b>Amount:</b> ₹{plan['amount']}
 🎁 <b>Credits:</b> {plan['credits']} credits
 
-💳 <b>UPI ID:</b> <code>{UPI_ID}</code>
+💳 <b>UPI ID:</b> <code>{upi_id_esc}</code>
 
 🔗 <b>UPI Link:</b>
-<code>{upi_link}</code>
+<code>{upi_link_esc}</code>
 
 1️⃣ UPI pe ₹{plan['amount']} bhejo
 2️⃣ Screenshot + UTR bhejo
-3️⃣ /pay {plan_key} UTR
+3️⃣ /pay {html.escape(plan_key)} UTR
 
 📢 @osint_xpert
 """
@@ -208,7 +217,7 @@ Aapne saare use kar liye!
 💎 /premium se plans dekho
    30 din sirf ₹49 se shuru!
 
-💳 UPI: <code>{UPI_ID}</code>
+💳 UPI: <code>{upi_id_esc}</code>
 
 {tool_name} premium me bina rok-tok chalega!
 """

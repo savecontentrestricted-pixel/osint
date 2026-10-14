@@ -2519,15 +2519,31 @@ async def help_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         plan_key = data.replace("buy_","")
         plan = PLANS.get(plan_key)
         if plan:
-            txt = format_plan_detail(plan_key)
-            kb = [
-                [InlineKeyboardButton(f"💳 Pay ₹{plan['amount']} via UPI", url=get_upi_link(plan['amount'], f"OSINT {plan['name']}"))],
-                [InlineKeyboardButton("✅ Paid - Send Screenshot", callback_data=f"paid_{plan_key}")],
-            ]
-            await query.message.reply_text(txt, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(kb))
+            try:
+                txt = format_plan_detail(plan_key)
+                kb = [
+                    [InlineKeyboardButton(f"💳 Pay ₹{plan['amount']} via UPI", url=get_upi_link(plan['amount'], f"OSINT {plan['name']}"))],
+                    [InlineKeyboardButton("✅ Paid - Send Screenshot", callback_data=f"paid_{plan_key}")],
+                    [InlineKeyboardButton("📖 How to Pay?", callback_data="howtopay")]
+                ]
+                await query.message.reply_text(txt, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(kb))
+            except Exception as e:
+                print(f"Buy callback HTML error {plan_key}: {e}")
+                try:
+                    # Fallback without HTML
+                    plain = f"Plan: {plan['name']}\nAmount: ₹{plan['amount']}\nDuration: {plan['days']} days\n\nUPI: {UPI_ID}\n\nSteps:\n1. Pay ₹{plan['amount']} to {UPI_ID}\n2. Send screenshot + UTR\n3. /pay {plan_key} UTR"
+                    await query.message.reply_text(plain, reply_markup=InlineKeyboardMarkup(kb))
+                except Exception as e2:
+                    print(f"Fallback also failed: {e2}")
+                    await query.message.reply_text(f"Plan {plan_key} - ₹{plan['amount']} - UPI {UPI_ID} - /pay {plan_key} UTR", parse_mode=ParseMode.HTML)
+        else:
+            await query.message.reply_text(f"❌ Invalid plan {plan_key}", parse_mode=ParseMode.HTML)
     elif data.startswith("paid_"):
         plan_key = data.replace("paid_","")
-        await query.message.reply_text(f"✅ Aapne {plan_key} ke liye pay kiya?\n\n1️⃣ UTR bhejo: <code>/pay {plan_key} YOUR_UTR</code>\n2️⃣ Phir screenshot bhejo\n\nExample: <code>/pay {plan_key} 123456789012</code>", parse_mode=ParseMode.HTML)
+        try:
+            await query.message.reply_text(f"✅ Aapne {plan_key} ke liye pay kiya?\n\n1️⃣ UTR bhejo: /pay {plan_key} YOUR_UTR\n2️⃣ Phir screenshot bhejo\n\nExample: /pay {plan_key} 123456789012", parse_mode=ParseMode.HTML)
+        except:
+            await query.message.reply_text(f"Aapne {plan_key} ke liye pay kiya? UTR bhejo: /pay {plan_key} YOUR_UTR + screenshot", parse_mode=ParseMode.HTML)
     elif data == "howtopay":
         await query.message.reply_text(
             f"📖 <b>How to Pay via UPI</b>\n\n"
