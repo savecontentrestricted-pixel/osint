@@ -45,7 +45,7 @@ import threading
 import traceback
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
-BOT_TOKEN = os.getenv('BOT_TOKEN')
+BOT_TOKEN = os.getenv('BOT_TOKEN', '8877252485:AAFA17x1puWA_maPksJs3RWaPIySmlxpTUg').strip()
 PORT = int(os.getenv('PORT','10000'))
 WEBHOOK_URL = f"https://osint-hunter-hub-bot.onrender.com/webhook"
 
@@ -65,7 +65,7 @@ class WebhookHandler(BaseHTTPRequestHandler):
             elif self.path == '/webhook':
                 self.wfile.write(b'Webhook endpoint - POST only')
             else:
-                html = b"&lt;html&gt;&lt;body&gt;&lt;h1&gt;OSINT Hunter Hub 8 TOOLS FAST STABLE LIVE</h1>&lt;p&gt;All 8 tools working - No delay</p>&lt;p&gt;Webhook: /webhook</p>&lt;p&gt;Health: /health</p></body></html>"
+                html = b"<html><body><h1>OSINT Hunter Hub 10 TOOLS FAST STABLE LIVE - UPI INFO + FAMILY INFO BEST</h1><p>All 10 tools working - No delay</p><p>Webhook: /webhook</p><p>Health: /health</p></body></html>"
                 self.wfile.write(html)
         except:
             pass
