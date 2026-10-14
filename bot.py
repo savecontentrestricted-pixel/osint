@@ -333,6 +333,14 @@ from modules.github_leak_hunter import github_leak_hunter, format_github_report
 from modules.terabox_extractor import extract_terabox, format_terabox_report
 from modules.family_info import lookup_family, format_family_card
 from modules.upi_info import lookup_upi, format_upi_card
+from modules.database import (
+    get_user, get_credits, add_credits, set_credits, spend_credits,
+    is_premium_user, is_premium, premium_expiry, grant_premium, revoke_premium,
+    create_payment, get_payment, set_payment_status, set_payment_admin_msg,
+    utr_exists, pending_payments_count, pending_payments, recent_payments,
+    user_payments, all_user_ids, premium_users, recent_users, credits_stats, payment_stats,
+    is_banned, set_ban, FREE_CREDITS
+)
 from modules.payments import PLANS, UPI_ID, UPI_NAME, get_upi_link, format_plans, format_plan_detail, format_myplan, format_credits_over
 from modules.upi_qr import generate_upi_qr
 
