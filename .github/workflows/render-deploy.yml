@@ -21,7 +21,7 @@ jobs:
           STATUS=$(curl -fsS -H "Authorization: Bearer $RENDER_API_KEY" "$API/deploys?limit=1" | jq -r '.[0].deploy.status')
           echo "Latest deploy status: $STATUS"
           case "$STATUS" in
-            build_in_progress|update_in_progress|created)
+            build_in_progress|update_in_progress|created|queued)
               echo "Deploy already running - skipping to avoid churn."; exit 0;;
           esac
           curl -fsS -X POST -H "Authorization: Bearer $RENDER_API_KEY" \
