@@ -163,19 +163,19 @@ from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandl
 from telegram.constants import ParseMode
 from telegram.error import BadRequest
 
-# ========== GRID MENU - 8 TOOLS (Proxy deleted, fast & stable) ==========
+# ========== GRID MENU - 8 TOOLS + PREMIUM + ADMIN ==========
 KB_BTNS = [
     ["📱 NUMBER INFO", "🆔 TELEGRAM NUMBER"],
     ["🌐 IP/DOMAIN RECON", "🌐 WEBSITE EXTRACTOR"],
     ["💎 JS SECRET FINDER", "🐙 GITHUB LEAK HUNTER"],
-    ["☁️ TERABOX EXTRACTOR", "📚 PDF RENAMER (Private)"],
+    ["☁️ TERABOX EXTRACTOR", "👑 PREMIUM"],
 ]
 
 def main_keyboard(admin: bool = False):
-    """Grid keyboard - 8 tools fast stable, PDF Renamer owner only"""
+    """Grid keyboard - 8 tools + Premium + Admin controls"""
     rows = [row[:] for row in KB_BTNS]
-    if not admin:
-        rows = [r for r in rows if not any("PDF RENAMER" in b for b in r)]
+    if admin:
+        rows.append(["📚 PDF RENAMER (Private)", "🛠️ ADMIN PANEL"])
     try:
         return ReplyKeyboardMarkup(
             [[KeyboardButton(t) for t in row] for row in rows],
@@ -234,6 +234,13 @@ BTN_MODE_MAP = {
     "TERABOX": "terabox",
     "TERABOX STREAM": "terabox",
     "TERABOX FILE": "terabox",
+    "PREMIUM": "premium",
+    "VIP": "premium",
+    "BUY PREMIUM": "premium",
+    "MY PLAN": "myplan",
+    "MYPLAN": "myplan",
+    "ADMIN PANEL": "admin_panel",
+    "ADMIN": "admin_panel",
 }
 
 # Prompt texts for grid tools - 9 TOOLS CLEAN, NO COMMANDS, ULTRA ADVANCED
@@ -289,9 +296,59 @@ from modules.pdf_renamer import rename_pdf_filename, batch_rename, HACKER_NAME, 
 from modules.js_secret_finder import js_secret_finder, format_js_report
 from modules.github_leak_hunter import github_leak_hunter, format_github_report
 from modules.terabox_extractor import extract_terabox, format_terabox_report
+# NEW: Payments + Credits + Database
+from modules.database import (
+    get_user, get_credits, add_credits, set_credits, spend_credits,
+    is_premium_user, is_premium, premium_expiry, grant_premium, revoke_premium,
+    create_payment, get_payment, set_payment_status, set_payment_admin_msg,
+    utr_exists, pending_payments_count, pending_payments, recent_payments,
+    user_payments, all_user_ids, premium_users, recent_users, credits_stats, payment_stats,
+    is_banned, set_ban, FREE_CREDITS
+)
+from modules.payments import PLANS, UPI_ID, UPI_NAME, get_upi_link, format_plans, format_plan_detail, format_myplan, format_credits_over
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+# ========== CREDITS CHECK - FAST ==========
+def can_use_tool(uid: int) -> tuple:
+    """Check if user can use tool - returns (can_use:bool, credits:int, user:dict)"""
+    try:
+        if config.is_admin(uid):
+            u = get_user(uid)
+            return True, u.get("credits", FREE_CREDITS), u
+        if is_banned(uid):
+            return False, 0, {}
+        u = get_user(uid)
+        if is_premium(u):
+            return True, u.get("credits", FREE_CREDITS), u
+        credits = int(u.get("credits", 0))
+        if credits > 0:
+            return True, credits, u
+        else:
+            return False, 0, u
+    except Exception as e:
+        print(f"can_use_tool error: {e}")
+        return True, FREE_CREDITS, {}
+
+def credits_line(uid: int) -> str:
+    """Get credits line for footer"""
+    try:
+        if config.is_admin(uid):
+            return "👑 <i>Admin - Unlimited</i>\n"
+        u = get_user(uid)
+        if is_premium(u):
+            exp = premium_expiry(u)
+            return f"👑 <i>Premium - {exp}</i>\n"
+        credits = get_credits(uid)
+        if credits <= 3 and credits > 0:
+            return f"⚠️ <i>Sirf {credits} credits bache - /premium</i>\n"
+        elif credits <= 0:
+            return f"🔒 <i>Credits khatam - /premium</i>\n"
+        else:
+            return f"🎁 <i>{credits} credits bache</i>\n"
+    except:
+        return ""
 
 # ========== FORCE JOIN - STRONG PROTECTION (No join = No bot) ==========
 async def is_user_joined_channel(user_id: int, bot) -> bool:
@@ -596,12 +653,19 @@ async def handle_grid_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 )
                 return
 
-            if mode == "admin":
-                # Admin panel placeholder
+            if mode == "admin" or mode == "admin_panel":
                 if not config.is_admin(update.effective_user.id):
                     await update.message.reply_text("❌ Owner only", parse_mode=ParseMode.HTML)
                     return
-                await update.message.reply_text("🔧 <b>ADMIN PANEL</b>\n\nOwner: 8607774564\nTools: 12 (11 public + 1 private)", parse_mode=ParseMode.HTML)
+                await admin_cmd(update, context)
+                return
+
+            if mode == "premium":
+                await premium_cmd(update, context)
+                return
+
+            if mode == "myplan":
+                await myplan_cmd(update, context)
                 return
 
             if mode == "pdf_rename":
@@ -819,12 +883,19 @@ PDF bhejo, Vivid -> 卄卂匚K乇尺
 async def number_info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_force_join(update, context):
         return
+    uid = update.effective_user.id
+    # Credits check
+    can_use, creds, user = can_use_tool(uid)
+    if not can_use:
+        await update.message.reply_text(format_credits_over("Number Info"), parse_mode=ParseMode.HTML)
+        return
     if not context.args:
         await update.message.reply_text(
-            "❌ <b>Use:</b> <code>/numinfo 9876543210</code>\n\n"
-            "📌 Example:\n"
-            "<code>/numinfo 9204507743</code>\n"
-            "<code>/number 9876543210</code>",
+            f"❌ <b>Use:</b> <code>/numinfo 9876543210</code>\n\n"
+            f"📌 Example:\n"
+            f"<code>/numinfo 9204507743</code>\n"
+            f"<code>/number 9876543210</code>\n\n"
+            f"{credits_line(uid)}",
             parse_mode=ParseMode.HTML
         )
         return
@@ -833,7 +904,8 @@ async def number_info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     status = await update.message.reply_text(
         f"🔍 <b>Number Info Searching...</b>\n\n"
         f"📱 Number: <code>{number}</code>\n"
-        f"⏳ Please wait 5-15 seconds...",
+        f"⏳ Please wait 5-15 seconds...\n"
+        f"{credits_line(uid)}",
         parse_mode=ParseMode.HTML
     )
 
@@ -896,6 +968,13 @@ async def number_info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if rec > 1:
             txt += f"📑 <b>Records:</b> {rec} records found\n"
 
+        # Spend credit after success
+        left = spend_credits(uid, 1)
+        if left <= 3:
+            txt += f"\n{credits_line(uid)}"
+        else:
+            txt += f"\n🎁 <i>{left} credits bache</i>\n"
+
         txt += f"""
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -912,6 +991,11 @@ async def number_info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ========== TG TOOLS ==========
 async def tg_number_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_force_join(update, context):
+        return
+    uid = update.effective_user.id
+    can_use, creds, user = can_use_tool(uid)
+    if not can_use:
+        await update.message.reply_text(format_credits_over("tg_number_cmd"), parse_mode=ParseMode.HTML)
         return
     if not context.args:
         await update.message.reply_text(
@@ -935,6 +1019,11 @@ async def tg_number_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         result = lookup_tg(username)
         
         if not result.get("ok"):
+            try:
+                left = spend_credits(uid, 1)
+                txt += f"\n{credits_line(uid)}"
+            except:
+                pass
             await status.edit_text(f"❌ No records found for this username in any database.", parse_mode=ParseMode.HTML)
             return
 
@@ -967,13 +1056,28 @@ async def tg_number_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 🔥 <b>Powered by @Supermannn_x</b>
 """
 
+        try:
+            left = spend_credits(uid, 1)
+            txt += f"\n{credits_line(uid)}"
+        except:
+            pass
         await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
 
     except Exception as e:
+        try:
+            left = spend_credits(uid, 1)
+            txt += f"\n{credits_line(uid)}"
+        except:
+            pass
         await status.edit_text(f"❌ Error: {str(e)[:200]}", parse_mode=ParseMode.HTML)
 
 async def pak_number_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_force_join(update, context):
+        return
+    uid = update.effective_user.id
+    can_use, creds, user = can_use_tool(uid)
+    if not can_use:
+        await update.message.reply_text(format_credits_over("pak_number_cmd"), parse_mode=ParseMode.HTML)
         return
     if not context.args:
         await update.message.reply_text("❌ Use: <code>/paknum 03001234567</code>", parse_mode=ParseMode.HTML)
@@ -985,6 +1089,11 @@ async def pak_number_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         result = lookup_pak(num)
         if not result.get("ok"):
+            try:
+                left = spend_credits(uid, 1)
+                txt += f"\n{credits_line(uid)}"
+            except:
+                pass
             await status.edit_text(f"❌ No records found for this number in any database.", parse_mode=ParseMode.HTML)
             return
 
@@ -1014,9 +1123,19 @@ async def pak_number_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 🔥 <b>Powered by @Supermannn_x</b>
 """
 
+        try:
+            left = spend_credits(uid, 1)
+            txt += f"\n{credits_line(uid)}"
+        except:
+            pass
         await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
 
     except Exception as e:
+        try:
+            left = spend_credits(uid, 1)
+            txt += f"\n{credits_line(uid)}"
+        except:
+            pass
         await status.edit_text(f"❌ Error: {str(e)[:200]}", parse_mode=ParseMode.HTML)
 
 # ========== TELEGRAM SCRAPER ==========
@@ -1025,6 +1144,11 @@ async def pak_number_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ========== IP & DOMAIN ==========
 async def ip_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_force_join(update, context):
+        return
+    uid = update.effective_user.id
+    can_use, creds, user = can_use_tool(uid)
+    if not can_use:
+        await update.message.reply_text(format_credits_over("ip_cmd"), parse_mode=ParseMode.HTML)
         return
     if not context.args:
         await update.message.reply_text("❌ Use: <code>/ip 8.8.8.8</code> or <code>/ip google.com</code>", parse_mode=ParseMode.HTML)
@@ -1036,6 +1160,11 @@ async def ip_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         result = ip_lookup(target)
         if not result.get("ok"):
+            try:
+                left = spend_credits(uid, 1)
+                txt += f"\n{credits_line(uid)}"
+            except:
+                pass
             await status.edit_text(f"❌ {result.get('error')}", parse_mode=ParseMode.HTML)
             return
 
@@ -1087,13 +1216,28 @@ async def ip_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 🔥 Powered by @Supermannn_x
 """
 
+        try:
+            left = spend_credits(uid, 1)
+            txt += f"\n{credits_line(uid)}"
+        except:
+            pass
         await status.edit_text(txt, parse_mode=ParseMode.HTML)
 
     except Exception as e:
+        try:
+            left = spend_credits(uid, 1)
+            txt += f"\n{credits_line(uid)}"
+        except:
+            pass
         await status.edit_text(f"❌ Error: {str(e)}", parse_mode=ParseMode.HTML)
 
 async def domain_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_force_join(update, context):
+        return
+    uid = update.effective_user.id
+    can_use, creds, user = can_use_tool(uid)
+    if not can_use:
+        await update.message.reply_text(format_credits_over("domain_cmd"), parse_mode=ParseMode.HTML)
         return
     if not context.args:
         await update.message.reply_text("❌ Use: <code>/domain google.com</code>", parse_mode=ParseMode.HTML)
@@ -1106,6 +1250,11 @@ async def domain_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         result = full_recon(target)
         if result.get("type") == "ip":
             ip_info = result.get("ip_info", {})
+            try:
+                left = spend_credits(uid, 1)
+                txt += f"\n{credits_line(uid)}"
+            except:
+                pass
             await status.edit_text(f"IP detected, use /ip command. Info: {ip_info}", parse_mode=ParseMode.HTML)
             return
 
@@ -1172,14 +1321,29 @@ async def domain_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 🔥 Powered by @Supermannn_x
 """
 
+        try:
+            left = spend_credits(uid, 1)
+            txt += f"\n{credits_line(uid)}"
+        except:
+            pass
         await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
 
     except Exception as e:
         logger.exception(e)
+        try:
+            left = spend_credits(uid, 1)
+            txt += f"\n{credits_line(uid)}"
+        except:
+            pass
         await status.edit_text(f"❌ Error: {str(e)}", parse_mode=ParseMode.HTML)
 
 async def dns_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_force_join(update, context):
+        return
+    uid = update.effective_user.id
+    can_use, creds, user = can_use_tool(uid)
+    if not can_use:
+        await update.message.reply_text(format_credits_over("dns_cmd"), parse_mode=ParseMode.HTML)
         return
     if not context.args:
         await update.message.reply_text("❌ Use: <code>/dns google.com</code>", parse_mode=ParseMode.HTML)
@@ -1193,13 +1357,28 @@ async def dns_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         txt = f"🌐 <b>DNS for {result.get('domain')}</b>\n\n"
         for k, v in result.get("records", {}).items():
             txt += f"<b>{k}:</b> {', '.join(v) if isinstance(v, list) else v}\n\n"
+        try:
+            left = spend_credits(uid, 1)
+            txt += f"\n{credits_line(uid)}"
+        except:
+            pass
         await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
 
     except Exception as e:
+        try:
+            left = spend_credits(uid, 1)
+            txt += f"\n{credits_line(uid)}"
+        except:
+            pass
         await status.edit_text(f"❌ Error: {str(e)}", parse_mode=ParseMode.HTML)
 
 async def whois_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_force_join(update, context):
+        return
+    uid = update.effective_user.id
+    can_use, creds, user = can_use_tool(uid)
+    if not can_use:
+        await update.message.reply_text(format_credits_over("whois_cmd"), parse_mode=ParseMode.HTML)
         return
     if not context.args:
         await update.message.reply_text("❌ Use: <code>/whois google.com</code>", parse_mode=ParseMode.HTML)
@@ -1211,6 +1390,11 @@ async def whois_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         result = whois_lookup(target)
         if not result.get("ok"):
+            try:
+                left = spend_credits(uid, 1)
+                txt += f"\n{credits_line(uid)}"
+            except:
+                pass
             await status.edit_text(f"❌ {result.get('error')}", parse_mode=ParseMode.HTML)
             return
 
@@ -1237,13 +1421,28 @@ async def whois_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 • Country: {result.get('country')}
 """
 
+        try:
+            left = spend_credits(uid, 1)
+            txt += f"\n{credits_line(uid)}"
+        except:
+            pass
         await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
 
     except Exception as e:
+        try:
+            left = spend_credits(uid, 1)
+            txt += f"\n{credits_line(uid)}"
+        except:
+            pass
         await status.edit_text(f"❌ Error: {str(e)}", parse_mode=ParseMode.HTML)
 
 async def ssl_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_force_join(update, context):
+        return
+    uid = update.effective_user.id
+    can_use, creds, user = can_use_tool(uid)
+    if not can_use:
+        await update.message.reply_text(format_credits_over("ssl_cmd"), parse_mode=ParseMode.HTML)
         return
     if not context.args:
         await update.message.reply_text("❌ Use: <code>/ssl google.com</code>", parse_mode=ParseMode.HTML)
@@ -1255,6 +1454,11 @@ async def ssl_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         result = ssl_check(target)
         if not result.get("ok"):
+            try:
+                left = spend_credits(uid, 1)
+                txt += f"\n{credits_line(uid)}"
+            except:
+                pass
             await status.edit_text(f"❌ {result.get('error')}", parse_mode=ParseMode.HTML)
             return
 
@@ -1274,9 +1478,19 @@ async def ssl_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 • SAN: {', '.join(result.get('san',[])[:5])}
 """
 
+        try:
+            left = spend_credits(uid, 1)
+            txt += f"\n{credits_line(uid)}"
+        except:
+            pass
         await status.edit_text(txt, parse_mode=ParseMode.HTML)
 
     except Exception as e:
+        try:
+            left = spend_credits(uid, 1)
+            txt += f"\n{credits_line(uid)}"
+        except:
+            pass
         await status.edit_text(f"❌ Error: {str(e)}", parse_mode=ParseMode.HTML)
 
 # ========== EXIF ==========
@@ -1284,6 +1498,11 @@ async def ssl_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ========== WEBSITE EXTRACTOR ==========
 async def website_extract_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_force_join(update, context):
+        return
+    uid = update.effective_user.id
+    can_use, creds, user = can_use_tool(uid)
+    if not can_use:
+        await update.message.reply_text(format_credits_over("website_extract_cmd"), parse_mode=ParseMode.HTML)
         return
     if not context.args:
         await update.message.reply_text("❌ Use: <code>/wextract https://example.com</code>", parse_mode=ParseMode.HTML)
@@ -1295,6 +1514,11 @@ async def website_extract_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE
     try:
         result = website_extractor(url)
         if not result.get("ok"):
+            try:
+                left = spend_credits(uid, 1)
+                txt += f"\n{credits_line(uid)}"
+            except:
+                pass
             await status.edit_text(f"❌ {result.get('error')}", parse_mode=ParseMode.HTML)
             return
 
@@ -1347,9 +1571,19 @@ async def website_extract_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE
 🔥 Powered by @Supermannn_x
 """
 
+        try:
+            left = spend_credits(uid, 1)
+            txt += f"\n{credits_line(uid)}"
+        except:
+            pass
         await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
 
     except Exception as e:
+        try:
+            left = spend_credits(uid, 1)
+            txt += f"\n{credits_line(uid)}"
+        except:
+            pass
         await status.edit_text(f"❌ Error: {str(e)}", parse_mode=ParseMode.HTML)
 
 # ========== FILE CONVERTER ==========
@@ -1612,6 +1846,11 @@ async def handle_pdf_renamer(update: Update, context: ContextTypes.DEFAULT_TYPE)
 async def js_secret_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_force_join(update, context):
         return
+    uid = update.effective_user.id
+    can_use, creds, user = can_use_tool(uid)
+    if not can_use:
+        await update.message.reply_text(format_credits_over("js_secret_cmd"), parse_mode=ParseMode.HTML)
+        return
     if not context.args:
         await update.message.reply_text(
             "❌ <b>Use:</b> <code>/jsfind https://example.com</code>\n\n"
@@ -1632,14 +1871,29 @@ async def js_secret_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         result = js_secret_finder(url)
         txt = format_js_report(result)
+        try:
+            left = spend_credits(uid, 1)
+            txt += f"\n{credits_line(uid)}"
+        except:
+            pass
         await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML, disable_web_page_preview=True)
     except Exception as e:
         logger.exception(e)
+        try:
+            left = spend_credits(uid, 1)
+            txt += f"\n{credits_line(uid)}"
+        except:
+            pass
         await status.edit_text(f"❌ Error: {str(e)[:300]}", parse_mode=ParseMode.HTML)
 
 # ========== GITHUB LEAK HUNTER - PRO ==========
 async def github_leak_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_force_join(update, context):
+        return
+    uid = update.effective_user.id
+    can_use, creds, user = can_use_tool(uid)
+    if not can_use:
+        await update.message.reply_text(format_credits_over("github_leak_cmd"), parse_mode=ParseMode.HTML)
         return
     if not context.args:
         await update.message.reply_text(
@@ -1661,14 +1915,29 @@ async def github_leak_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         result = github_leak_hunter(query)
         txt = format_github_report(result)
+        try:
+            left = spend_credits(uid, 1)
+            txt += f"\n{credits_line(uid)}"
+        except:
+            pass
         await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML, disable_web_page_preview=True)
     except Exception as e:
         logger.exception(e)
+        try:
+            left = spend_credits(uid, 1)
+            txt += f"\n{credits_line(uid)}"
+        except:
+            pass
         await status.edit_text(f"❌ Error: {str(e)[:300]}", parse_mode=ParseMode.HTML)
 
 # ========== TERABOX EXTRACTOR - PRO ==========
 async def terabox_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_force_join(update, context):
+        return
+    uid = update.effective_user.id
+    can_use, creds, user = can_use_tool(uid)
+    if not can_use:
+        await update.message.reply_text(format_credits_over("terabox_cmd"), parse_mode=ParseMode.HTML)
         return
     if not context.args:
         await update.message.reply_text(
@@ -1691,21 +1960,651 @@ async def terabox_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         result = extract_terabox(url)
         txt = format_terabox_report(result)
+        try:
+            left = spend_credits(uid, 1)
+            txt += f"\n{credits_line(uid)}"
+        except:
+            pass
         await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML, disable_web_page_preview=True)
     except Exception as e:
         logger.exception(e)
+        try:
+            left = spend_credits(uid, 1)
+            txt += f"\n{credits_line(uid)}"
+        except:
+            pass
         await status.edit_text(f"❌ Error: {str(e)[:500]}", parse_mode=ParseMode.HTML)
+
+# ========== PAYMENTS & PREMIUM ==========
+async def premium_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_force_join(update, context):
+        return
+    uid = update.effective_user.id
+    get_user(uid, update.effective_user.first_name or "", update.effective_user.username or "")
+    txt = format_plans()
+    kb = [
+        [InlineKeyboardButton("💎 30D ₹49", callback_data="buy_30d"), InlineKeyboardButton("🔥 60D ₹89", callback_data="buy_60d")],
+        [InlineKeyboardButton("⭐ 90D ₹120", callback_data="buy_90d"), InlineKeyboardButton("🚀 180D ₹199", callback_data="buy_180d")],
+        [InlineKeyboardButton("👑 365D ₹299", callback_data="buy_365d")],
+        [InlineKeyboardButton("📦 50C ₹29", callback_data="buy_c50"), InlineKeyboardButton("📦 100C ₹49", callback_data="buy_c100"), InlineKeyboardButton("📦 250C ₹99", callback_data="buy_c250")],
+        [InlineKeyboardButton("📊 My Plan", callback_data="myplan"), InlineKeyboardButton("📢 Channel", url=config.FORCE_CHANNEL_LINK)]
+    ]
+    await update.message.reply_text(txt, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(kb))
+
+async def myplan_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_force_join(update, context):
+        return
+    uid = update.effective_user.id
+    u = get_user(uid, update.effective_user.first_name or "", update.effective_user.username or "")
+    creds = get_credits(uid)
+    txt = format_myplan(u, creds)
+    kb = [[InlineKeyboardButton("👑 Premium Plans", callback_data="premium")]]
+    await update.message.reply_text(txt, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(kb))
+
+async def buy_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_force_join(update, context):
+        return
+    if not context.args:
+        await premium_cmd(update, context)
+        return
+    plan_key = context.args[0].lower()
+    plan = PLANS.get(plan_key)
+    if not plan:
+        await update.message.reply_text(f"❌ Invalid plan <code>{plan_key}</code>\n\nValid: {', '.join(PLANS.keys())}\n\n/premium se dekho", parse_mode=ParseMode.HTML)
+        return
+    uid = update.effective_user.id
+    get_user(uid, update.effective_user.first_name or "", update.effective_user.username or "")
+    txt = format_plan_detail(plan_key)
+    kb = [
+        [InlineKeyboardButton(f"💳 Pay ₹{plan['amount']} via UPI", url=get_upi_link(plan['amount'], f"OSINT {plan['name']}"))],
+        [InlineKeyboardButton("✅ Paid - Send Screenshot", callback_data=f"paid_{plan_key}")],
+        [InlineKeyboardButton("📖 How to Pay?", callback_data="howtopay")]
+    ]
+    await update.message.reply_text(txt, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(kb))
+
+async def pay_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_force_join(update, context):
+        return
+    if len(context.args) < 2:
+        await update.message.reply_text(
+            "❌ Use: <code>/pay plan_key UTR</code>\n\n"
+            "Example: <code>/pay 30d 123456789012</code>\n\n"
+            "1. /buy 30d se UPI ID lo\n"
+            "2. Payment karo\n"
+            "3. UTR (12 digit) + screenshot bhejo\n\n"
+            "/premium se plans dekho",
+            parse_mode=ParseMode.HTML
+        )
+        return
+    plan_key = context.args[0].lower()
+    utr = context.args[1].strip()
+    plan = PLANS.get(plan_key)
+    if not plan:
+        await update.message.reply_text(f"❌ Invalid plan {plan_key}", parse_mode=ParseMode.HTML)
+        return
+    if len(utr) < 6:
+        await update.message.reply_text("❌ UTR kam se kam 6 digit ka hona chahiye", parse_mode=ParseMode.HTML)
+        return
+    if utr_exists(utr):
+        await update.message.reply_text("❌ Ye UTR pehle use ho chuka hai! Duplicate UTR not allowed.", parse_mode=ParseMode.HTML)
+        return
+    
+    uid = update.effective_user.id
+    pid = create_payment(uid, plan_key, plan['name'], plan['amount'], plan['days'], utr)
+    if not pid:
+        await update.message.reply_text("❌ Payment record create failed, try again", parse_mode=ParseMode.HTML)
+        return
+    
+    # Ask for screenshot
+    context.user_data[f"pending_pay_{uid}"] = pid
+    await update.message.reply_text(
+        f"✅ Payment record created! ID: <code>{pid}</code>\n\n"
+        f"📦 Plan: {plan['name']}\n"
+        f"💰 Amount: ₹{plan['amount']}\n"
+        f"🔢 UTR: <code>{utr}</code>\n\n"
+        f"📸 Ab payment ka <b>screenshot bhejo</b> (photo ke roop me)\n\n"
+        f"⏳ Owner 5-10 min me verify karega\n"
+        f"📢 Channel: @osint_xpert",
+        parse_mode=ParseMode.HTML
+    )
+    # Notify admin
+    try:
+        admin_text = f"""
+💳 <b>NEW PAYMENT - ID {pid}</b>
+
+👤 User: <code>{uid}</code> - @{update.effective_user.username or 'N/A'} - {update.effective_user.first_name}
+📦 Plan: {plan['name']} - ₹{plan['amount']} - {plan['days']}d
+🔢 UTR: <code>{utr}</code>
+⏰ Time: {datetime.now().strftime('%d %B %Y %I:%M %p')}
+
+📸 Screenshot ka wait...
+
+[Approve] /approve {pid}
+[Reject] /reject {pid}
+"""
+        kb = [
+            [InlineKeyboardButton(f"✅ Approve {pid}", callback_data=f"adm_approve_{pid}"), InlineKeyboardButton(f"❌ Reject {pid}", callback_data=f"adm_reject_{pid}")],
+            [InlineKeyboardButton("📊 Payments", callback_data="adm_payments")]
+        ]
+        msg = await context.bot.send_message(chat_id=8607774564, text=admin_text, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(kb))
+        set_payment_admin_msg(pid, 8607774564, msg.message_id)
+    except Exception as e:
+        print(f"Admin notify failed: {e}")
+
+async def handle_payment_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle photo as payment screenshot"""
+    try:
+        uid = update.effective_user.id
+        pending_key = f"pending_pay_{uid}"
+        pid = context.user_data.get(pending_key)
+        if not pid:
+            # Check if user has recent pending payment without screenshot
+            ups = user_payments(uid, 5)
+            for p in ups:
+                if p['status'] == 'pending' and not p.get('shot_file_id'):
+                    pid = p['id']
+                    break
+        if not pid:
+            return False
+        
+        # Get photo file_id
+        photo = update.message.photo[-1] if update.message.photo else None
+        if not photo:
+            return False
+        
+        file_id = photo.file_id
+        unique_id = photo.file_unique_id
+        
+        # Update payment with screenshot
+        try:
+            from modules.database import db
+            con = db()
+            con.execute("UPDATE payments SET shot_file_id=?, shot_unique_id=? WHERE id=?", (file_id, unique_id, pid))
+            con.commit()
+            con.close()
+        except Exception as e:
+            print(f"Screenshot update failed: {e}")
+        
+        await update.message.reply_text(
+            f"✅ Screenshot received for Payment ID <code>{pid}</code>!\n\n"
+            f"⏳ Owner verification me 5-10 min lagega\n"
+            f"✅ Approve hote hi premium chalu ho jayega\n\n"
+            f"📊 /myplan se status check karo\n"
+            f"📢 @osint_xpert",
+            parse_mode=ParseMode.HTML
+        )
+        
+        # Notify admin with photo
+        try:
+            pay = get_payment(pid)
+            admin_text = f"""
+💳 <b>PAYMENT SCREENSHOT - ID {pid}</b>
+
+👤 User: <code>{pay.get('user_id')}</code>
+📦 Plan: {pay.get('plan_name')} - ₹{pay.get('amount')}
+🔢 UTR: <code>{pay.get('utr_ref')}</code>
+📸 Screenshot attached!
+
+✅ Approve: /approve {pid}
+❌ Reject: /reject {pid}
+"""
+            kb = [
+                [InlineKeyboardButton(f"✅ Approve {pid}", callback_data=f"adm_approve_{pid}"), InlineKeyboardButton(f"❌ Reject {pid}", callback_data=f"adm_reject_{pid}")],
+            ]
+            await context.bot.send_photo(chat_id=8607774564, photo=file_id, caption=admin_text, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(kb))
+        except Exception as e:
+            print(f"Admin screenshot notify failed: {e}")
+        
+        # Clear pending
+        try:
+            del context.user_data[pending_key]
+        except:
+            pass
+        
+        return True
+    except Exception as e:
+        print(f"handle_payment_screenshot error: {e}")
+        return False
+
+# ========== ADMIN PANEL - FULL CONTROLS ==========
+async def admin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = update.effective_user.id
+    if not config.is_admin(uid):
+        await update.message.reply_text("❌ Owner only", parse_mode=ParseMode.HTML)
+        return
+    
+    stats = credits_stats()
+    p_stats = payment_stats()
+    pend_count = pending_payments_count()
+    prem_count = len(premium_users())
+    
+    txt = f"""
+╔══════════════════════════════════════╗
+║  🛠️ <b>ADMIN PANEL - FULL CONTROLS</b>  ║
+╚══════════════════════════════════════╝
+
+📊 <b>Stats:</b>
+👥 Total Users: {stats.get('total_users',0)}
+💎 Premium Users: {prem_count}
+🎁 Total Credits: {stats.get('total_credits',0)}
+🔢 Total Uses: {stats.get('total_uses',0)}
+
+💳 <b>Payments:</b>
+⏳ Pending: {pend_count}
+✅ Approved: {p_stats.get('approved',{}).get('count',0) if isinstance(p_stats.get('approved'), dict) else 0}
+❌ Rejected: {p_stats.get('rejected',{}).get('count',0) if isinstance(p_stats.get('rejected'), dict) else 0}
+
+💰 <b>UPI:</b> <code>{UPI_ID}</code>
+👤 <b>Name:</b> {UPI_NAME}
+🎁 <b>Free Credits:</b> {FREE_CREDITS}
+
+<b>━━━━━━━━ Commands ━━━━━━━━</b>
+/approve <id> - Approve payment
+/reject <id> - Reject payment
+/addcredit <user_id> <amount> - Add credits
+/setcredit <user_id> <amount> - Set credits
+/grant <user_id> <days> - Grant premium
+/revoke <user_id> - Revoke premium
+/ban <user_id> - Ban user
+/unban <user_id> - Unban user
+/stats - Detailed stats
+/payments - Pending payments
+/users - Recent users
+/vips - Premium users list
+/broadcast <msg> - Broadcast to all
+
+<b>━━━━━━━━ Quick Actions ━━━━━━━━</b>
+"""
+    kb = [
+        [InlineKeyboardButton(f"💳 Pending ({pend_count})", callback_data="adm_payments"), InlineKeyboardButton("👑 Vips", callback_data="adm_vips")],
+        [InlineKeyboardButton("📊 Stats", callback_data="adm_stats"), InlineKeyboardButton("👥 Users", callback_data="adm_users")],
+        [InlineKeyboardButton("💰 Add Credits", callback_data="adm_cred"), InlineKeyboardButton("👑 Grant Premium", callback_data="adm_grant")],
+        [InlineKeyboardButton("📢 Broadcast", callback_data="adm_broadcast"), InlineKeyboardButton("🔧 Settings", callback_data="adm_settings")],
+    ]
+    await update.message.reply_text(txt, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(kb))
+
+async def approve_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not config.is_admin(update.effective_user.id):
+        return
+    if not context.args:
+        await update.message.reply_text("Use: /approve <payment_id>", parse_mode=ParseMode.HTML)
+        return
+    try:
+        pid = int(context.args[0])
+    except:
+        await update.message.reply_text("Invalid ID", parse_mode=ParseMode.HTML)
+        return
+    
+    pay = get_payment(pid)
+    if not pay:
+        await update.message.reply_text(f"❌ Payment {pid} not found", parse_mode=ParseMode.HTML)
+        return
+    if pay['status'] != 'pending':
+        await update.message.reply_text(f"❌ Payment {pid} already {pay['status']}", parse_mode=ParseMode.HTML)
+        return
+    
+    uid = pay['user_id']
+    plan_key = pay.get('plan_key','')
+    plan = PLANS.get(plan_key, {})
+    days = plan.get('days', pay.get('plan_days',0))
+    credits = plan.get('credits',0)
+    
+    # Grant
+    if days > 0:
+        new_until = grant_premium(uid, days, update.effective_user.id, plan_key, f"Payment {pid} approved")
+        await update.message.reply_text(f"✅ Payment {pid} approved!\n\nUser: <code>{uid}</code>\nPlan: {pay['plan_name']}\nPremium until: {new_until}\nDays: {days}", parse_mode=ParseMode.HTML)
+        # Notify user
+        try:
+            await context.bot.send_message(chat_id=uid, text=f"✅ <b>Payment Approved!</b>\n\n📦 Plan: {pay['plan_name']}\n⏰ Premium until: {new_until}\n\n🚀 Ab unlimited use karo!\n\n/myplan se dekho\n📢 @osint_xpert", parse_mode=ParseMode.HTML)
+        except:
+            pass
+    elif credits > 0:
+        new_cred = add_credits(uid, credits)
+        await update.message.reply_text(f"✅ Payment {pid} approved!\n\nUser: <code>{uid}</code>\nCredits added: {credits}\nNew total: {new_cred}", parse_mode=ParseMode.HTML)
+        try:
+            await context.bot.send_message(chat_id=uid, text=f"✅ <b>Credits Added!</b>\n\n📦 {credits} credits added!\n🎁 Total: {new_cred}\n\n/myplan se dekho", parse_mode=ParseMode.HTML)
+        except:
+            pass
+    
+    set_payment_status(pid, "approved", update.effective_user.id, "Approved by admin")
+
+async def reject_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not config.is_admin(update.effective_user.id):
+        return
+    if not context.args:
+        await update.message.reply_text("Use: /reject <payment_id> [reason]", parse_mode=ParseMode.HTML)
+        return
+    try:
+        pid = int(context.args[0])
+    except:
+        await update.message.reply_text("Invalid ID", parse_mode=ParseMode.HTML)
+        return
+    reason = " ".join(context.args[1:]) if len(context.args) > 1 else "Rejected by admin"
+    pay = get_payment(pid)
+    if not pay:
+        await update.message.reply_text(f"❌ Payment {pid} not found", parse_mode=ParseMode.HTML)
+        return
+    set_payment_status(pid, "rejected", update.effective_user.id, reason)
+    await update.message.reply_text(f"❌ Payment {pid} rejected - {reason}", parse_mode=ParseMode.HTML)
+    try:
+        await context.bot.send_message(chat_id=pay['user_id'], text=f"❌ <b>Payment Rejected</b>\n\nID: {pid}\nReason: {reason}\n\nContact @Supermannn_x\n💳 UPI: {UPI_ID}", parse_mode=ParseMode.HTML)
+    except:
+        pass
+
+async def addcredit_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not config.is_admin(update.effective_user.id):
+        return
+    if len(context.args) < 2:
+        await update.message.reply_text("Use: /addcredit <user_id> <amount>\nExample: /addcredit 123456 50", parse_mode=ParseMode.HTML)
+        return
+    try:
+        uid = int(context.args[0])
+        amt = int(context.args[1])
+    except:
+        await update.message.reply_text("Invalid args", parse_mode=ParseMode.HTML)
+        return
+    new_total = add_credits(uid, amt)
+    await update.message.reply_text(f"✅ Added {amt} credits to <code>{uid}</code>\nNew total: {new_total}", parse_mode=ParseMode.HTML)
+    try:
+        await context.bot.send_message(chat_id=uid, text=f"🎁 <b>{amt} credits added!</b>\n\nTotal: {new_total}\n\n/myplan", parse_mode=ParseMode.HTML)
+    except:
+        pass
+
+async def setcredit_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not config.is_admin(update.effective_user.id):
+        return
+    if len(context.args) < 2:
+        await update.message.reply_text("Use: /setcredit <user_id> <amount>", parse_mode=ParseMode.HTML)
+        return
+    try:
+        uid = int(context.args[0])
+        amt = int(context.args[1])
+    except:
+        await update.message.reply_text("Invalid", parse_mode=ParseMode.HTML)
+        return
+    set_credits(uid, amt)
+    await update.message.reply_text(f"✅ Set credits of <code>{uid}</code> to {amt}", parse_mode=ParseMode.HTML)
+
+async def grant_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not config.is_admin(update.effective_user.id):
+        return
+    if len(context.args) < 2:
+        await update.message.reply_text("Use: /grant <user_id> <days>\nExample: /grant 123456 30\nFor lifetime: /grant 123456 3650", parse_mode=ParseMode.HTML)
+        return
+    try:
+        uid = int(context.args[0])
+        days = int(context.args[1])
+    except:
+        await update.message.reply_text("Invalid", parse_mode=ParseMode.HTML)
+        return
+    new_until = grant_premium(uid, days, update.effective_user.id, "admin_grant", f"Granted by admin")
+    await update.message.reply_text(f"✅ Granted {days} days premium to <code>{uid}</code>\nUntil: {new_until}", parse_mode=ParseMode.HTML)
+    try:
+        await context.bot.send_message(chat_id=uid, text=f"👑 <b>Premium Granted!</b>\n\n{days} days premium!\nUntil: {new_until}\n\n/myplan", parse_mode=ParseMode.HTML)
+    except:
+        pass
+
+async def revoke_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not config.is_admin(update.effective_user.id):
+        return
+    if not context.args:
+        await update.message.reply_text("Use: /revoke <user_id>", parse_mode=ParseMode.HTML)
+        return
+    try:
+        uid = int(context.args[0])
+    except:
+        await update.message.reply_text("Invalid", parse_mode=ParseMode.HTML)
+        return
+    revoke_premium(uid, update.effective_user.id, "Revoked by admin")
+    await update.message.reply_text(f"🗑️ Revoked premium of <code>{uid}</code>", parse_mode=ParseMode.HTML)
+
+async def ban_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not config.is_admin(update.effective_user.id):
+        return
+    if not context.args:
+        await update.message.reply_text("Use: /ban <user_id>", parse_mode=ParseMode.HTML)
+        return
+    try:
+        uid = int(context.args[0])
+    except:
+        await update.message.reply_text("Invalid", parse_mode=ParseMode.HTML)
+        return
+    set_ban(uid, 1)
+    await update.message.reply_text(f"🚫 Banned <code>{uid}</code>", parse_mode=ParseMode.HTML)
+
+async def unban_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not config.is_admin(update.effective_user.id):
+        return
+    if not context.args:
+        await update.message.reply_text("Use: /unban <user_id>", parse_mode=ParseMode.HTML)
+        return
+    try:
+        uid = int(context.args[0])
+    except:
+        await update.message.reply_text("Invalid", parse_mode=ParseMode.HTML)
+        return
+    set_ban(uid, 0)
+    await update.message.reply_text(f"✅ Unbanned <code>{uid}</code>", parse_mode=ParseMode.HTML)
+
+async def stats_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not config.is_admin(update.effective_user.id):
+        return
+    s = credits_stats()
+    ps = payment_stats()
+    pend = pending_payments_count()
+    prem = premium_users()
+    txt = f"""
+📊 <b>DETAILED STATS</b>
+
+👥 Users: {s.get('total_users',0)}
+🎁 Total Credits: {s.get('total_credits',0)}
+🔢 Total Uses: {s.get('total_uses',0)}
+👑 Premium: {len(prem)}
+
+💳 Payments:
+"""
+    for status, data in ps.items():
+        if isinstance(data, dict):
+            txt += f"  {status}: {data.get('count',0)} - ₹{data.get('amount',0)}\n"
+    txt += f"\n⏳ Pending: {pend}\n"
+    txt += f"💰 UPI: {UPI_ID}\n"
+    txt += f"🎁 Free: {FREE_CREDITS}\n"
+    await update.message.reply_text(txt, parse_mode=ParseMode.HTML)
+
+async def payments_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not config.is_admin(update.effective_user.id):
+        return
+    pays = pending_payments(20)
+    if not pays:
+        await update.message.reply_text("✅ No pending payments", parse_mode=ParseMode.HTML)
+        return
+    txt = f"💳 <b>PENDING PAYMENTS ({len(pays)})</b>\n\n"
+    for p in pays[:10]:
+        txt += f"ID {p['id']} - User <code>{p['user_id']}</code> - {p['plan_name']} ₹{p['amount']} - UTR <code>{p['utr_ref']}</code> - /approve {p['id']}\n\n"
+    await update.message.reply_text(txt, parse_mode=ParseMode.HTML)
+
+async def users_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not config.is_admin(update.effective_user.id):
+        return
+    users = recent_users(20)
+    txt = f"👥 <b>RECENT USERS ({len(users)})</b>\n\n"
+    for u in users[:15]:
+        prem = "👑" if is_premium(u) else "🆓"
+        txt += f"{prem} <code>{u['user_id']}</code> - {u.get('name','')} - {u.get('credits',0)}c - {u.get('total_uses',0)} uses\n"
+    await update.message.reply_text(txt, parse_mode=ParseMode.HTML)
+
+async def vips_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not config.is_admin(update.effective_user.id):
+        return
+    vips = premium_users()
+    txt = f"👑 <b>PREMIUM USERS ({len(vips)})</b>\n\n"
+    for u in vips[:20]:
+        txt += f"<code>{u['user_id']}</code> - {u.get('name','')} - {premium_expiry(u)}\n"
+    if not vips:
+        txt += "No premium users"
+    await update.message.reply_text(txt, parse_mode=ParseMode.HTML)
+
+async def broadcast_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not config.is_admin(update.effective_user.id):
+        return
+    if not context.args:
+        await update.message.reply_text("Use: /broadcast <message>", parse_mode=ParseMode.HTML)
+        return
+    msg = " ".join(context.args)
+    uids = all_user_ids()
+    await update.message.reply_text(f"📢 Broadcasting to {len(uids)} users...", parse_mode=ParseMode.HTML)
+    sent = 0
+    for uid in uids:
+        try:
+            await context.bot.send_message(chat_id=uid, text=f"📢 <b>Announcement</b>\n\n{msg}\n\n📢 @osint_xpert", parse_mode=ParseMode.HTML)
+            sent += 1
+        except:
+            pass
+    await update.message.reply_text(f"✅ Broadcast sent to {sent}/{len(uids)}", parse_mode=ParseMode.HTML)
 
 # ========== CALLBACKS ==========
 async def help_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    if query.data == "help_all":
+    data = query.data
+    
+    # Force join check for callbacks too
+    if not await is_user_joined_channel(query.from_user.id, context.bot):
+        if not config.is_admin(query.from_user.id):
+            kb = [[InlineKeyboardButton("📢 Join Channel", url=config.FORCE_CHANNEL_LINK)], [InlineKeyboardButton("✅ Verify", callback_data="check_joined")]]
+            await query.message.reply_text(f"🚫 Join channel first: {config.FORCE_CHANNEL_LINK}", reply_markup=InlineKeyboardMarkup(kb), parse_mode=ParseMode.HTML)
+            return
+    
+    if data == "help_all":
         await help_cmd(update, context)
-    elif query.data == "tools":
+    elif data == "tools":
         await start(update, context)
-    elif query.data == "check_joined":
+    elif data == "check_joined":
         await check_joined_callback(update, context)
+    elif data == "premium":
+        # Show premium
+        txt = format_plans()
+        kb = [
+            [InlineKeyboardButton("💎 30D ₹49", callback_data="buy_30d"), InlineKeyboardButton("🔥 60D ₹89", callback_data="buy_60d")],
+            [InlineKeyboardButton("⭐ 90D ₹120", callback_data="buy_90d"), InlineKeyboardButton("🚀 180D ₹199", callback_data="buy_180d")],
+            [InlineKeyboardButton("👑 365D ₹299", callback_data="buy_365d")],
+            [InlineKeyboardButton("📊 My Plan", callback_data="myplan")]
+        ]
+        await query.message.reply_text(txt, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(kb))
+    elif data == "myplan":
+        uid = query.from_user.id
+        u = get_user(uid)
+        creds = get_credits(uid)
+        txt = format_myplan(u, creds)
+        await query.message.reply_text(txt, parse_mode=ParseMode.HTML)
+    elif data.startswith("buy_"):
+        plan_key = data.replace("buy_","")
+        plan = PLANS.get(plan_key)
+        if plan:
+            txt = format_plan_detail(plan_key)
+            kb = [
+                [InlineKeyboardButton(f"💳 Pay ₹{plan['amount']} via UPI", url=get_upi_link(plan['amount'], f"OSINT {plan['name']}"))],
+                [InlineKeyboardButton("✅ Paid - Send Screenshot", callback_data=f"paid_{plan_key}")],
+            ]
+            await query.message.reply_text(txt, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(kb))
+    elif data.startswith("paid_"):
+        plan_key = data.replace("paid_","")
+        await query.message.reply_text(f"✅ Aapne {plan_key} ke liye pay kiya?\n\n1️⃣ UTR bhejo: <code>/pay {plan_key} YOUR_UTR</code>\n2️⃣ Phir screenshot bhejo\n\nExample: <code>/pay {plan_key} 123456789012</code>", parse_mode=ParseMode.HTML)
+    elif data == "howtopay":
+        await query.message.reply_text(
+            f"📖 <b>How to Pay via UPI</b>\n\n"
+            f"1️⃣ UPI ID copy karo: <code>{UPI_ID}</code>\n"
+            f"2️⃣ PhonePe/GPay/Paytm kholo\n"
+            f"3️⃣ UPI ID pe payment karo\n"
+            f"4️⃣ Screenshot lo + UTR note karo\n"
+            f"5️⃣ /pay plan_key UTR bhejo\n"
+            f"6️⃣ Screenshot bhejo\n\n"
+            f"⏳ 5-10 min me premium!\n\n"
+            f"💳 UPI: <code>{UPI_ID}</code>",
+            parse_mode=ParseMode.HTML
+        )
+    elif data.startswith("adm_approve_"):
+        if not config.is_admin(query.from_user.id):
+            return
+        pid = int(data.replace("adm_approve_",""))
+        pay = get_payment(pid)
+        if not pay:
+            await query.answer("Payment not found", show_alert=True)
+            return
+        uid = pay['user_id']
+        plan_key = pay.get('plan_key','')
+        plan = PLANS.get(plan_key, {})
+        days = plan.get('days', pay.get('plan_days',0))
+        credits = plan.get('credits',0)
+        if days > 0:
+            new_until = grant_premium(uid, days, query.from_user.id, plan_key, f"Approved via button {pid}")
+            set_payment_status(pid, "approved", query.from_user.id, "Approved via admin panel")
+            await query.edit_message_text(f"✅ Approved Payment {pid}\nUser {uid}\nPremium until {new_until}", parse_mode=ParseMode.HTML)
+            try:
+                await context.bot.send_message(chat_id=uid, text=f"✅ <b>Payment Approved!</b>\n\nPlan: {pay['plan_name']}\nPremium until: {new_until}\n\n/myplan", parse_mode=ParseMode.HTML)
+            except:
+                pass
+        elif credits > 0:
+            new_cred = add_credits(uid, credits)
+            set_payment_status(pid, "approved", query.from_user.id, "Approved")
+            await query.edit_message_text(f"✅ Approved {pid} - {credits} credits to {uid} - Total {new_cred}", parse_mode=ParseMode.HTML)
+            try:
+                await context.bot.send_message(chat_id=uid, text=f"✅ {credits} credits added! Total {new_cred}", parse_mode=ParseMode.HTML)
+            except:
+                pass
+    elif data.startswith("adm_reject_"):
+        if not config.is_admin(query.from_user.id):
+            return
+        pid = int(data.replace("adm_reject_",""))
+        set_payment_status(pid, "rejected", query.from_user.id, "Rejected via button")
+        await query.edit_message_text(f"❌ Rejected Payment {pid}", parse_mode=ParseMode.HTML)
+        pay = get_payment(pid)
+        if pay:
+            try:
+                await context.bot.send_message(chat_id=pay['user_id'], text=f"❌ Payment {pid} rejected. Contact @Supermannn_x", parse_mode=ParseMode.HTML)
+            except:
+                pass
+    elif data == "adm_payments":
+        if not config.is_admin(query.from_user.id):
+            return
+        pays = pending_payments(10)
+        if not pays:
+            await query.message.reply_text("No pending payments", parse_mode=ParseMode.HTML)
+            return
+        txt = "💳 Pending Payments:\n\n"
+        for p in pays:
+            txt += f"ID {p['id']} - {p['user_id']} - {p['plan_name']} ₹{p['amount']} UTR {p['utr_ref']}\n"
+        await query.message.reply_text(txt, parse_mode=ParseMode.HTML)
+    elif data == "adm_vips":
+        if not config.is_admin(query.from_user.id):
+            return
+        vips = premium_users()
+        txt = f"👑 Premium Users ({len(vips)}):\n\n"
+        for u in vips[:15]:
+            txt += f"{u['user_id']} - {premium_expiry(u)}\n"
+        await query.message.reply_text(txt, parse_mode=ParseMode.HTML)
+    elif data == "adm_stats":
+        if not config.is_admin(query.from_user.id):
+            return
+        s = credits_stats()
+        txt = f"📊 Stats:\nUsers: {s['total_users']}\nCredits: {s['total_credits']}\nUses: {s['total_uses']}\nPending: {pending_payments_count()}"
+        await query.message.reply_text(txt, parse_mode=ParseMode.HTML)
+    elif data == "adm_users":
+        if not config.is_admin(query.from_user.id):
+            return
+        users = recent_users(10)
+        txt = "Recent Users:\n"
+        for u in users:
+            txt += f"{u['user_id']} - {u.get('name','')} - {u.get('credits',0)}c\n"
+        await query.message.reply_text(txt, parse_mode=ParseMode.HTML)
+    elif data == "adm_cred":
+        await query.message.reply_text("💳 Credits do: /addcredit user_id amount\nExample: /addcredit 123456 50", parse_mode=ParseMode.HTML)
+    elif data == "adm_grant":
+        await query.message.reply_text("👑 Grant: /grant user_id days\nExample: /grant 123456 30", parse_mode=ParseMode.HTML)
+    elif data == "adm_broadcast":
+        await query.message.reply_text("📢 Broadcast: /broadcast your message", parse_mode=ParseMode.HTML)
+    elif data == "adm_settings":
+        await query.message.reply_text(f"🔧 Settings:\nUPI: {UPI_ID}\nName: {UPI_NAME}\nFree Credits: {FREE_CREDITS}\n\nSet in Render env:\nUPI_ID, UPI_NAME, FREE_CREDITS", parse_mode=ParseMode.HTML)
 
 async def main_async():
     global app, loop
@@ -1758,15 +2657,40 @@ async def main_async():
     app.add_handler(CommandHandler("github", github_leak_cmd))
     app.add_handler(CommandHandler("leak", github_leak_cmd))
 
-    # TeraBox Extractor - NEW
+    # TeraBox Extractor
     app.add_handler(CommandHandler("terabox", terabox_cmd))
     app.add_handler(CommandHandler("tb", terabox_cmd))
     app.add_handler(CommandHandler("teraboxdl", terabox_cmd))
 
+    # ========== PAYMENTS & PREMIUM - NEW ==========
+    app.add_handler(CommandHandler(["premium", "vip", "plans"], premium_cmd))
+    app.add_handler(CommandHandler(["myplan", "mycredits", "credits", "plan"], myplan_cmd))
+    app.add_handler(CommandHandler("buy", buy_cmd))
+    app.add_handler(CommandHandler("pay", pay_cmd))
+
+    # ========== ADMIN FULL CONTROLS ==========
+    app.add_handler(CommandHandler(["admin", "adminpanel", "panel"], admin_cmd))
+    app.add_handler(CommandHandler("approve", approve_cmd))
+    app.add_handler(CommandHandler("reject", reject_cmd))
+    app.add_handler(CommandHandler("addcredit", addcredit_cmd))
+    app.add_handler(CommandHandler("setcredit", setcredit_cmd))
+    app.add_handler(CommandHandler("grant", grant_cmd))
+    app.add_handler(CommandHandler("revoke", revoke_cmd))
+    app.add_handler(CommandHandler("ban", ban_cmd))
+    app.add_handler(CommandHandler("unban", unban_cmd))
+    app.add_handler(CommandHandler("stats", stats_cmd))
+    app.add_handler(CommandHandler("payments", payments_cmd))
+    app.add_handler(CommandHandler("users", users_cmd))
+    app.add_handler(CommandHandler("vips", vips_cmd))
+    app.add_handler(CommandHandler("broadcast", broadcast_cmd))
+
     # Grid handler - must be before document handlers
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_grid_button))
 
-    # Document handlers - PDF Renamer first (owner only, priority)
+    # Photo handler for payment screenshots - BEFORE pdf handler
+    app.add_handler(MessageHandler(filters.PHOTO, handle_payment_screenshot))
+
+    # Document handlers - PDF Renamer (owner only)
     app.add_handler(MessageHandler(filters.Document.PDF, handle_pdf_renamer))
 
     print("Initializing app...")
@@ -1776,18 +2700,24 @@ async def main_async():
     print("Setting webhook...")
     try:
         await app.bot.delete_webhook(drop_pending_updates=True)
-        await app.bot.set_webhook(url=WEBHOOK_URL, allowed_updates=["message","callback_query"])
+        await app.bot.set_webhook(url=WEBHOOK_URL, allowed_updates=["message","callback_query","my_chat_member"])
         print(f"Webhook set to {WEBHOOK_URL}")
         import requests
-        requests.post(f'https://api.telegram.org/bot{BOT_TOKEN}/sendMessage', data={'chat_id': '8607774564', 'text': f'✅ 8 TOOLS FAST STABLE LIVE! Number+TG+IP+Website+JS Secrets+GitHub Leaks+TeraBox+PDF Renamer - Clean no commands, Proxy deleted!'}, timeout=5)
+        # Fast stable + payments live notification
+        try:
+            requests.post(f'https://api.telegram.org/bot{BOT_TOKEN}/sendMessage', 
+                         data={'chat_id': '8607774564', 
+                               'text': f'✅ 8 TOOLS + PAYMENTS + CREDITS LIVE!\n\n💰 UPI: {UPI_ID}\n🎁 Free: {FREE_CREDITS} credits\n👑 Premium: 30d ₹49 - 365d ₹299\n🛠️ Admin: Full controls\n⚡ Fast: No delay fix\n\nGrid: Number, TG, IP, Website, JS, GitHub, TeraBox, PDF\nPayments: /premium /myplan /buy\nAdmin: /admin'}, timeout=5)
+        except:
+            pass
     except Exception as e:
         print(f"Webhook set error: {e}")
         traceback.print_exc()
 
-    print("8 TOOLS FAST STABLE WEBHOOK READY - No errors!")
+    print("8 TOOLS + PAYMENTS + CREDITS + ADMIN FAST STABLE WEBHOOK READY!")
     while True:
         await asyncio.sleep(60)
-        print("8 tools fast stable alive...")
+        print(f"8 tools + payments alive - Users: {len(all_user_ids())} - Premium: {len(premium_users())} - Pending: {pending_payments_count()}")
 
 def main():
     asyncio.run(main_async())

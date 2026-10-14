@@ -35,3 +35,13 @@ services:
         sync: false
       - key: PORT
         value: 10000
+      - key: UPI_ID
+        value: kumaranil98787@axl
+      - key: UPI_NAME
+        value: OSINT Hunter Hub
+      - key: FREE_CREDITS
+        value: 25
+      - key: BOT_SELF_URL
+        value: https://osint-hunter-hub-bot.onrender.com
+      - key: WEBHOOK_URL
+        value: https://osint-hunter-hub-bot.onrender.com/webhook
