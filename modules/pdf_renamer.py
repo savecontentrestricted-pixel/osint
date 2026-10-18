@@ -20,7 +20,7 @@ import os
 import re
 
 HACKER_NAME = "卄卂匚K乇尺"
-OWNER_ID = 8848513933
+OWNER_ID = int(os.getenv("ADMIN_ID", "0") or 0)
 
 def rename_pdf_filename(original_name: str) -> str:
     """

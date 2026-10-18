@@ -2,7 +2,7 @@
 🚀 OSINT Hunter Hub - @osint_hunter_hub_bot
 Advanced High-Level OSINT Tools Hub - 11 Tools
 
-Owner: 8848513933 @himanshu_1111
+Owner: private admin account
 Force Channel: -1004393596502 @osint_xpert
 Repo: savecontentrestricted-pixel/osint
 
@@ -86,7 +86,7 @@ async def _run_with_typing(update, context, work):
             await task
         except asyncio.CancelledError:
             pass
-BOT_VERSION = ("v2.6.2 — live typing indicator on all tools; credit pools 10 normal / 3 Telegram; @himanshu_1111 branding")
+BOT_VERSION = ("v2.6.3 — user-facing contact/brand is @Osint_boom_bot; admin ID is private Render config")
 # v2.0 SECURITY: token sirf Render env se (pehle public repo me hardcoded tha!)
 BOT_TOKEN = os.getenv('BOT_TOKEN', '').strip()
 PORT = int(os.getenv('PORT','10000'))
@@ -861,7 +861,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         username = f"@{user.username}" if user.username else "N/A"
         user_id = user.id
         display_name = user.first_name or "User"
-        if user_id == 8848513933:
+        if user_id == config.ADMIN_ID:
             name_display = "** V ᴇ ɴ ᴏ ᴍ **"
         else:
             name_display = f"** {display_name} **"
@@ -881,7 +881,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 💡 Neeche menu se tool chuno, ya /help bhejo.
 
 📢 Update ke liye: @osint_xpert
-👑 Owner: @himanshu_1111
+👑 Owner: @Osint_boom_bot
 """
 
         # Try to send photo banner + caption + grid - NO WHITE LINING MESSAGE
@@ -936,7 +936,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"/ip 8.8.8.8\n"
                 f"/domain google.com\n\n"
                 f"Grid menu loading... /help for all commands\n\n"
-                f"👑 @himanshu_1111 | 📢 @osint_xpert",
+                f"👑 @Osint_boom_bot | 📢 @osint_xpert",
                 parse_mode=ParseMode.HTML
             )
         except Exception as e2:
@@ -1043,7 +1043,7 @@ async def handle_grid_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 return
 
             if mode == "pdf_rename":
-                # Owner only private tool (v2.6: admin = 8848513933)
+                # Owner only private tool (v2.6: admin ID Render env se set hoti hai)
                 if not config.is_admin(update.effective_user.id):
                     await update.message.reply_text("❌ <b>This tool is Private - Owner Only</b>\n\nSirf owner use kar sakta hai.", parse_mode=ParseMode.HTML)
                     return
@@ -1250,7 +1250,7 @@ PDF bhejo, Vivid -> 卄卂匚K乇尺
 
 <b>🛡️ Safety:</b>
 • Force join: @osint_xpert
-• Owner: @himanshu_1111
+• Owner: @Osint_boom_bot
 
 /start se grid dekho - Clean, no commands!
 """
@@ -1368,7 +1368,7 @@ async def number_info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         txt += f"""
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-🔥 <b>Powered by @himanshu_1111</b>
+🔥 <b>Powered by @Osint_boom_bot</b>
 """
 
         await status.edit_text(txt, parse_mode=ParseMode.HTML)
@@ -1621,7 +1621,7 @@ async def tg_number_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if _ctry:
             _L.append(f"🌍 Country : {_ctry}")
         _L += ["", f"⚡ <b>Response:</b> {ms}ms",
-               "🔥 <b>Powered by @himanshu_1111</b>"]
+               "🔥 <b>Powered by @Osint_boom_bot</b>"]
         txt = "\n".join(_L)
         try:
             left = spend_tg_credits(uid, 1)   # v2.5.5: TG pool se kato
@@ -1687,7 +1687,7 @@ async def pak_number_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ⚡ <b>Response:</b> {ms}ms
-🔥 <b>Powered by @himanshu_1111</b>
+🔥 <b>Powered by @Osint_boom_bot</b>
 """
 
         try:
@@ -1780,7 +1780,7 @@ async def ip_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 🔁 <b>Reverse DNS:</b> {result.get('reverse_dns') or 'N/A'}
 
-🔥 Powered by @himanshu_1111
+🔥 Powered by @Osint_boom_bot
 """
 
         try:
@@ -1885,7 +1885,7 @@ async def domain_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-🔥 Powered by @himanshu_1111
+🔥 Powered by @Osint_boom_bot
 """
 
         try:
@@ -2135,7 +2135,7 @@ async def website_extract_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 📊 <b>Size:</b> HTML {result.get('html_length')} chars | Text {result.get('text_length')} chars
 
-🔥 Powered by @himanshu_1111
+🔥 Powered by @Osint_boom_bot
 """
 
         try:
@@ -2159,8 +2159,8 @@ async def pdf_rename_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_force_join(update, context):
         return
     uid = update.effective_user.id
-    if not config.is_admin(uid) and uid != 8848513933:
-        await update.message.reply_text("❌ <b>This tool is Private - Owner Only</b>\n\nSirf owner 8848513933 use kar sakta hai.", parse_mode=ParseMode.HTML)
+    if not config.is_admin(uid) and uid != config.ADMIN_ID:
+        await update.message.reply_text("❌ <b>This tool is Private - Owner Only</b>\n\nSirf admin use kar sakta hai.", parse_mode=ParseMode.HTML)
         return
     try:
         context.user_data["mode"] = "pdf_rename"
@@ -2200,7 +2200,7 @@ async def handle_pdf_renamer(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if not await check_force_join(update, context):
         return
     uid = update.effective_user.id
-    if not config.is_admin(uid) and uid != 8848513933:
+    if not config.is_admin(uid) and uid != config.ADMIN_ID:
         return  # silently ignore for non-owner, private tool
 
     # Only if mode is pdf_rename or user is owner sending PDF (auto)
@@ -2566,8 +2566,8 @@ async def pay_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton(f"✅ Approve {pid}", callback_data=f"adm_approve_{pid}"), InlineKeyboardButton(f"❌ Reject {pid}", callback_data=f"adm_reject_{pid}")],
             [InlineKeyboardButton("📊 Payments", callback_data="adm_payments")]
         ]
-        msg = await context.bot.send_message(chat_id=8848513933, text=admin_text, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(kb))
-        set_payment_admin_msg(pid, 8848513933, msg.message_id)
+        msg = await context.bot.send_message(chat_id=config.ADMIN_ID, text=admin_text, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(kb))
+        set_payment_admin_msg(pid, config.ADMIN_ID, msg.message_id)
     except Exception as e:
         print(f"Admin notify failed: {e}")
 
@@ -2636,7 +2636,7 @@ async def handle_payment_screenshot(update: Update, context: ContextTypes.DEFAUL
             kb = [
                 [InlineKeyboardButton(f"✅ Approve {pid}", callback_data=f"adm_approve_{pid}"), InlineKeyboardButton(f"❌ Reject {pid}", callback_data=f"adm_reject_{pid}")],
             ]
-            await context.bot.send_photo(chat_id=8848513933, photo=file_id, caption=admin_text, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(kb))
+            await context.bot.send_photo(chat_id=config.ADMIN_ID, photo=file_id, caption=admin_text, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(kb))
         except Exception as e:
             print(f"Admin screenshot notify failed: {e}")
         
@@ -2778,7 +2778,7 @@ async def reject_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     set_payment_status(pid, "rejected", update.effective_user.id, reason)
     await update.message.reply_text(f"❌ Payment {pid} rejected - {reason}", parse_mode=ParseMode.HTML)
     try:
-        await context.bot.send_message(chat_id=pay['user_id'], text=f"❌ <b>Payment Rejected</b>\n\nID: {pid}\nReason: {reason}\n\nContact @himanshu_1111\n💳 UPI: {UPI_ID}", parse_mode=ParseMode.HTML)
+        await context.bot.send_message(chat_id=pay['user_id'], text=f"❌ <b>Payment Rejected</b>\n\nID: {pid}\nReason: {reason}\n\nContact @Osint_boom_bot\n💳 UPI: {UPI_ID}", parse_mode=ParseMode.HTML)
     except:
         pass
 
@@ -3108,7 +3108,7 @@ async def help_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         pay = get_payment(pid)
         if pay:
             try:
-                await context.bot.send_message(chat_id=pay['user_id'], text=f"❌ Payment {pid} rejected. Contact @himanshu_1111", parse_mode=ParseMode.HTML)
+                await context.bot.send_message(chat_id=pay['user_id'], text=f"❌ Payment {pid} rejected. Contact @Osint_boom_bot", parse_mode=ParseMode.HTML)
             except:
                 pass
     elif data == "adm_payments":
@@ -3298,7 +3298,7 @@ async def main_async():
         # Fast stable + payments live notification
         try:
             requests.post(f'https://api.telegram.org/bot{BOT_TOKEN}/sendMessage', 
-                         data={'chat_id': '8848513933', 
+                         data={'chat_id': str(config.ADMIN_ID),
                                'text': f'✅ 8 TOOLS + PAYMENTS + CREDITS LIVE!\n\n💰 UPI: {UPI_ID}\n🎁 Free: {FREE_CREDITS} credits\n👑 Premium: 30d ₹49 - 365d ₹299\n🛠️ Admin: Full controls\n⚡ Fast: No delay fix\n\nGrid: Number, TG, IP, Website, JS, GitHub, TeraBox, PDF\nPayments: /premium /myplan /buy\nAdmin: /admin'}, timeout=5)
         except:
             pass

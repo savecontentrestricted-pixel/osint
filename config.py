@@ -13,9 +13,9 @@ API_HASH = os.getenv("API_HASH", "").strip()
 SESSION_STRING = os.getenv("SESSION_STRING", "").strip()
 
 # Owner - Provided
-ADMIN_ID = int(os.getenv("ADMIN_ID", "8848513933") or 8848513933)   # v2.6: naya admin @himanshu_1111
+ADMIN_ID = int(os.getenv("ADMIN_ID", "0") or 0)   # private; Render env only
 
-ADMINS = [8848513933]
+ADMINS = [ADMIN_ID] if ADMIN_ID else []
 _admins_raw = os.getenv("ADMINS", "").strip()
 if _admins_raw:
     for x in _admins_raw.split(","):
@@ -31,8 +31,8 @@ FORCE_CHANNEL = os.getenv("FORCE_CHANNEL", "-1004393596502").strip()
 FORCE_CHANNEL_LINK = os.getenv("FORCE_CHANNEL_LINK", "https://t.me/osint_xpert").strip()
 FORCE_CHANNEL_USERNAME = os.getenv("FORCE_CHANNEL_USERNAME", "osint_xpert").strip()
 
-OWNER_USERNAME = os.getenv("OWNER_USERNAME", "@himanshu_1111").strip()   # v2.6: naya admin
-BRAND_TAG = os.getenv("BRAND_TAG", "@himanshu_1111").strip()
+OWNER_USERNAME = os.getenv("OWNER_USERNAME", "@Osint_boom_bot").strip()   # v2.6: naya admin
+BRAND_TAG = os.getenv("BRAND_TAG", "@Osint_boom_bot").strip()
 
 # APIs
 MYNUM_API_URL = os.getenv("MYNUM_API_URL", "https://utility-api-vu83.onrender.com/api").strip()

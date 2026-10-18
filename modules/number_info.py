@@ -131,6 +131,6 @@ def format_card(result: Dict[str, Any]) -> str:
     txt += f"⚡ <b>Response:</b> {ms}ms"
     if rec > 1:
         txt += f" • 📑 {rec} records"
-    txt += f"\n\n🔥 <b>Powered by @himanshu_1111</b>"
+    txt += f"\n\n🔥 <b>Powered by @Osint_boom_bot</b>"
 
     return txt

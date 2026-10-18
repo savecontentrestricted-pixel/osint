@@ -179,7 +179,7 @@ def format_family_card(result: dict) -> str:
 📭 Database me iska koi record nahi hai.
 
 ⏱️ Response: {result.get('ms',0)}ms
-🔥 @himanshu_1111 | 📢 @osint_xpert
+🔥 @Osint_boom_bot | 📢 @osint_xpert
 """
     
     data = result.get("data", {})
@@ -259,7 +259,7 @@ def format_family_card(result: dict) -> str:
 ⚡ <b>Response:</b> {ms}ms
 🔒 <b>Privacy:</b> Full Aadhaar never shown, only {html.escape(masked)}
 
-🔥 <b>Powered by @himanshu_1111</b>
+🔥 <b>Powered by @Osint_boom_bot</b>
 """
     
     return txt

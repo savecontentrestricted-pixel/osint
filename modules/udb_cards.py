@@ -10,7 +10,7 @@ from modules import userapi as uapi
 from modules import bseb_result as bseb
 
 PCARD_MID = "━━━━━━━━━━━━━━━━━━━━━━"
-BRAND_LINK = '🔥 Powered by <a href="https://t.me/himanshu_1111">@himanshu_1111</a>'
+BRAND_LINK = '🔥 Powered by <a href="https://t.me/Osint_boom_bot">@Osint_boom_bot</a>'
 
 
 def to_bold(text: str) -> str:
