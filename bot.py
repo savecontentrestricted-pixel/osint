@@ -1115,7 +1115,8 @@ async def handle_grid_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
             )
         else:
             # Generic
-            await update.message.reply_text(f"Processing {current_mode}: {text}", parse_mode=ParseMode.HTML)
+            # v2.5.4 (USER ORDER): user ka text echo nahi karna
+            await update.message.reply_text("🔧 Ye mode abhi available nahi hai — /start se menu kholo.", parse_mode=ParseMode.HTML)
             
     except Exception as e:
         print(f"Grid handler error: {e}")
@@ -1588,7 +1589,7 @@ async def domain_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     target = context.args[0]
-    status = await update.message.reply_text(f"🌐 Full recon for {target}...", parse_mode=ParseMode.HTML)
+    status = await update.message.reply_text(WAIT2, parse_mode=ParseMode.HTML)
 
     try:
         result = await asyncio.to_thread(full_recon, target)
@@ -1694,7 +1695,7 @@ async def dns_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     target = context.args[0]
-    status = await update.message.reply_text(f"🔍 DNS lookup for {target}...", parse_mode=ParseMode.HTML)
+    status = await update.message.reply_text(WAIT2, parse_mode=ParseMode.HTML)
 
     try:
         result = await asyncio.to_thread(dns_lookup, target)
@@ -1729,7 +1730,7 @@ async def whois_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     target = context.args[0]
-    status = await update.message.reply_text(f"🔍 WHOIS for {target}...", parse_mode=ParseMode.HTML)
+    status = await update.message.reply_text(WAIT2, parse_mode=ParseMode.HTML)
 
     try:
         result = await asyncio.to_thread(whois_lookup, target)
@@ -1853,7 +1854,7 @@ async def website_extract_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     url = context.args[0]
-    status = await update.message.reply_text(f"🔍 Extracting from {url}...", parse_mode=ParseMode.HTML)
+    status = await update.message.reply_text(WAIT2, parse_mode=ParseMode.HTML)
 
     try:
         result = await asyncio.to_thread(website_extractor, url)
