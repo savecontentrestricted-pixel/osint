@@ -48,7 +48,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 WAIT2 = ("⏳🔍 <b>Please wait a few seconds…</b> ⚡\n"
          "🚀 <i>Aapka result aa raha hai…</i>")
 NF2 = "❌ <b>Data not found in any database.</b>"
-BOT_VERSION = ("v2.5.4b — USER ORDER 18 Oct: simple wait note (user ka data echo NAHI), fail par sirf Data-not-found line, TG card sirf Number/TG-ID/Username/Country, t.me-public fallback PERMANENT BAND (sirf apna hub) | v2.5.3 — 4 tools PERMANENT DELETE (JS SECRET FINDER, TERABOX, GITHUB LEAK, UPI INFO — user order 18 Oct) | v2.5.2 — tg cache namespace bump (number wapas) | v2.5.1 — 🆩 TG NUMBER FIX: provider AB PAID (403 'CHALO AB BUY KRO') — ab t.me PUBLIC profile fallback (naam + link, ~0.5s) + honest note; FAIL par credit nahi katta (pehle kat jata tha — bug) + asli error dikhta hai | "
+BOT_VERSION = ("v2.5.5 — bot-1 jaisa SAME credit system: FREE_CREDITS=10 + TG_CREDITS=3 (alag TG pool, env-control, redeploy par sab reset) | v2.5.4b — USER ORDER 18 Oct: simple wait note (user ka data echo NAHI), fail par sirf Data-not-found line, TG card sirf Number/TG-ID/Username/Country, t.me-public fallback PERMANENT BAND (sirf apna hub) | v2.5.3 — 4 tools PERMANENT DELETE (JS SECRET FINDER, TERABOX, GITHUB LEAK, UPI INFO — user order 18 Oct) | v2.5.2 — tg cache namespace bump (number wapas) | v2.5.1 — 🆩 TG NUMBER FIX: provider AB PAID (403 'CHALO AB BUY KRO') — ab t.me PUBLIC profile fallback (naam + link, ~0.5s) + honest note; FAIL par credit nahi katta (pehle kat jata tha — bug) + asli error dikhta hai | "
     "v2.4 — ⚡ SPEED FIX (asli wajah mili): PTB ke default settings khatarnak the — "
     "connection_pool_size=1 (Telegram ke liye sirf EK connection), read_timeout=5s, pool_timeout=1s, "
     "aur concurrent_updates OFF (saare updates ek-ek). Isse messages CHUP-CHAAP fail hote the "
@@ -354,7 +354,8 @@ from modules.database import (
     create_payment, get_payment, set_payment_status, set_payment_admin_msg,
     utr_exists, pending_payments_count, pending_payments, recent_payments,
     user_payments, all_user_ids, premium_users, recent_users, credits_stats, payment_stats,
-    is_banned, set_ban, FREE_CREDITS
+    is_banned, set_ban, FREE_CREDITS,
+    get_tg_credits, set_tg_credits, spend_tg_credits, apply_credits_config, TG_CREDITS
 )
 from modules.payments import PLANS, UPI_ID, UPI_NAME, get_upi_link, format_plans, format_plan_detail, format_myplan, format_credits_over
 from modules.upi_qr import generate_upi_qr
@@ -543,8 +544,9 @@ async def restore_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"🛡️ Restore: {res}")
 
 # ========== CREDITS CHECK - FAST ==========
-def can_use_tool(uid: int) -> tuple:
-    """Check if user can use tool - returns (can_use:bool, credits:int, user:dict)"""
+def can_use_tool(uid: int, tool: str = "") -> tuple:
+    """Check if user can use tool - returns (can_use:bool, credits:int, user:dict)
+    v2.5.5 (bot-1 jaisa SAME system): tool="tg" -> ALAG TG-credit pool."""
     try:
         if config.is_admin(uid):
             u = get_user(uid)
@@ -554,6 +556,9 @@ def can_use_tool(uid: int) -> tuple:
         u = get_user(uid)
         if is_premium(u):
             return True, u.get("credits", FREE_CREDITS), u
+        if str(tool).lower() == "tg":
+            tg = get_tg_credits(uid)
+            return (tg > 0), tg, u
         credits = int(u.get("credits", 0))
         if credits > 0:
             return True, credits, u
@@ -573,12 +578,13 @@ def credits_line(uid: int) -> str:
             exp = premium_expiry(u)
             return f"👑 <i>Premium - {exp}</i>\n"
         credits = get_credits(uid)
+        tg = get_tg_credits(uid)
         if credits <= 3 and credits > 0:
-            return f"⚠️ <i>Sirf {credits} credits bache - /premium</i>\n"
+            return f"⚠️ <i>Sirf {credits} credits bache - /premium</i> · 🆩 {tg} TG\n"
         elif credits <= 0:
-            return f"🔒 <i>Credits khatam - /premium</i>\n"
+            return f"🔒 <i>Credits khatam - /premium</i> · 🆩 {tg} TG\n"
         else:
-            return f"🎁 <i>{credits} credits bache</i>\n"
+            return f"🎁 <i>{credits} credits · 🆩 {tg} TG credits bache</i>\n"
     except:
         return ""
 
@@ -1345,9 +1351,18 @@ async def tg_number_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_force_join(update, context):
         return
     uid = update.effective_user.id
-    can_use, creds, user = can_use_tool(uid)
+    can_use, creds, user = can_use_tool(uid, "tg")   # v2.5.5: TG ka ALAG pool
     if not can_use:
-        await update.message.reply_text(format_credits_over("tg_number_cmd"), parse_mode=ParseMode.HTML)
+        from modules.payments import UPI_ID
+        import html as _h
+        await update.message.reply_text(
+            f"🔒 <b>Aapke {TG_CREDITS} free TG credits khatam ho gaye</b>\n\n"
+            f"Har naye user ko <b>{TG_CREDITS} free TG credits</b> milte hain —\n"
+            f"aapne saare use kar liye. 👏\n\n"
+            f"👑 <b>Premium lo</b> — TELEGRAM NUMBER + baaki saare tools <b>unlimited</b>!\n"
+            f"💎 /premium se plans dekho\n\n"
+            f"💳 UPI: <code>{_h.escape(UPI_ID)}</code>",
+            parse_mode=ParseMode.HTML)
         return
     if not context.args:
         await update.message.reply_text(
@@ -1402,7 +1417,7 @@ async def tg_number_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
                "🔥 <b>Powered by @Supermannn_x</b>"]
         txt = "\n".join(_L)
         try:
-            left = spend_credits(uid, 1)
+            left = spend_tg_credits(uid, 1)   # v2.5.5: TG pool se kato
             txt += f"\n{credits_line(uid)}"
         except:
             pass
@@ -2915,6 +2930,11 @@ async def main_async():
     global app, loop
     loop = asyncio.get_running_loop()
     print("Building 8 TOOLS FAST STABLE app...")
+    # v2.5.5 (bot-1 jaisa): Render env FREE_CREDITS/TG_CREDITS badle -> sab reset
+    try:
+        print("💳", apply_credits_config(), flush=True)
+    except Exception as _ce:
+        print("credits cfg skip:", _ce, flush=True)
     
     # ==================================================================
     #  ⚡ v2.4 SPEED FIX — ASLI WAJAH YAHI THI (bot 1 ke barabar settings)

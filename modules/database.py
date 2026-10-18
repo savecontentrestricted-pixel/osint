@@ -27,7 +27,8 @@ def _get_db_path():
     return "botdata.db"
 
 DB_PATH = _get_db_path()
-FREE_CREDITS = int(os.getenv("FREE_CREDITS", "25"))
+FREE_CREDITS = int(os.getenv("FREE_CREDITS", "10"))   # v2.5.5: bot-1 jaisa SAME system (10)
+TG_CREDITS = int(os.getenv("TG_CREDITS", "3"))        # v2.5.5: TG tool ka ALAG pool (3) — bot-1 jaisa
 
 # Thread-local connection reuse for speed
 _threads = threading.local()
@@ -167,6 +168,8 @@ def _create_schema(con):
             cur.execute(f"ALTER TABLE users ADD COLUMN credits INTEGER DEFAULT {FREE_CREDITS}")
         if "premium_until" not in cols:
             cur.execute("ALTER TABLE users ADD COLUMN premium_until TEXT DEFAULT ''")
+        if "tg_credits" not in cols:
+            cur.execute(f"ALTER TABLE users ADD COLUMN tg_credits INTEGER DEFAULT {TG_CREDITS}")
     except:
         pass
     
@@ -194,8 +197,8 @@ def get_user(uid: int, name: str = "", username: str = "") -> dict:
             return u
         else:
             now = datetime.now().isoformat(timespec="seconds")
-            cur.execute("INSERT INTO users(user_id, name, username, credits, joined_at, total_uses) VALUES(?,?,?,?,?,0)",
-                       (uid, (name or "")[:60], (username or "")[:60], FREE_CREDITS, now))
+            cur.execute("INSERT INTO users(user_id, name, username, credits, tg_credits, joined_at, total_uses) VALUES(?,?,?,?,?,?,0)",
+                       (uid, (name or "")[:60], (username or "")[:60], FREE_CREDITS, TG_CREDITS, now))
             con.commit()
             cur.execute("SELECT * FROM users WHERE user_id=?", (uid,))
             row = cur.fetchone()
@@ -232,6 +235,77 @@ def get_credits(uid: int) -> int:
         return int(u.get("credits", FREE_CREDITS))
     except:
         return FREE_CREDITS
+
+# ========== v2.5.5 — TG CREDITS (bot-1 jaisa SAME system) ==========
+
+def get_tg_credits(uid: int) -> int:
+    try:
+        con = db()
+        cur = con.cursor()
+        cur.execute("SELECT tg_credits FROM users WHERE user_id=?", (uid,))
+        row = cur.fetchone()
+        con.close()
+        if row is None or row[0] is None:
+            return TG_CREDITS
+        return int(row[0])
+    except Exception:
+        return TG_CREDITS
+
+def set_tg_credits(uid: int, n: int) -> int:
+    try:
+        con = db()
+        con.execute("UPDATE users SET tg_credits=? WHERE user_id=?", (max(0, int(n)), uid))
+        con.commit()
+        con.close()
+    except Exception:
+        pass
+    return get_tg_credits(uid)
+
+def spend_tg_credits(uid: int, n: int = 1) -> int:
+    """TG credits kam karta hai (0 se neeche nahi). Premium/admin se nahi kat-te."""
+    try:
+        n = max(0, int(n))
+        if is_premium_user(uid):
+            return get_tg_credits(uid)
+        from config import is_admin
+        if is_admin(uid):
+            return get_tg_credits(uid)
+        con = db()
+        cur = con.cursor()
+        cur.execute(
+            "UPDATE users SET tg_credits = MAX(0, COALESCE(tg_credits, ?) - ?) WHERE user_id=?",
+            (TG_CREDITS, n, uid))
+        con.commit()
+        if cur.rowcount == 0:
+            get_user(uid)
+            cur.execute(
+                "UPDATE users SET tg_credits = MAX(0, COALESCE(tg_credits, ?) - ?) WHERE user_id=?",
+                (TG_CREDITS, n, uid))
+            con.commit()
+        cur.execute("SELECT tg_credits FROM users WHERE user_id=?", (uid,))
+        row = cur.fetchone()
+        con.close()
+        return int(row[0]) if row and row[0] is not None else TG_CREDITS
+    except Exception:
+        return get_tg_credits(uid)
+
+def apply_credits_config() -> str:
+    """v2.5.5 — bot-1 jaisa: Render env FREE_CREDITS/TG_CREDITS badlo + redeploy
+    -> SAB users ke credits usi number par reset (bot_meta me last cfg saved)."""
+    cfg = f"{FREE_CREDITS}/{TG_CREDITS}"
+    try:
+        old = meta_get("credits_cfg", "")
+        if old == cfg:
+            return f"credits cfg {cfg} (no change)"
+        con = db()
+        cur = con.cursor()
+        cur.execute("UPDATE users SET credits=?, tg_credits=?", (FREE_CREDITS, TG_CREDITS))
+        con.commit()
+        con.close()
+        meta_set("credits_cfg", cfg)
+        return f"credits RESET to {cfg} (was {old or 'none'})"
+    except Exception as e:
+        return f"credits cfg skip: {str(e)[:80]}"
 
 def is_premium_user(uid: int) -> bool:
     try:
