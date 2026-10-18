@@ -41,6 +41,8 @@ services:
         value: OSINT Hunter Hub
       - key: FREE_CREDITS
         value: 10
+      - key: TG_CREDITS
+        value: 3
       - key: FAMINFO_API_URL
         value: https://utility-api-vu83.onrender.com/api
       - key: FAMINFO_API_KEY

@@ -315,10 +315,14 @@ def vehicletomobile_card(res: dict) -> str:
 
 
 def aadhaar2num_card(res: dict) -> str:
-    """🪪 Aadhaar → Mobile list card."""
+    """🪪 Aadhaar → Mobile list card; Aadhaar identifiers are always masked."""
+    import re
+    def _mask_aadhaar(value):
+        digits = re.sub(r"\D", "", str(value or ""))
+        return ("XXXX-XXXX-" + digits[-4:]) if len(digits) >= 4 else "XXXX-XXXX-XXXX"
     res = res if isinstance(res, dict) else {}
     data = res.get("data") or {}
-    term = str(res.get("term") or data.get("aadhaar") or data.get("aadharNumber") or "").strip()
+    term = _mask_aadhaar(res.get("term") or data.get("aadhaar") or data.get("aadharNumber"))
     records = data.get("data") or data.get("records") or []
     if isinstance(data, list):
         records = data
@@ -334,7 +338,7 @@ def aadhaar2num_card(res: dict) -> str:
         phone = rec.get("phoneNumber") or rec.get("mobile") or rec.get("phone") or ""
         other = rec.get("otherNumber") or rec.get("alt") or ""
         addr = rec.get("address") or rec.get("addr") or ""
-        aad = rec.get("aadharNumber") or rec.get("aadhaar") or term
+        aad = _mask_aadhaar(rec.get("aadharNumber") or rec.get("aadhaar") or term)
         L.append(f"👤 <b>{i}. {hesc(str(name))}</b>")
         if father:
             L.append(f"   👨 Father: {hesc(str(father))}")

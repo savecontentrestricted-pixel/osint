@@ -33,6 +33,7 @@ import asyncio
 import logging
 import json
 import html
+import re
 import tempfile
 import time
 from datetime import datetime
@@ -48,7 +49,44 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 WAIT2 = ("⏳🔍 <b>Please wait a few seconds…</b> ⚡\n"
          "🚀 <i>Aapka result aa raha hai…</i>")
 NF2 = "❌ <b>Data not found in any database.</b>"
-BOT_VERSION = ("v2.6.1 — Powered by @himanshu_1111 everywhere; admin @himanshu_1111 (8848513933); requested unused lookup tool removed permanently")
+
+
+def _mask_aadhaar(value):
+    """Never show full Aadhaar identifiers in user-facing cards."""
+    digits = re.sub(r"\D", "", str(value or ""))
+    return ("XXXX-XXXX-" + digits[-4:]) if len(digits) >= 4 else "XXXX-XXXX-XXXX"
+
+
+async def _run_with_typing(update, context, work):
+    """Keep Telegram's typing indicator alive while a tool lookup runs."""
+    chat = getattr(update, "effective_chat", None)
+    chat_id = getattr(chat, "id", None)
+    if not chat_id:
+        return await work
+    stop = asyncio.Event()
+
+    async def _pump():
+        while not stop.is_set():
+            try:
+                await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.TYPING)
+            except Exception:
+                pass
+            try:
+                await asyncio.wait_for(stop.wait(), timeout=4.0)
+            except asyncio.TimeoutError:
+                pass
+
+    task = asyncio.create_task(_pump())
+    try:
+        return await work
+    finally:
+        stop.set()
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+BOT_VERSION = ("v2.6.2 — live typing indicator on all tools; credit pools 10 normal / 3 Telegram; @himanshu_1111 branding")
 # v2.0 SECURITY: token sirf Render env se (pehle public repo me hardcoded tha!)
 BOT_TOKEN = os.getenv('BOT_TOKEN', '').strip()
 PORT = int(os.getenv('PORT','10000'))
@@ -192,7 +230,7 @@ threading.Thread(target=self_ping_loop, daemon=True).start()
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters, CallbackQueryHandler
-from telegram.constants import ParseMode
+from telegram.constants import ChatAction, ParseMode
 from telegram.error import BadRequest
 
 # ========== GRID MENU - 6 TOOLS + PREMIUM + ADMIN (v2.5.3: 4 tools DELETE) ==========
@@ -1260,7 +1298,7 @@ async def number_info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     _t0 = time.time()
     try:
-        result = await asyncio.to_thread(lookup_number, number)
+        result = await _run_with_typing(update, context, asyncio.to_thread(lookup_number, number))
         try:
             print(f"[TIMING] numinfo {int((time.time()-_t0)*1000)}ms ok={result.get('ok')} cached={result.get('cached', False)}", flush=True)
         except Exception:
@@ -1307,7 +1345,7 @@ async def number_info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             txt += f"🏠 <b>Address:</b>\n{html.escape(str(owner.get('address',''))[:300])}\n\n"
 
         if owner.get("aadhaar"):
-            txt += f"🆔 <b>Aadhaar:</b> <code>{owner.get('aadhaar')}</code> (masked)\n\n"
+            txt += f"🆔 <b>Aadhaar:</b> <code>{_mask_aadhaar(owner.get('aadhaar'))}</code>\n\n"
 
         txt += f"""
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1366,7 +1404,7 @@ async def family_info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     _t0 = time.time()
     try:
-        result = await asyncio.to_thread(lookup_family, aadhaar)
+        result = await _run_with_typing(update, context, asyncio.to_thread(lookup_family, aadhaar))
         try:
             print(f"[TIMING] family {int((time.time()-_t0)*1000)}ms ok={result.get('ok')} cached={result.get('cached', False)}", flush=True)
         except Exception:
@@ -1412,7 +1450,7 @@ async def uapi_tool_cmd(mode: str, update: Update, context: ContextTypes.DEFAULT
     status = await update.message.reply_text(WAIT2, parse_mode=ParseMode.HTML)
     _t0 = time.time()
     try:
-        result = await asyncio.wait_for(asyncio.to_thread(uapi.lookup, kind, term), 75)
+        result = await _run_with_typing(update, context, asyncio.wait_for(asyncio.to_thread(uapi.lookup, kind, term), 75))
     except asyncio.TimeoutError:
         result = {"ok": False}
     except Exception:
@@ -1481,11 +1519,15 @@ async def bseb_step2(update: Update, context: ContextTypes.DEFAULT_TYPE, raw_tex
             "<i>(pehle roll code, phir space, phir roll number)</i>",
             parse_mode=ParseMode.HTML)
         return
+    can_use, _credits, _user = can_use_tool(update.effective_user.id)
+    if not can_use:
+        await update.message.reply_text(format_credits_over("BSEB Result"), parse_mode=ParseMode.HTML)
+        return
     status = await update.message.reply_text(WAIT2, parse_mode=ParseMode.HTML)
     _t0 = time.time()
     try:
-        result = await asyncio.wait_for(
-            asyncio.to_thread(bseb.check, exam, bseb.CURRENT_YEAR, _rc, _rn), 60)
+        result = await _run_with_typing(update, context, asyncio.wait_for(
+            asyncio.to_thread(bseb.check, exam, bseb.CURRENT_YEAR, _rc, _rn), 60))
     except asyncio.TimeoutError:
         result = {"ok": False}
     except Exception:
@@ -1500,6 +1542,8 @@ async def bseb_step2(update: Update, context: ContextTypes.DEFAULT_TYPE, raw_tex
     try:
         _label = str(result.get("exam_label") or bseb.EXAMS.get(exam, {}).get("label") or "BSEB")
         txt = result_card(result.get("student") or {}, _label, bseb.CURRENT_YEAR)
+        spend_credits(update.effective_user.id, 1)
+        txt += f"\n{credits_line(update.effective_user.id)}"
         await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
     except Exception:
         await status.edit_text(NF2, parse_mode=ParseMode.HTML)
@@ -1542,7 +1586,7 @@ async def tg_number_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     _t0 = time.time()
     try:
-        result = await asyncio.to_thread(lookup_tg, username)
+        result = await _run_with_typing(update, context, asyncio.to_thread(lookup_tg, username))
         try:
             print(f"[TIMING] tg {int((time.time()-_t0)*1000)}ms ok={result.get('ok')} cached={result.get('cached', False)}", flush=True)
         except Exception:
@@ -1606,7 +1650,7 @@ async def pak_number_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     _t0 = time.time()
     try:
-        result = await asyncio.to_thread(lookup_pak, num)
+        result = await _run_with_typing(update, context, asyncio.to_thread(lookup_pak, num))
         try:
             print(f"[TIMING] pak {int((time.time()-_t0)*1000)}ms ok={result.get('ok')} cached={result.get('cached', False)}", flush=True)
         except Exception:
@@ -1678,10 +1722,10 @@ async def ip_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     target = context.args[0]
-    status = await update.message.reply_text(f"🌐 IP lookup for {target}...", parse_mode=ParseMode.HTML)
+    status = await update.message.reply_text(WAIT2, parse_mode=ParseMode.HTML)
 
     try:
-        result = await asyncio.to_thread(ip_lookup, target)
+        result = await _run_with_typing(update, context, asyncio.to_thread(ip_lookup, target))
         if not result.get("ok"):
             try:
                 left = spend_credits(uid, 1)
@@ -1770,7 +1814,7 @@ async def domain_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     status = await update.message.reply_text(WAIT2, parse_mode=ParseMode.HTML)
 
     try:
-        result = await asyncio.to_thread(full_recon, target)
+        result = await _run_with_typing(update, context, asyncio.to_thread(full_recon, target))
         if result.get("type") == "ip":
             ip_info = result.get("ip_info", {})
             try:
@@ -1876,7 +1920,7 @@ async def dns_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     status = await update.message.reply_text(WAIT2, parse_mode=ParseMode.HTML)
 
     try:
-        result = await asyncio.to_thread(dns_lookup, target)
+        result = await _run_with_typing(update, context, asyncio.to_thread(dns_lookup, target))
         txt = f"🌐 <b>DNS for {result.get('domain')}</b>\n\n"
         for k, v in result.get("records", {}).items():
             txt += f"<b>{k}:</b> {', '.join(v) if isinstance(v, list) else v}\n\n"
@@ -1911,7 +1955,7 @@ async def whois_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     status = await update.message.reply_text(WAIT2, parse_mode=ParseMode.HTML)
 
     try:
-        result = await asyncio.to_thread(whois_lookup, target)
+        result = await _run_with_typing(update, context, asyncio.to_thread(whois_lookup, target))
         if not result.get("ok"):
             try:
                 left = spend_credits(uid, 1)
@@ -1972,10 +2016,10 @@ async def ssl_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     target = context.args[0]
-    status = await update.message.reply_text(f"🔒 SSL check for {target}...", parse_mode=ParseMode.HTML)
+    status = await update.message.reply_text(WAIT2, parse_mode=ParseMode.HTML)
 
     try:
-        result = await asyncio.to_thread(ssl_check, target)
+        result = await _run_with_typing(update, context, asyncio.to_thread(ssl_check, target))
         if not result.get("ok"):
             try:
                 left = spend_credits(uid, 1)
@@ -2035,7 +2079,7 @@ async def website_extract_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE
     status = await update.message.reply_text(WAIT2, parse_mode=ParseMode.HTML)
 
     try:
-        result = await asyncio.to_thread(website_extractor, url)
+        result = await _run_with_typing(update, context, asyncio.to_thread(website_extractor, url))
         if not result.get("ok"):
             try:
                 left = spend_credits(uid, 1)
@@ -2638,6 +2682,7 @@ async def admin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 💰 <b>UPI:</b> <code>{UPI_ID}</code>
 👤 <b>Name:</b> {UPI_NAME}
 🎁 <b>Free Credits:</b> {FREE_CREDITS}
+🆩 <b>Free TG Credits:</b> {TG_CREDITS}
 
 <b>━━━━━━━━ Commands ━━━━━━━━</b>
 /approve &lt;id&gt; - Approve payment
@@ -3106,7 +3151,7 @@ async def help_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "adm_broadcast":
         await query.message.reply_text("📢 Broadcast: /broadcast your message", parse_mode=ParseMode.HTML)
     elif data == "adm_settings":
-        await query.message.reply_text(f"🔧 Settings:\nUPI: {UPI_ID}\nName: {UPI_NAME}\nFree Credits: {FREE_CREDITS}\n\nSet in Render env:\nUPI_ID, UPI_NAME, FREE_CREDITS", parse_mode=ParseMode.HTML)
+        await query.message.reply_text(f"🔧 Settings:\nUPI: {UPI_ID}\nName: {UPI_NAME}\nFree Credits: {FREE_CREDITS}\n\nSet in Render env:\nUPI_ID, UPI_NAME, FREE_CREDITS, TG_CREDITS — redeploy applies/reset all users", parse_mode=ParseMode.HTML)
 
 async def main_async():
     global app, loop
