@@ -45,7 +45,10 @@ import threading
 import traceback
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
-BOT_VERSION = ("v2.5.3 — 4 tools PERMANENT DELETE (JS SECRET FINDER, TERABOX, GITHUB LEAK, UPI INFO — user order 18 Oct) | v2.5.2 — tg cache namespace bump (number wapas) | v2.5.1 — 🆩 TG NUMBER FIX: provider AB PAID (403 'CHALO AB BUY KRO') — ab t.me PUBLIC profile fallback (naam + link, ~0.5s) + honest note; FAIL par credit nahi katta (pehle kat jata tha — bug) + asli error dikhta hai | "
+WAIT2 = ("⏳🔍 <b>Please wait a few seconds…</b> ⚡\n"
+         "🚀 <i>Aapka result aa raha hai…</i>")
+NF2 = "❌ <b>Data not found in any database.</b>"
+BOT_VERSION = ("v2.5.4 — USER ORDER 18 Oct: simple wait note (user ka data echo NAHI), fail par sirf Data-not-found line, TG card sirf Number/TG-ID/Username/Country, t.me-public fallback PERMANENT BAND (sirf apna hub) | v2.5.3 — 4 tools PERMANENT DELETE (JS SECRET FINDER, TERABOX, GITHUB LEAK, UPI INFO — user order 18 Oct) | v2.5.2 — tg cache namespace bump (number wapas) | v2.5.1 — 🆩 TG NUMBER FIX: provider AB PAID (403 'CHALO AB BUY KRO') — ab t.me PUBLIC profile fallback (naam + link, ~0.5s) + honest note; FAIL par credit nahi katta (pehle kat jata tha — bug) + asli error dikhta hai | "
     "v2.4 — ⚡ SPEED FIX (asli wajah mili): PTB ke default settings khatarnak the — "
     "connection_pool_size=1 (Telegram ke liye sirf EK connection), read_timeout=5s, pool_timeout=1s, "
     "aur concurrent_updates OFF (saare updates ek-ek). Isse messages CHUP-CHAAP fail hote the "
@@ -1207,17 +1210,8 @@ async def number_info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             f"❌ {_off.get('error')}", parse_mode=ParseMode.HTML)
         return
-    _hint = ["🔍 <b>Record dhoondh raha hoon…</b>", "",
-             f"📱 <b>Number:</b> <code>{_off.get('e164') or number}</code>"]
-    if _off.get("operator"):
-        _hint.append(f"📶 <b>Operator (approx):</b> {html.escape(str(_off.get('operator'))[:40])}")
-    if _off.get("circle"):
-        _hint.append(f"📍 <b>Circle (approx):</b> {html.escape(str(_off.get('circle'))[:40])}")
-    if _off.get("type"):
-        _hint.append(f"🧾 <b>Type:</b> {_off.get('type')}")
-    _hint += ["", "🕐 <i>Owner details aate hi yahin update ho jayega (5-10 sec). "
-                  "Wahi number dobara bhejo to INSTANT (0 sec).</i>", credits_line(uid)]
-    status = await update.message.reply_text("\n".join(_hint), parse_mode=ParseMode.HTML)
+    # v2.5.4 (USER ORDER): wait msg me user ka number/operator/circle echo NAHI.
+    status = await update.message.reply_text(WAIT2, parse_mode=ParseMode.HTML)
 
     _t0 = time.time()
     try:
@@ -1229,17 +1223,9 @@ async def number_info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         # Advanced formatting with spaces and emojis
         if not result.get("ok"):
-            # v2.4: pehle HAR fail par "No records found" dikhta tha — timeout
-            # ya API error par bhi (user confuse hota tha). Ab asli error dikhta
-            # hai, aur sirf genuine "record nahi hai" par hi no-records message.
-            _err = str(result.get("error") or "").strip()
-            if _err and not result.get("not_found"):
-                await status.edit_text(f"❌ {_err[:400]}")
-            else:
-                await status.edit_text(
-                    "❌ No records found for this number in any database.",
-                    parse_mode=ParseMode.HTML
-                )
+            # v2.5.4 (USER ORDER): fail/timeout/error — sab par sirf ek line.
+            # v2.5.4 (USER ORDER): fail = sirf ye ek line.
+            await status.edit_text(NF2, parse_mode=ParseMode.HTML)
             return
 
         owner = result.get("owner", {})
@@ -1306,7 +1292,7 @@ async def number_info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     except Exception as e:
         logger.exception(e)
-        await status.edit_text(f"❌ Error: {str(e)[:200]}", parse_mode=ParseMode.HTML)
+        await status.edit_text(NF2, parse_mode=ParseMode.HTML)
 
 # ========== FAMILY INFO - BEST ==========
 async def family_info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1331,13 +1317,7 @@ async def family_info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     aadhaar = context.args[0]
-    status = await update.message.reply_text(
-        f"👪 <b>Family Info dhoondh raha hoon…</b>\n\n"
-        f"🔒 Aadhaar: <code>XXXX-XXXX-{aadhaar[-4:] if len(aadhaar)>=4 else 'XXXX'}</code>\n"
-        f"🕐 <i>5-10 sec (provider ki speed). Wahi Aadhaar dobara = INSTANT.</i>\n"
-        f"{credits_line(uid)}",
-        parse_mode=ParseMode.HTML
-    )
+    status = await update.message.reply_text(WAIT2, parse_mode=ParseMode.HTML)
 
     _t0 = time.time()
     try:
@@ -1356,7 +1336,7 @@ async def family_info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
     except Exception as e:
         logger.exception(e)
-        await status.edit_text(f"❌ Error: {str(e)[:200]}", parse_mode=ParseMode.HTML)
+        await status.edit_text(NF2, parse_mode=ParseMode.HTML)
 
 # ========== UPI INFO - BEST - YOUR API ==========
 # ========== TG TOOLS ==========
@@ -1379,12 +1359,7 @@ async def tg_number_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     username = context.args[0]
-    status = await update.message.reply_text(
-        f"🔍 <b>Telegram OSINT dhoondh raha hoon…</b>\n\n"
-        f"👤 Username: <code>{username}</code>\n"
-        f"🕐 <i>5-10 sec. Wahi username dobara = INSTANT.</i>",
-        parse_mode=ParseMode.HTML
-    )
+    status = await update.message.reply_text(WAIT2, parse_mode=ParseMode.HTML)
 
     _t0 = time.time()
     try:
@@ -1398,40 +1373,33 @@ async def tg_number_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # v2.5.1 FIX: pehle FAIL hone par bhi credit kat jata tha (bug) aur
             # hamesha wahi ek jhootha line dikhta tha. Ab asli error dikhta hai
             # aur credit SIRF success par katta hai.
-            await status.edit_text(
-                f"❌ {result.get('error') or 'No records found for this username.'}",
-                parse_mode=ParseMode.HTML)
+            await status.edit_text(NF2, parse_mode=ParseMode.HTML)
             return
 
-        data = result.get("data", {})
-        ms = result.get("ms",0)
-
-        txt = f"""
-╔══════════════════════════════════════╗
-║  🆔 <b>TELEGRAM OSINT</b>                ║
-╚══════════════════════════════════════╝
-
-👤 <b>Username:</b> <code>{result.get('term')}</code>
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-"""
-
-        if isinstance(data, dict):
-            for k,v in list(data.items())[:15]:
-                if v and str(v).lower() not in ("na","none","null",""):
-                    txt += f"🔹 <b>{k}:</b> {str(v)[:200]}\n\n"
-        else:
-            txt += f"{str(data)[:1000]}\n\n"
-
-        txt += f"""
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-⚡ <b>Response:</b> {ms}ms
-
-🔥 <b>Powered by @Supermannn_x</b>
-"""
-
+        data = result.get("data", {}) if isinstance(result.get("data"), dict) else {}
+        ms = result.get("ms", 0)
+        # v2.5.4 (USER ORDER): public-profile/t.me data ab card NAHI banta —
+        # number na mile to sirf "data not found in any database".
+        _mobile = str(data.get("mobile") or data.get("owner_number") or data.get("phone_number") or "").strip()
+        if not _mobile or data.get("source") == "t.me-public":
+            await status.edit_text(NF2, parse_mode=ParseMode.HTML)
+            return
+        _tgid = str(data.get("telegram_id") or data.get("tg_id") or "").strip()
+        _uname = str(data.get("username") or result.get("term") or "").strip().lstrip("@")
+        _ctry = str(data.get("country_code") or data.get("country") or "").strip()
+        _L = [f"🆩 <b>TELEGRAM NUMBER — @{_uname}</b>",
+              "━━━━━━━━━━━━━━━━━━━━━━",
+              "",
+              f"📱 Number : <code>{_mobile}</code>"]
+        if _tgid:
+            _L.append(f"🆩 Telegram ID : <code>{_tgid}</code>")
+        if _uname:
+            _L.append(f"👤 Username : @{_uname}")
+        if _ctry:
+            _L.append(f"🌍 Country : {_ctry}")
+        _L += ["", f"⚡ <b>Response:</b> {ms}ms",
+               "🔥 <b>Powered by @Supermannn_x</b>"]
+        txt = "\n".join(_L)
         try:
             left = spend_credits(uid, 1)
             txt += f"\n{credits_line(uid)}"
@@ -1440,7 +1408,7 @@ async def tg_number_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
 
     except Exception as e:
-        await status.edit_text(f"❌ Error: {str(e)[:200]}", parse_mode=ParseMode.HTML)
+        await status.edit_text(NF2, parse_mode=ParseMode.HTML)
 
 async def pak_number_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_force_join(update, context):
@@ -1455,11 +1423,7 @@ async def pak_number_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     num = context.args[0]
-    status = await update.message.reply_text(
-        f"🔍 <b>Pak number dhoondh raha hoon…</b>\n\n"
-        f"📱 <code>{html.escape(str(num)[:20])}</code>\n"
-        f"🕐 <i>5-10 sec. Wahi number dobara = INSTANT.</i>",
-        parse_mode=ParseMode.HTML)
+    status = await update.message.reply_text(WAIT2, parse_mode=ParseMode.HTML)
 
     _t0 = time.time()
     try:
@@ -1474,7 +1438,7 @@ async def pak_number_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 txt += f"\n{credits_line(uid)}"
             except:
                 pass
-            await status.edit_text(f"❌ No records found for this number in any database.", parse_mode=ParseMode.HTML)
+            await status.edit_text(NF2, parse_mode=ParseMode.HTML)
             return
 
         data = result.get("data", {})
@@ -1516,7 +1480,7 @@ async def pak_number_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             txt += f"\n{credits_line(uid)}"
         except:
             pass
-        await status.edit_text(f"❌ Error: {str(e)[:200]}", parse_mode=ParseMode.HTML)
+        await status.edit_text(NF2, parse_mode=ParseMode.HTML)
 
 # ========== TELEGRAM SCRAPER ==========
 # ========== INSTAGRAM ==========
@@ -1609,7 +1573,7 @@ async def ip_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             txt += f"\n{credits_line(uid)}"
         except:
             pass
-        await status.edit_text(f"❌ Error: {str(e)}", parse_mode=ParseMode.HTML)
+        await status.edit_text(NF2, parse_mode=ParseMode.HTML)
 
 async def domain_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_force_join(update, context):
@@ -1715,7 +1679,7 @@ async def domain_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             txt += f"\n{credits_line(uid)}"
         except:
             pass
-        await status.edit_text(f"❌ Error: {str(e)}", parse_mode=ParseMode.HTML)
+        await status.edit_text(NF2, parse_mode=ParseMode.HTML)
 
 async def dns_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_force_join(update, context):
@@ -1750,7 +1714,7 @@ async def dns_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             txt += f"\n{credits_line(uid)}"
         except:
             pass
-        await status.edit_text(f"❌ Error: {str(e)}", parse_mode=ParseMode.HTML)
+        await status.edit_text(NF2, parse_mode=ParseMode.HTML)
 
 async def whois_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_force_join(update, context):
@@ -1814,7 +1778,7 @@ async def whois_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             txt += f"\n{credits_line(uid)}"
         except:
             pass
-        await status.edit_text(f"❌ Error: {str(e)}", parse_mode=ParseMode.HTML)
+        await status.edit_text(NF2, parse_mode=ParseMode.HTML)
 
 async def ssl_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_force_join(update, context):
@@ -1871,7 +1835,7 @@ async def ssl_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             txt += f"\n{credits_line(uid)}"
         except:
             pass
-        await status.edit_text(f"❌ Error: {str(e)}", parse_mode=ParseMode.HTML)
+        await status.edit_text(NF2, parse_mode=ParseMode.HTML)
 
 # ========== EXIF ==========
 # ========== OCR ==========
@@ -1964,7 +1928,7 @@ async def website_extract_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE
             txt += f"\n{credits_line(uid)}"
         except:
             pass
-        await status.edit_text(f"❌ Error: {str(e)}", parse_mode=ParseMode.HTML)
+        await status.edit_text(NF2, parse_mode=ParseMode.HTML)
 
 # ========== FILE CONVERTER ==========
 # ========== PDF RENAMER (Private Owner Only) ==========

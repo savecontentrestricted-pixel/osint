@@ -17,7 +17,7 @@ TIMEOUT = 25
 def clean_input(text: str) -> str:
     return str(text or "").strip()
 
-@with_cache("tg3", 300, 2592000)   # v2.5.2: tg2 ke public-card entries orphan (number wapas)
+@with_cache("tg4", 300, 2592000)   # v2.5.2: tg2 ke public-card entries orphan (number wapas)
 def lookup_tg(username: str) -> Dict[str, Any]:
     """
     Telegram to Number - tool=telegramtonumber or tgnum
@@ -51,33 +51,18 @@ def lookup_tg(username: str) -> Dict[str, Any]:
                 continue
             
             # If has error field
-            if isinstance(data, dict) and data.get("success") == False:
+            if isinstance(data, dict) and (data.get("success") == False or data.get("ok") is False):
                 continue
 
             return {"ok": True, "tool": tool_name, "term": term, "data": d, "ms": ms, "raw": data}
         except Exception as e:
             continue
 
-    # v2.5.1 — 18 Oct 2026: number-source PAID ho gaya (403 "CHALO AB BUY KRO"),
-    # isliye hub hamesha notfound deta tha aur user ko jhootha "no records"
-    # dikhta tha. Ab Telegram ki PUBLIC profile (t.me) se asli kaam hota hai:
-    # naam + profile link (~0.5s, free, legal) + honest note ki number-source
-    # paid hai. Username exist hi na kare to saaf "username check karo".
-    pub = _tme_public(term)
-    if pub and pub.get("exists"):
-        return {"ok": True, "term": term, "source": "t.me-public",
-                "data": {"👤 Naam": pub.get("name") or "",
-                         "👤 Username": "@" + term.lstrip("@"),
-                         "🔗 Profile": pub.get("url") or "",
-                         "⚠️ Number-source": _TME_NOTE},
-                "ms": 0}
-    if pub is not None and not pub.get("exists"):
-        return {"ok": False, "not_found": True,
-                "error": f"Telegram @{term.lstrip('@')} ka koi public account nahi mila — username check karo."}
+    # v2.5.4 (USER ORDER 18 Oct): t.me PUBLIC-profile fallback PERMANENT BAND.
+    # TG tool ab sirf APNE HUB se number deta hai; hub se number na mile to
+    # sirf "data not found in any database".
     return {"ok": False, "not_found": True,
-            "error": ("🆩 Telegram number-source ab PAID ho gaya hai "
-                      "(provider: 'CHALO AB BUY KRO') — aur t.me public profile bhi "
-                      "nahi khuli. Thodi der baad dobara try karo.")}
+            "error": "Data not found in any database."}
 
 
 _TME_NOTE = ("Mobile-number database ab PAID ho gaya hai (provider: 'CHALO AB BUY KRO') "
