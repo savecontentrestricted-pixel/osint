@@ -2,7 +2,7 @@
 """
 modules.udb_cards — v2.6: @utility_duniya_bot (bot-1) se port kiye gaye
 tool cards + prompts (RC/CHALLAN, VEHICLE TO NUMBER, AADHAAR TO NUMBER,
-PAN TO GST, BSEB RESULT CHECK). Bot-1 jaisa EXACT look.
+BSEB RESULT CHECK). Bot-1 jaisa EXACT look.
 """
 from html import escape as hesc
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
@@ -10,7 +10,7 @@ from modules import userapi as uapi
 from modules import bseb_result as bseb
 
 PCARD_MID = "━━━━━━━━━━━━━━━━━━━━━━"
-BRAND_LINK = '🔥 Powered by <a href="https://t.me/Supermannn_x">@Supermannn_x</a>'
+BRAND_LINK = '🔥 Powered by <a href="https://t.me/himanshu_1111">@himanshu_1111</a>'
 
 
 def to_bold(text: str) -> str:
@@ -75,13 +75,6 @@ PROMPT_DATA = {
         "ex": [('22050 2600046', 'roll code + roll number')],
         "tip": 'Sirf Bihar Board (BSEB). Result season ke bahar board data hata deta hai',
         "foot": 'Naam · pita · school · subject-wise marks · division',
-    },
-    "pantogst": {
-        "head": "🔗 PAN TO GST",
-        "ask": "10-character PAN number bhejein (GSTIN list ayega):",
-        "ex": [('AAYFK4129N', 'PAN — 5 letter + 4 digit + 1 letter (GST ke liye)')],
-        "tip": 'PAN se saare linked GSTIN + company details',
-        "foot": 'GSTIN list · company naam · status · address',
     },
 }
 

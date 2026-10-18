@@ -1,7 +1,7 @@
 # OSINT Hunter Hub - @osint_hunter_hub_bot
 ### Advanced High-Level OSINT Tools Hub - 11 Tools
 
-**Owner:** 8607774564 @Supermannn_x
+**Owner:** 8848513933 @himanshu_1111
 **Force Channel:** -1004393596502 @osint_xpert
 **Bot:** @osint_hunter_hub_bot
 **Repo:** savecontentrestricted-pixel/osint
@@ -129,7 +129,7 @@ excel2pdf, csv2excel, excel2csv, img2pdf, pdf2text
 ### ENV Variables (Required)
 ```
 BOT_TOKEN=<Render Environment me set karo — code/repo me kabhi nahi>
-ADMIN_ID=8607774564
+ADMIN_ID=8848513933
 FORCE_CHANNEL=-1004393596502
 FORCE_CHANNEL_LINK=https://t.me/osint_xpert
 MYNUM_API_URL=https://utility-api-vu83.onrender.com/api

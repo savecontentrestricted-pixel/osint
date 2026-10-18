@@ -68,7 +68,7 @@ def generate_upi_qr(amount: int, plan_name: str = "Premium", note: str = "") -> 
                     draw.text((10, text_y + 50), f"UPI: {upi_id}", fill="black", font=font_small)
                     draw.text((10, text_y + 72), f"Scan with PhonePe/GPay/Paytm", fill="black", font=font_small)
                     draw.text((10, text_y + 94), f"Note: {note or plan_name[:30]}", fill="gray", font=font_tiny)
-                    draw.text((10, text_y + 112), f"Powered by @Supermannn_x", fill="gray", font=font_tiny)
+                    draw.text((10, text_y + 112), f"Powered by @himanshu_1111", fill="gray", font=font_tiny)
                 except Exception as te:
                     print(f"QR text draw failed attempt {attempt}: {te}")
                     draw.text((10, text_y), f"{plan_name} - Rs.{amount}", fill="black")

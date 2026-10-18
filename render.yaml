@@ -12,7 +12,7 @@ services:
       - key: BOT_TOKEN
         sync: false
       - key: ADMIN_ID
-        value: 8607774564
+        value: 8848513933
       - key: FORCE_CHANNEL
         value: -1004393596502
       - key: FORCE_CHANNEL_LINK
@@ -20,9 +20,9 @@ services:
       - key: FORCE_CHANNEL_USERNAME
         value: osint_xpert
       - key: OWNER_USERNAME
-        value: "@Supermannn_x"
+        value: "@himanshu_1111"
       - key: BRAND_TAG
-        value: "@Supermannn_x"
+        value: "@himanshu_1111"
       - key: MYNUM_API_URL
         value: https://utility-api-vu83.onrender.com/api
       - key: MYNUM_API_KEY
@@ -40,7 +40,7 @@ services:
       - key: UPI_NAME
         value: OSINT Hunter Hub
       - key: FREE_CREDITS
-        value: 25
+        value: 10
       - key: FAMINFO_API_URL
         value: https://utility-api-vu83.onrender.com/api
       - key: FAMINFO_API_KEY

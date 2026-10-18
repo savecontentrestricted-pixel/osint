@@ -77,7 +77,6 @@ _NOTFOUND_RE = re.compile(r"no\s+[a-z ]{1,24}?\s*found", re.I)
 # aapas me mila deta hai. Asli naapa hua nateeja (6 parallel request):
 #
 #   maanga telegramtonumber  ->  mila PAKISTAN ka data
-#   maanga paknum            ->  mila GST ka data
 #   maanga advpan            ->  mila PAKISTAN ka data
 #
 # Response ke `tool` aur `query` field to sahi aate hain (wo sirf echo
@@ -95,8 +94,6 @@ _NOTFOUND_RE = re.compile(r"no\s+[a-z ]{1,24}?\s*found", re.I)
 
 # Har tool ka apna pehchaan-chinh (11 Oct 2026 ko live naapa hua).
 _SIG = {
-    "pan":        re.compile(r"advance[\s_]*pan", re.I),
-    "gst":        re.compile(r"\bgst\b", re.I),
     "paknum":     re.compile(r"pakistan|\bcnic\b", re.I),
     "tgnum":      re.compile(r"telegram", re.I),
     # Ye do userapi ke tools nahi hain, par provider inhe bhi serve karta
@@ -177,16 +174,6 @@ TOOLS = {
         "example": "BR30AR0802",
         "what": "gaadi number",
     },
-    "pantogst": {
-        "env": "PANTOGST",
-        "icon": "🔗",
-        "label": "PAN TO GST",
-        "tool": "pantogst",
-        "url": _BUILTIN_URL,
-        "key": "Demo",
-        "example": "AAYFK4129N",
-        "what": "PAN number se GSTIN",
-    },
     "paknum": {
         "env": "PAKNUM",
         "icon": "🇵🇰",
@@ -204,7 +191,7 @@ TOOLS = {
         "tool": "telegramtonumber",
         "url": _BUILTIN_URL,
         "key": "Demo",
-        "example": "8607774564",
+        "example": "5685588580",
         "what": "Telegram user ID",
     },
     # v127 — NEW TOOLS via own gateway (vehicle_full primary)
@@ -297,21 +284,6 @@ except Exception:                                                # noqa: BLE001
 
 def _digits(text) -> str:
     return re.sub(r"\D", "", str(text or ""))
-
-
-def validate_pan(text) -> tuple:
-    """PAN = 5 letter + 4 digit + 1 letter (ABCDE1234F). — kept for pantogst (same format)"""
-    c = re.sub(r"[^A-Za-z0-9]", "", str(text or "")).upper()
-    if not c:
-        return False, c, "PAN number bhejo.\n📌 Jaise: <code>ABCDE1234F</code>"
-    if len(c) != 10:
-        return False, c, (f"PAN 10 character ka hota hai, aapne {len(c)} bheje.\n"
-                          "📌 Jaise: <code>ABCDE1234F</code>")
-    if not re.match(r"^[A-Z]{5}[0-9]{4}[A-Z]$", c):
-        return False, c, ("PAN ka format galat hai.\n"
-                          "📌 Sahi: <b>5 letter + 4 digit + 1 letter</b>\n"
-                          f"📌 Jaise: <code>ABCDE1234F</code>\nAapne bheja: <code>{c}</code>")
-    return True, c, ""
 
 
 def validate_aadhaar2num(text) -> tuple:
@@ -448,7 +420,6 @@ def validate_ip(text) -> tuple:
 
 _VALIDATORS = {
     "rc": validate_plate,
-    "pantogst": validate_pan,
     "paknum": validate_paknum,
     "upi": validate_upi,
     "tgnum": validate_tgnum,
@@ -605,7 +576,6 @@ FIELD_MAP = {
     "paknum": _PAK_FIELDS,
     "upi": _UPI_FIELDS,
     "tgnum": _TGNUM_FIELDS,
-    "pantogst": _RC_FIELDS,
     "vehicletomobile": _VEHICLETOMOBILE_FIELDS,
     "aadhaar2num": _AADHAAR2NUM_FIELDS,
 }
@@ -848,7 +818,6 @@ def lookup(kind: str, term) -> dict:
         # v117: pehle sirf "no data/record found" pakadte the, par provider
         # har tool me alag shabd likhta hai —
         #   "✖️ No Number found for this Telegram ID"
-        #   "✖️ GST: No data found for ..."
         #   "✖️ Pakistan Database: No record found for ..."
         # Isliye ab `no <kuch> found` ka regex use karte hain.
         if (_NOTFOUND_RE.search(_low) or "not found" in _low
@@ -922,30 +891,6 @@ def _cget_k(kind, clean):
     except Exception:                                        # noqa: BLE001
         pass
     return None
-
-
-# ════════════════════════════════════════════════════════════════════
-# 🧾 v120 — GST ab MUFT wali API se (koi key nahi chahiye)
-# ════════════════════════════════════════════════════════════════════
-# Owner ne screenshot bheja: ek dusre bot me wahi GSTIN poora data de
-# raha tha, unke bot me "record nahi mila". Wajah — humari `Demo` key ke
-# paas GST ka database hai hi nahi (8/8 test khali gaye).
-#
-# Lekin GST ki jaankari SARKARI aur PUBLIC hai. Dhoondhne par ye mil gayi:
-#     https://gst.jamku.app/api/gstin/{GSTIN}
-# Bilkul free, koi key nahi, koi signup nahi, aur ~1 second me jawab
-# (purana provider 8 second leta tha).
-#
-# Naapa hua (11 Oct 2026):
-#     29AABCI2726B1ZY -> INTERGLOBE AVIATION LIMITED   ✅ (wahi jo dusre bot me aaya)
-#     27AAACR5055K1Z7 -> RELIANCE INDUSTRIES LIMITED   ✅
-#     29AAICP2912R1ZR -> CASHFREE PAYMENTS INDIA PVT   ✅
-#     galat/nakli GSTIN -> HTTP 500 (yaani "nahi mila")
-#
-# Agar kabhi ye band ho jaye to code apne aap purane provider par chala
-# jata hai — yaani kuch toota nahi, sirf ek behtar raasta pehle try hota hai.
-
-
 
 
 _GATEWAY_BASE = (os.environ.get("GATEWAY_URL") or os.environ.get("UTILITY_API_URL") or "https://utility-api-vu83.onrender.com").strip().rstrip("/")

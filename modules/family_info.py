@@ -259,7 +259,7 @@ def format_family_card(result: dict) -> str:
 ⚡ <b>Response:</b> {ms}ms
 🔒 <b>Privacy:</b> Full Aadhaar never shown, only {html.escape(masked)}
 
-🔥 <b>Powered by @Supermannn_x</b>
+🔥 <b>Powered by @himanshu_1111</b>
 """
     
     return txt

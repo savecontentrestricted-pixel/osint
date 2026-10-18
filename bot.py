@@ -48,32 +48,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 WAIT2 = ("⏳🔍 <b>Please wait a few seconds…</b> ⚡\n"
          "🚀 <i>Aapka result aa raha hai…</i>")
 NF2 = "❌ <b>Data not found in any database.</b>"
-BOT_VERSION = ("v2.6.0 — bot-1 ke SAARE tools port: 🚗 RC+CHALLAN, 📲 VEHICLE TO NUMBER, 🪪 AADHAAR TO NUMBER, 🔗 PAN TO GST, 📋 BSEB RESULT CHECK (+🇵🇰 PAK menu button) · NAYA ADMIN: @himanshu_1111 (8848513933) | v2.5.5 — bot-1 jaisa SAME credit system: FREE_CREDITS=10 + TG_CREDITS=3 (alag TG pool, env-control, redeploy par sab reset) | v2.5.4b — USER ORDER 18 Oct: simple wait note (user ka data echo NAHI), fail par sirf Data-not-found line, TG card sirf Number/TG-ID/Username/Country, t.me-public fallback PERMANENT BAND (sirf apna hub) | v2.5.3 — 4 tools PERMANENT DELETE (JS SECRET FINDER, TERABOX, GITHUB LEAK, UPI INFO — user order 18 Oct) | v2.5.2 — tg cache namespace bump (number wapas) | v2.5.1 — 🆩 TG NUMBER FIX: provider AB PAID (403 'CHALO AB BUY KRO') — ab t.me PUBLIC profile fallback (naam + link, ~0.5s) + honest note; FAIL par credit nahi katta (pehle kat jata tha — bug) + asli error dikhta hai | "
-    "v2.4 — ⚡ SPEED FIX (asli wajah mili): PTB ke default settings khatarnak the — "
-    "connection_pool_size=1 (Telegram ke liye sirf EK connection), read_timeout=5s, pool_timeout=1s, "
-    "aur concurrent_updates OFF (saare updates ek-ek). Isse messages CHUP-CHAAP fail hote the "
-    "(silent timeout) — user ko lagta tha bot slow hai ya jawab nahi aata. Ab bot 1 jaisa: "
-    "pool=32, read_timeout=60s, write=120s, 8 updates parallel (+50% throughput). "
-    "Saath me: har tool ka TIMING log Render me turant dikhega (flush) aur fail hone par asli "
-    "error dikhega (pehle timeout par bhi 'No records found' likha aata tha) | "
-    "v2.3 — 🔒 WEBHOOK SECRET (security fix): repo public hai, isliye ab /webhook par sirf "
-    "Telegram ke asli updates process hote hain (secret header ke bina 403). Pehle koi bhi fake admin "
-    "command bhej sakta tha. | "
-    "v2.2 — ⚡ FEEL-FAST (utility-duniya-bot jaisa instant feel): number bhejte hi TURANT "
-    "(1 sec) hint dikhta hai — number valid, operator + circle approx (100% offline, 0 ms) — "
-    "phir wahi message final card ban jata hai; galat number par API call hi nahi hoti (instant reply); "
-    "wait time ab honest (5-10 sec) + 'dobara bhejo to INSTANT' note; har tool ka [TIMING] log "
-    "(asli speed /health ke bajaye logs me proof) | "
-    "v2.1 — ⚡ FAST-2 (poore bot me 2-layer cache: memory + DB): ab TG number, Pak number, "
-    "IP/DNS/WHOIS/SSL recon, website extractor, JS secret finder, GitHub leak hunter aur TeraBox — "
-    "SAB me cache hai. Wahi query dobara = INSTANT (0 ms), pehli call bhi warm hub se. "
-    "TG/Pak lookup ab pooled connection + 25s timeout (pehle 40s) | "
-    "v2.0 — 🚀 v127.7 PARITY (utility-duniya-bot jaisa fast+stable+premium): "
-    "premium ke saare plan buttons FIX (upi:// url button Telegram reject karta tha -> poora message fail), "
-    "persistent lookup cache (num/family/upi/tg/pak — ek baar dhoondha = 30 din INSTANT, restart ke baad bhi zinda), "
-    "DB VAULT (deploy par users/premium/pending payments kabhi wipe nahi), rich /health, "
-    "crash-shield + watchdog (RAM/hang auto-restart), keepalive public-URL 5 min + hub warm, "
-    "hardcoded secrets hataye, Dockerfile")
+BOT_VERSION = ("v2.6.1 — Powered by @himanshu_1111 everywhere; admin @himanshu_1111 (8848513933); requested unused lookup tool removed permanently")
 # v2.0 SECURITY: token sirf Render env se (pehle public repo me hardcoded tha!)
 BOT_TOKEN = os.getenv('BOT_TOKEN', '').strip()
 PORT = int(os.getenv('PORT','10000'))
@@ -225,7 +200,7 @@ KB_BTNS = [
     ["📱 NUMBER INFO", "🆔 TELEGRAM NUMBER"],
     ["👪 FAMILY INFO", "🇵🇰 PAK NUMBER"],
     ["🚗 RC + CHALLAN", "📲 VEHICLE TO NUMBER"],
-    ["🪪 AADHAAR TO NUMBER", "🔗 PAN TO GST"],
+    ["🪪 AADHAAR TO NUMBER"],
     ["📋 RESULT CHECK", "🌐 IP/DOMAIN RECON"],
     ["🌐 WEBSITE EXTRACTOR", "👑 PREMIUM"],
     ["📊 MY PLAN"],
@@ -299,7 +274,6 @@ BTN_MODE_MAP = {
     "VEHICLETOMOBILE": "v2m",
     "AADHAAR TO NUMBER": "a2n", "AADHAAR TO MOBILE": "a2n", "AADHAAR2NUM": "a2n",
     "AADHAR TO NUMBER": "a2n",
-    "PAN TO GST": "pantogst", "PANTOGST": "pantogst", "PAN GST": "pantogst",
     "RESULT CHECK": "result", "RESULT": "result", "BSEB": "result",
     "PAK NUMBER": "pak", "PAKISTAN NUMBER": "pak", "PAK NUM": "pak", "PAKNUM": "pak",
 }
@@ -367,11 +341,6 @@ GRID_PROMPTS = {
         "ask": "12-digit Aadhaar bhejein (Aadhaar → Mobile list):",
         "ex": "401635555849",
     },
-    "pantogst": {
-        "head": "🔗 PAN TO GST",
-        "ask": "10-character PAN number bhejein (GSTIN list):",
-        "ex": "AAYFK4129N",
-    },
     "pak": {
         "head": "🇵🇰 PAK NUMBER / CNIC",
         "ask": "Pak mobile number ya 13-digit CNIC bhejein:",
@@ -387,7 +356,7 @@ from modules.website_extractor import website_extractor
 from modules.pdf_renamer import rename_pdf_filename, batch_rename, HACKER_NAME, OWNER_ID as PDF_OWNER_ID
 from modules.family_info import lookup_family, format_family_card
 # v2.6 — bot-1 (@utility_duniya_bot) se port: RC/CHALLAN, VEHICLE TO NUMBER,
-# AADHAAR TO NUMBER, PAN TO GST, BSEB RESULT CHECK
+# AADHAAR TO NUMBER, BSEB RESULT CHECK
 from modules import userapi as uapi
 from modules import bseb_result as bseb
 from modules.udb_cards import (tool_prompt as uapi_tool_prompt, userapi_card,
@@ -1172,7 +1141,7 @@ async def handle_grid_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
         elif current_mode == "familyinfo":
             context.args = [text]
             await family_info_cmd(update, context)
-        elif current_mode in ("rc", "v2m", "a2n", "pantogst"):
+        elif current_mode in ("rc", "v2m", "a2n"):
             context.args = [text]
             await uapi_tool_cmd(current_mode, update, context)
         elif current_mode == "result":
@@ -1361,7 +1330,7 @@ async def number_info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         txt += f"""
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-🔥 <b>Powered by @Supermannn_x</b>
+🔥 <b>Powered by @himanshu_1111</b>
 """
 
         await status.edit_text(txt, parse_mode=ParseMode.HTML)
@@ -1414,13 +1383,13 @@ async def family_info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.exception(e)
         await status.edit_text(NF2, parse_mode=ParseMode.HTML)
 
-# ========== v2.6 — BOT-1 PORT TOOLS (RC, V2M, A2N, PAN TO GST, RESULT) ==========
-UAPI_KIND = {"rc": "rc", "v2m": "vehicletomobile", "a2n": "aadhaar2num", "pantogst": "pantogst"}
-UAPI_PROMPT_KEY = {"rc": "rc", "v2m": "vehicletomobile", "a2n": "aadhaar2num", "pantogst": "pantogst"}
-UAPI_PAID = {"rc", "v2m", "a2n"}   # bot-1 jaisa: PAN TO GST + RESULT FREE
+# ========== v2.6 — BOT-1 PORT TOOLS (RC, V2M, A2N, RESULT) ==========
+UAPI_KIND = {"rc": "rc", "v2m": "vehicletomobile", "a2n": "aadhaar2num"}
+UAPI_PROMPT_KEY = {"rc": "rc", "v2m": "vehicletomobile", "a2n": "aadhaar2num"}
+UAPI_PAID = {"rc", "v2m", "a2n"}
 
 async def uapi_tool_cmd(mode: str, update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """RC / VEHICLE TO NUMBER / AADHAAR TO NUMBER / PAN TO GST — bot-1 jaisa."""
+    """RC / VEHICLE TO NUMBER / AADHAAR TO NUMBER — bot-1 se port."""
     if not await check_force_join(update, context):
         return
     uid = update.effective_user.id
@@ -1477,7 +1446,6 @@ async def uapi_tool_cmd(mode: str, update: Update, context: ContextTypes.DEFAULT
 async def rc_cmd(update, context):        await uapi_tool_cmd("rc", update, context)
 async def v2n_cmd(update, context):       await uapi_tool_cmd("v2m", update, context)
 async def a2n_cmd(update, context):       await uapi_tool_cmd("a2n", update, context)
-async def pantogst_cmd(update, context):  await uapi_tool_cmd("pantogst", update, context)
 
 async def result_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """📋 BSEB RESULT CHECK — step 1: exam chuno (FREE tool)."""
@@ -1609,7 +1577,7 @@ async def tg_number_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if _ctry:
             _L.append(f"🌍 Country : {_ctry}")
         _L += ["", f"⚡ <b>Response:</b> {ms}ms",
-               "🔥 <b>Powered by @Supermannn_x</b>"]
+               "🔥 <b>Powered by @himanshu_1111</b>"]
         txt = "\n".join(_L)
         try:
             left = spend_tg_credits(uid, 1)   # v2.5.5: TG pool se kato
@@ -1675,7 +1643,7 @@ async def pak_number_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ⚡ <b>Response:</b> {ms}ms
-🔥 <b>Powered by @Supermannn_x</b>
+🔥 <b>Powered by @himanshu_1111</b>
 """
 
         try:
@@ -1768,7 +1736,7 @@ async def ip_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 🔁 <b>Reverse DNS:</b> {result.get('reverse_dns') or 'N/A'}
 
-🔥 Powered by @Supermannn_x
+🔥 Powered by @himanshu_1111
 """
 
         try:
@@ -1873,7 +1841,7 @@ async def domain_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-🔥 Powered by @Supermannn_x
+🔥 Powered by @himanshu_1111
 """
 
         try:
@@ -2123,7 +2091,7 @@ async def website_extract_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 📊 <b>Size:</b> HTML {result.get('html_length')} chars | Text {result.get('text_length')} chars
 
-🔥 Powered by @Supermannn_x
+🔥 Powered by @himanshu_1111
 """
 
         try:
@@ -3210,8 +3178,6 @@ async def main_async():
     app.add_handler(CommandHandler("vehicle", v2n_cmd))
     app.add_handler(CommandHandler("a2n", a2n_cmd))
     app.add_handler(CommandHandler("aadhaar2num", a2n_cmd))
-    app.add_handler(CommandHandler("pantogst", pantogst_cmd))
-    app.add_handler(CommandHandler("pan", pantogst_cmd))
     app.add_handler(CommandHandler("result", result_cmd))
     app.add_handler(CommandHandler("bseb", result_cmd))
 

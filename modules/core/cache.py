@@ -3,7 +3,7 @@
 cache.py — Thread-safe TTL cache with a hard size ceiling
 =========================================================
 Kyun chahiye:
-  • IFSC / Pincode / IP / Vehicle / GST / PAN jaise lookups ka jawab roz change nahi hota.
+  • IFSC / Pincode / IP / Vehicle jaise lookups ka jawab roz change nahi hota.
   • Bina cache ke har user har baar API call karta hai → slow + API rate-limit + free-plan waste.
 
 Ye cache:

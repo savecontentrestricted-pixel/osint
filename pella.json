@@ -5,10 +5,10 @@
   "startCommand": "python bot.py",
   "env": {
     "BOT_TOKEN": {"required": true, "value": "PUT_YOUR_BOT_TOKEN_HERE"},
-    "ADMIN_ID": {"required": true, "value": "8607774564"},
+    "ADMIN_ID": {"required": true, "value": "8848513933"},
     "FORCE_CHANNEL": {"required": true, "value": "-1004393596502"},
     "FORCE_CHANNEL_LINK": {"required": true, "value": "https://t.me/osint_xpert"},
-    "OWNER_USERNAME": {"required": false, "value": "@Supermannn_x"},
+    "OWNER_USERNAME": {"required": false, "value": "@himanshu_1111"},
     "MYNUM_API_URL": {"required": false, "value": "https://utility-api-vu83.onrender.com/api"},
     "MYNUM_API_KEY": {"required": true}
   }

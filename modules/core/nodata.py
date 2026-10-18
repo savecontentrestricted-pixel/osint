@@ -43,7 +43,7 @@ def no_data(term="", what="") -> str:
     Database me record nahi mila — har tool ka EK HI message.
 
     term = user ne jo bheja tha (dikhane ke liye, optional)
-    what = "number" / "Aadhaar" / "GSTIN" ... (optional)
+    what = "number" / "Aadhaar" ... (optional)
     """
     # v127.13 (USER ORDER 18 Oct): fail par SIRF ye ek line — user ka
     # bheja hua data (term) bhi echo nahi karna.
