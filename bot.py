@@ -2,7 +2,7 @@
 🚀 OSINT Hunter Hub - @osint_hunter_hub_bot
 Advanced High-Level OSINT Tools Hub - 11 Tools
 
-Owner: 8607774564 @Supermannn_x
+Owner: 8848513933 @himanshu_1111
 Force Channel: -1004393596502 @osint_xpert
 Repo: savecontentrestricted-pixel/osint
 
@@ -48,7 +48,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 WAIT2 = ("⏳🔍 <b>Please wait a few seconds…</b> ⚡\n"
          "🚀 <i>Aapka result aa raha hai…</i>")
 NF2 = "❌ <b>Data not found in any database.</b>"
-BOT_VERSION = ("v2.5.5 — bot-1 jaisa SAME credit system: FREE_CREDITS=10 + TG_CREDITS=3 (alag TG pool, env-control, redeploy par sab reset) | v2.5.4b — USER ORDER 18 Oct: simple wait note (user ka data echo NAHI), fail par sirf Data-not-found line, TG card sirf Number/TG-ID/Username/Country, t.me-public fallback PERMANENT BAND (sirf apna hub) | v2.5.3 — 4 tools PERMANENT DELETE (JS SECRET FINDER, TERABOX, GITHUB LEAK, UPI INFO — user order 18 Oct) | v2.5.2 — tg cache namespace bump (number wapas) | v2.5.1 — 🆩 TG NUMBER FIX: provider AB PAID (403 'CHALO AB BUY KRO') — ab t.me PUBLIC profile fallback (naam + link, ~0.5s) + honest note; FAIL par credit nahi katta (pehle kat jata tha — bug) + asli error dikhta hai | "
+BOT_VERSION = ("v2.6.0 — bot-1 ke SAARE tools port: 🚗 RC+CHALLAN, 📲 VEHICLE TO NUMBER, 🪪 AADHAAR TO NUMBER, 🔗 PAN TO GST, 📋 BSEB RESULT CHECK (+🇵🇰 PAK menu button) · NAYA ADMIN: @himanshu_1111 (8848513933) | v2.5.5 — bot-1 jaisa SAME credit system: FREE_CREDITS=10 + TG_CREDITS=3 (alag TG pool, env-control, redeploy par sab reset) | v2.5.4b — USER ORDER 18 Oct: simple wait note (user ka data echo NAHI), fail par sirf Data-not-found line, TG card sirf Number/TG-ID/Username/Country, t.me-public fallback PERMANENT BAND (sirf apna hub) | v2.5.3 — 4 tools PERMANENT DELETE (JS SECRET FINDER, TERABOX, GITHUB LEAK, UPI INFO — user order 18 Oct) | v2.5.2 — tg cache namespace bump (number wapas) | v2.5.1 — 🆩 TG NUMBER FIX: provider AB PAID (403 'CHALO AB BUY KRO') — ab t.me PUBLIC profile fallback (naam + link, ~0.5s) + honest note; FAIL par credit nahi katta (pehle kat jata tha — bug) + asli error dikhta hai | "
     "v2.4 — ⚡ SPEED FIX (asli wajah mili): PTB ke default settings khatarnak the — "
     "connection_pool_size=1 (Telegram ke liye sirf EK connection), read_timeout=5s, pool_timeout=1s, "
     "aur concurrent_updates OFF (saare updates ek-ek). Isse messages CHUP-CHAAP fail hote the "
@@ -223,7 +223,10 @@ from telegram.error import BadRequest
 # ========== GRID MENU - 6 TOOLS + PREMIUM + ADMIN (v2.5.3: 4 tools DELETE) ==========
 KB_BTNS = [
     ["📱 NUMBER INFO", "🆔 TELEGRAM NUMBER"],
-    ["👪 FAMILY INFO", "🌐 IP/DOMAIN RECON"],
+    ["👪 FAMILY INFO", "🇵🇰 PAK NUMBER"],
+    ["🚗 RC + CHALLAN", "📲 VEHICLE TO NUMBER"],
+    ["🪪 AADHAAR TO NUMBER", "🔗 PAN TO GST"],
+    ["📋 RESULT CHECK", "🌐 IP/DOMAIN RECON"],
     ["🌐 WEBSITE EXTRACTOR", "👑 PREMIUM"],
     ["📊 MY PLAN"],
 ]
@@ -290,6 +293,15 @@ BTN_MODE_MAP = {
     "MYPLAN": "myplan",
     "ADMIN PANEL": "admin_panel",
     "ADMIN": "admin_panel",
+    # v2.6 — bot-1 se port tools
+    "RC + CHALLAN": "rc", "RC": "rc", "CHALLAN": "rc", "RC CHALLAN": "rc",
+    "VEHICLE TO NUMBER": "v2m", "VEHICLE": "v2m", "VEHICLE NUMBER TO MOBILE": "v2m",
+    "VEHICLETOMOBILE": "v2m",
+    "AADHAAR TO NUMBER": "a2n", "AADHAAR TO MOBILE": "a2n", "AADHAAR2NUM": "a2n",
+    "AADHAR TO NUMBER": "a2n",
+    "PAN TO GST": "pantogst", "PANTOGST": "pantogst", "PAN GST": "pantogst",
+    "RESULT CHECK": "result", "RESULT": "result", "BSEB": "result",
+    "PAK NUMBER": "pak", "PAKISTAN NUMBER": "pak", "PAK NUM": "pak", "PAKNUM": "pak",
 }
 
 # Prompt texts for grid tools - 9 TOOLS CLEAN, NO COMMANDS, ULTRA ADVANCED
@@ -339,6 +351,32 @@ GRID_PROMPTS = {
         "ask": "/admin se panel kholo:",
         "ex": "/admin",
     },
+    # v2.6 — bot-1 se port tools
+    "rc": {
+        "head": "🚗 RC + CHALLAN",
+        "ask": "Gaadi ka number bhejein (RC + Challan):",
+        "ex": "BR30AR0802",
+    },
+    "v2m": {
+        "head": "📲 VEHICLE TO NUMBER",
+        "ask": "Gaadi ka number bhejein (RC → Mobile):",
+        "ex": "KL41V3504",
+    },
+    "a2n": {
+        "head": "🪪 AADHAAR TO NUMBER",
+        "ask": "12-digit Aadhaar bhejein (Aadhaar → Mobile list):",
+        "ex": "401635555849",
+    },
+    "pantogst": {
+        "head": "🔗 PAN TO GST",
+        "ask": "10-character PAN number bhejein (GSTIN list):",
+        "ex": "AAYFK4129N",
+    },
+    "pak": {
+        "head": "🇵🇰 PAK NUMBER / CNIC",
+        "ask": "Pak mobile number ya 13-digit CNIC bhejein:",
+        "ex": "03406955998",
+    },
 }
 
 import config
@@ -348,6 +386,13 @@ from modules.telegram_tools import lookup_tg, lookup_pak, format_tg_card, format
 from modules.website_extractor import website_extractor
 from modules.pdf_renamer import rename_pdf_filename, batch_rename, HACKER_NAME, OWNER_ID as PDF_OWNER_ID
 from modules.family_info import lookup_family, format_family_card
+# v2.6 — bot-1 (@utility_duniya_bot) se port: RC/CHALLAN, VEHICLE TO NUMBER,
+# AADHAAR TO NUMBER, PAN TO GST, BSEB RESULT CHECK
+from modules import userapi as uapi
+from modules import bseb_result as bseb
+from modules.udb_cards import (tool_prompt as uapi_tool_prompt, userapi_card,
+                               result_card, result_pick_text, result_pick_kb,
+                               result_ask_roll_text)
 from modules.database import (
     get_user, get_credits, add_credits, set_credits, spend_credits,
     is_premium_user, is_premium, premium_expiry, grant_premium, revoke_premium,
@@ -809,7 +854,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         username = f"@{user.username}" if user.username else "N/A"
         user_id = user.id
         display_name = user.first_name or "User"
-        if user_id == 8607774564:
+        if user_id == 8848513933:
             name_display = "** V ᴇ ɴ ᴏ ᴍ **"
         else:
             name_display = f"** {display_name} **"
@@ -829,7 +874,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 💡 Neeche menu se tool chuno, ya /help bhejo.
 
 📢 Update ke liye: @osint_xpert
-👑 Owner: @Supermannn_x
+👑 Owner: @himanshu_1111
 """
 
         # Try to send photo banner + caption + grid - NO WHITE LINING MESSAGE
@@ -884,7 +929,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"/ip 8.8.8.8\n"
                 f"/domain google.com\n\n"
                 f"Grid menu loading... /help for all commands\n\n"
-                f"👑 @Supermannn_x | 📢 @osint_xpert",
+                f"👑 @himanshu_1111 | 📢 @osint_xpert",
                 parse_mode=ParseMode.HTML
             )
         except Exception as e2:
@@ -949,7 +994,7 @@ async def handle_grid_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
             
             if mode == "owner":
                 await update.message.reply_text(
-                    "👑 <b>Owner:</b> @Supermannn_x\n\n🤖 <b>Bot:</b> @osint_hunter_hub_bot",
+                    f"👑 <b>Owner:</b> {config.OWNER_USERNAME}\n\n🤖 <b>Bot:</b> @osint_hunter_hub_bot",
                     parse_mode=ParseMode.HTML
                 )
                 return
@@ -978,9 +1023,21 @@ async def handle_grid_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 await myplan_cmd(update, context)
                 return
 
+            if mode == "result":
+                # v2.6: BSEB RESULT CHECK — 2 step (pehle exam chuno)
+                try:
+                    context.user_data["mode"] = "result"
+                    context.user_data.pop("rs_exam", None)
+                except:
+                    pass
+                await update.message.reply_text(result_pick_text(),
+                                                reply_markup=result_pick_kb(),
+                                                parse_mode=ParseMode.HTML)
+                return
+
             if mode == "pdf_rename":
-                # Owner only private tool
-                if not config.is_admin(update.effective_user.id) and update.effective_user.id != 8607774564:
+                # Owner only private tool (v2.6: admin = 8848513933)
+                if not config.is_admin(update.effective_user.id):
                     await update.message.reply_text("❌ <b>This tool is Private - Owner Only</b>\n\nSirf owner use kar sakta hai.", parse_mode=ParseMode.HTML)
                     return
                 # Set mode and show detailed prompt
@@ -1062,8 +1119,12 @@ async def handle_grid_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
             import re
             raw = text
             d = re.sub(r"\D", "", raw)
+            _up = re.sub(r"[^A-Za-z0-9]", "", raw).upper()
             # Auto detect
-            if len(d) == 12 and len(raw)>=12:
+            if re.match(r"^[A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{4}$", _up):
+                # v2.6: gaadi number seedha pehchano (bot-1 jaisa)
+                current_mode = "rc"
+            elif len(d) == 12 and len(raw)>=12:
                 # Aadhaar 12 digits
                 current_mode = "familyinfo"
             elif len(d) == 10 and d[0] in "6789":
@@ -1111,6 +1172,14 @@ async def handle_grid_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
         elif current_mode == "familyinfo":
             context.args = [text]
             await family_info_cmd(update, context)
+        elif current_mode in ("rc", "v2m", "a2n", "pantogst"):
+            context.args = [text]
+            await uapi_tool_cmd(current_mode, update, context)
+        elif current_mode == "result":
+            await bseb_step2(update, context, text)
+        elif current_mode == "pak":
+            context.args = [text]
+            await pak_number_cmd(update, context)
         elif current_mode == "pdf_rename":
             await update.message.reply_text(
                 f"📚 <b>PDF RENAMER Mode ON</b>\n\n"
@@ -1174,7 +1243,7 @@ PDF bhejo, Vivid -> 卄卂匚K乇尺
 
 <b>🛡️ Safety:</b>
 • Force join: @osint_xpert
-• Owner: @Supermannn_x
+• Owner: @himanshu_1111
 
 /start se grid dekho - Clean, no commands!
 """
@@ -1345,7 +1414,133 @@ async def family_info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.exception(e)
         await status.edit_text(NF2, parse_mode=ParseMode.HTML)
 
-# ========== UPI INFO - BEST - YOUR API ==========
+# ========== v2.6 — BOT-1 PORT TOOLS (RC, V2M, A2N, PAN TO GST, RESULT) ==========
+UAPI_KIND = {"rc": "rc", "v2m": "vehicletomobile", "a2n": "aadhaar2num", "pantogst": "pantogst"}
+UAPI_PROMPT_KEY = {"rc": "rc", "v2m": "vehicletomobile", "a2n": "aadhaar2num", "pantogst": "pantogst"}
+UAPI_PAID = {"rc", "v2m", "a2n"}   # bot-1 jaisa: PAN TO GST + RESULT FREE
+
+async def uapi_tool_cmd(mode: str, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """RC / VEHICLE TO NUMBER / AADHAAR TO NUMBER / PAN TO GST — bot-1 jaisa."""
+    if not await check_force_join(update, context):
+        return
+    uid = update.effective_user.id
+    kind = UAPI_KIND.get(mode)
+    if not kind:
+        return
+    if mode in UAPI_PAID:
+        can_use, creds, user = can_use_tool(uid)
+        if not can_use:
+            await update.message.reply_text(format_credits_over(kind), parse_mode=ParseMode.HTML)
+            return
+    if not context.args:
+        try:
+            context.user_data["mode"] = mode
+        except:
+            pass
+        await update.message.reply_text(uapi_tool_prompt(UAPI_PROMPT_KEY[mode]), parse_mode=ParseMode.HTML)
+        return
+    term = context.args[0]
+    status = await update.message.reply_text(WAIT2, parse_mode=ParseMode.HTML)
+    _t0 = time.time()
+    try:
+        result = await asyncio.wait_for(asyncio.to_thread(uapi.lookup, kind, term), 75)
+    except asyncio.TimeoutError:
+        result = {"ok": False}
+    except Exception:
+        result = {"ok": False}
+    try:
+        print(f"[TIMING] {kind} {int((time.time()-_t0)*1000)}ms ok={result.get('ok') if isinstance(result, dict) else None} cached={result.get('cached', False) if isinstance(result, dict) else False}", flush=True)
+    except Exception:
+        pass
+    if not isinstance(result, dict) or not result.get("ok"):
+        # USER ORDER: fail = sirf ek line
+        await status.edit_text(NF2, parse_mode=ParseMode.HTML)
+        return
+    try:
+        txt = userapi_card(result, kind)
+    except Exception:
+        txt = NF2
+    if mode in UAPI_PAID:
+        try:
+            spend_credits(uid, 1)
+            txt += f"\n{credits_line(uid)}"
+        except:
+            pass
+    try:
+        await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
+    except Exception:
+        try:
+            await status.edit_text(NF2, parse_mode=ParseMode.HTML)
+        except Exception:
+            pass
+
+async def rc_cmd(update, context):        await uapi_tool_cmd("rc", update, context)
+async def v2n_cmd(update, context):       await uapi_tool_cmd("v2m", update, context)
+async def a2n_cmd(update, context):       await uapi_tool_cmd("a2n", update, context)
+async def pantogst_cmd(update, context):  await uapi_tool_cmd("pantogst", update, context)
+
+async def result_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """📋 BSEB RESULT CHECK — step 1: exam chuno (FREE tool)."""
+    if not await check_force_join(update, context):
+        return
+    try:
+        context.user_data["mode"] = "result"
+        context.user_data.pop("rs_exam", None)
+    except:
+        pass
+    if context.args:
+        # seedha "rollcode rollnum" bhi chal sakta hai (default exam INTER_SCI)
+        await bseb_step2(update, context, " ".join(context.args))
+        return
+    await update.message.reply_text(result_pick_text(), reply_markup=result_pick_kb(),
+                                    parse_mode=ParseMode.HTML)
+
+async def bseb_step2(update: Update, context: ContextTypes.DEFAULT_TYPE, raw_text: str):
+    """📋 BSEB RESULT CHECK — step 2: roll code + roll number."""
+    if not await check_force_join(update, context):
+        return
+    exam = str(context.user_data.get("rs_exam") or "")
+    if not exam:
+        await update.message.reply_text(result_pick_text(), reply_markup=result_pick_kb(),
+                                        parse_mode=ParseMode.HTML)
+        return
+    _rc, _rn = bseb.split_input(raw_text)
+    _ok, _err = bseb.validate(_rc, _rn)
+    if not _ok:
+        await update.message.reply_text(
+            f"❌ {str(_err)[:200]}\n\n"
+            "📌 <b>Aise bhejo:</b> <code>22050 2600046</code>\n"
+            "<i>(pehle roll code, phir space, phir roll number)</i>",
+            parse_mode=ParseMode.HTML)
+        return
+    status = await update.message.reply_text(WAIT2, parse_mode=ParseMode.HTML)
+    _t0 = time.time()
+    try:
+        result = await asyncio.wait_for(
+            asyncio.to_thread(bseb.check, exam, bseb.CURRENT_YEAR, _rc, _rn), 60)
+    except asyncio.TimeoutError:
+        result = {"ok": False}
+    except Exception:
+        result = {"ok": False}
+    try:
+        print(f"[TIMING] result {int((time.time()-_t0)*1000)}ms ok={result.get('ok') if isinstance(result, dict) else None}", flush=True)
+    except Exception:
+        pass
+    if not isinstance(result, dict) or not result.get("ok"):
+        await status.edit_text(NF2, parse_mode=ParseMode.HTML)
+        return
+    try:
+        _label = str(result.get("exam_label") or bseb.EXAMS.get(exam, {}).get("label") or "BSEB")
+        txt = result_card(result.get("student") or {}, _label, bseb.CURRENT_YEAR)
+        await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
+    except Exception:
+        await status.edit_text(NF2, parse_mode=ParseMode.HTML)
+    try:
+        context.user_data.pop("mode", None)
+        context.user_data.pop("rs_exam", None)
+    except:
+        pass
+
 # ========== TG TOOLS ==========
 async def tg_number_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_force_join(update, context):
@@ -1952,8 +2147,8 @@ async def pdf_rename_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_force_join(update, context):
         return
     uid = update.effective_user.id
-    if not config.is_admin(uid) and uid != 8607774564:
-        await update.message.reply_text("❌ <b>This tool is Private - Owner Only</b>\n\nSirf owner 8607774564 use kar sakta hai.", parse_mode=ParseMode.HTML)
+    if not config.is_admin(uid) and uid != 8848513933:
+        await update.message.reply_text("❌ <b>This tool is Private - Owner Only</b>\n\nSirf owner 8848513933 use kar sakta hai.", parse_mode=ParseMode.HTML)
         return
     try:
         context.user_data["mode"] = "pdf_rename"
@@ -1993,7 +2188,7 @@ async def handle_pdf_renamer(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if not await check_force_join(update, context):
         return
     uid = update.effective_user.id
-    if not config.is_admin(uid) and uid != 8607774564:
+    if not config.is_admin(uid) and uid != 8848513933:
         return  # silently ignore for non-owner, private tool
 
     # Only if mode is pdf_rename or user is owner sending PDF (auto)
@@ -2359,8 +2554,8 @@ async def pay_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton(f"✅ Approve {pid}", callback_data=f"adm_approve_{pid}"), InlineKeyboardButton(f"❌ Reject {pid}", callback_data=f"adm_reject_{pid}")],
             [InlineKeyboardButton("📊 Payments", callback_data="adm_payments")]
         ]
-        msg = await context.bot.send_message(chat_id=8607774564, text=admin_text, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(kb))
-        set_payment_admin_msg(pid, 8607774564, msg.message_id)
+        msg = await context.bot.send_message(chat_id=8848513933, text=admin_text, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(kb))
+        set_payment_admin_msg(pid, 8848513933, msg.message_id)
     except Exception as e:
         print(f"Admin notify failed: {e}")
 
@@ -2429,7 +2624,7 @@ async def handle_payment_screenshot(update: Update, context: ContextTypes.DEFAUL
             kb = [
                 [InlineKeyboardButton(f"✅ Approve {pid}", callback_data=f"adm_approve_{pid}"), InlineKeyboardButton(f"❌ Reject {pid}", callback_data=f"adm_reject_{pid}")],
             ]
-            await context.bot.send_photo(chat_id=8607774564, photo=file_id, caption=admin_text, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(kb))
+            await context.bot.send_photo(chat_id=8848513933, photo=file_id, caption=admin_text, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(kb))
         except Exception as e:
             print(f"Admin screenshot notify failed: {e}")
         
@@ -2570,7 +2765,7 @@ async def reject_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     set_payment_status(pid, "rejected", update.effective_user.id, reason)
     await update.message.reply_text(f"❌ Payment {pid} rejected - {reason}", parse_mode=ParseMode.HTML)
     try:
-        await context.bot.send_message(chat_id=pay['user_id'], text=f"❌ <b>Payment Rejected</b>\n\nID: {pid}\nReason: {reason}\n\nContact @Supermannn_x\n💳 UPI: {UPI_ID}", parse_mode=ParseMode.HTML)
+        await context.bot.send_message(chat_id=pay['user_id'], text=f"❌ <b>Payment Rejected</b>\n\nID: {pid}\nReason: {reason}\n\nContact @himanshu_1111\n💳 UPI: {UPI_ID}", parse_mode=ParseMode.HTML)
     except:
         pass
 
@@ -2758,6 +2953,25 @@ async def help_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.message.reply_text(f"🚫 Join channel first: {config.FORCE_CHANNEL_LINK}", reply_markup=InlineKeyboardMarkup(kb), parse_mode=ParseMode.HTML)
             return
     
+    if data.startswith("rs:"):
+        # v2.6: BSEB RESULT — exam chuna gaya
+        _exam = data.split(":", 1)[1]
+        if _exam in bseb.EXAMS:
+            try:
+                context.user_data["mode"] = "result"
+                context.user_data["rs_exam"] = _exam
+            except:
+                pass
+            _txt = result_ask_roll_text(_exam)
+            try:
+                await query.edit_message_text(_txt, parse_mode=ParseMode.HTML)
+            except Exception:
+                try:
+                    await query.message.reply_text(_txt, parse_mode=ParseMode.HTML)
+                except Exception:
+                    pass
+        return
+
     if data == "help_all":
         await help_cmd(update, context)
     elif data == "tools":
@@ -2881,7 +3095,7 @@ async def help_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         pay = get_payment(pid)
         if pay:
             try:
-                await context.bot.send_message(chat_id=pay['user_id'], text=f"❌ Payment {pid} rejected. Contact @Supermannn_x", parse_mode=ParseMode.HTML)
+                await context.bot.send_message(chat_id=pay['user_id'], text=f"❌ Payment {pid} rejected. Contact @himanshu_1111", parse_mode=ParseMode.HTML)
             except:
                 pass
     elif data == "adm_payments":
@@ -2989,6 +3203,17 @@ async def main_async():
     app.add_handler(CommandHandler("telegram", tg_number_cmd))
     app.add_handler(CommandHandler("paknum", pak_number_cmd))
     app.add_handler(CommandHandler("pak", pak_number_cmd))
+    # v2.6 — bot-1 port tools
+    app.add_handler(CommandHandler("rc", rc_cmd))
+    app.add_handler(CommandHandler("challan", rc_cmd))
+    app.add_handler(CommandHandler("v2n", v2n_cmd))
+    app.add_handler(CommandHandler("vehicle", v2n_cmd))
+    app.add_handler(CommandHandler("a2n", a2n_cmd))
+    app.add_handler(CommandHandler("aadhaar2num", a2n_cmd))
+    app.add_handler(CommandHandler("pantogst", pantogst_cmd))
+    app.add_handler(CommandHandler("pan", pantogst_cmd))
+    app.add_handler(CommandHandler("result", result_cmd))
+    app.add_handler(CommandHandler("bseb", result_cmd))
 
     # IP/Domain - KEEP
     app.add_handler(CommandHandler("ip", ip_cmd))
@@ -3062,7 +3287,7 @@ async def main_async():
         # Fast stable + payments live notification
         try:
             requests.post(f'https://api.telegram.org/bot{BOT_TOKEN}/sendMessage', 
-                         data={'chat_id': '8607774564', 
+                         data={'chat_id': '8848513933', 
                                'text': f'✅ 8 TOOLS + PAYMENTS + CREDITS LIVE!\n\n💰 UPI: {UPI_ID}\n🎁 Free: {FREE_CREDITS} credits\n👑 Premium: 30d ₹49 - 365d ₹299\n🛠️ Admin: Full controls\n⚡ Fast: No delay fix\n\nGrid: Number, TG, IP, Website, JS, GitHub, TeraBox, PDF\nPayments: /premium /myplan /buy\nAdmin: /admin'}, timeout=5)
         except:
             pass

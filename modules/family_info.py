@@ -179,7 +179,7 @@ def format_family_card(result: dict) -> str:
 📭 Database me iska koi record nahi hai.
 
 ⏱️ Response: {result.get('ms',0)}ms
-🔥 @Supermannn_x | 📢 @osint_xpert
+🔥 @himanshu_1111 | 📢 @osint_xpert
 """
     
     data = result.get("data", {})
