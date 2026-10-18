@@ -45,7 +45,7 @@ import threading
 import traceback
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
-BOT_VERSION = ("v2.5.2 — tg cache namespace bump (number wapas) | v2.5.1 — 🆩 TG NUMBER FIX: provider AB PAID (403 'CHALO AB BUY KRO') — ab t.me PUBLIC profile fallback (naam + link, ~0.5s) + honest note; FAIL par credit nahi katta (pehle kat jata tha — bug) + asli error dikhta hai | "
+BOT_VERSION = ("v2.5.3 — 4 tools PERMANENT DELETE (JS SECRET FINDER, TERABOX, GITHUB LEAK, UPI INFO — user order 18 Oct) | v2.5.2 — tg cache namespace bump (number wapas) | v2.5.1 — 🆩 TG NUMBER FIX: provider AB PAID (403 'CHALO AB BUY KRO') — ab t.me PUBLIC profile fallback (naam + link, ~0.5s) + honest note; FAIL par credit nahi katta (pehle kat jata tha — bug) + asli error dikhta hai | "
     "v2.4 — ⚡ SPEED FIX (asli wajah mili): PTB ke default settings khatarnak the — "
     "connection_pool_size=1 (Telegram ke liye sirf EK connection), read_timeout=5s, pool_timeout=1s, "
     "aur concurrent_updates OFF (saare updates ek-ek). Isse messages CHUP-CHAAP fail hote the "
@@ -217,15 +217,14 @@ from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandl
 from telegram.constants import ParseMode
 from telegram.error import BadRequest
 
-# ========== GRID MENU - 10 TOOLS + PREMIUM + ADMIN ==========
+# ========== GRID MENU - 6 TOOLS + PREMIUM + ADMIN (v2.5.3: 4 tools DELETE) ==========
 KB_BTNS = [
     ["📱 NUMBER INFO", "🆔 TELEGRAM NUMBER"],
-    ["👪 FAMILY INFO", "💸 UPI INFO"],
-    ["🌐 IP/DOMAIN RECON", "🌐 WEBSITE EXTRACTOR"],
-    ["💎 JS SECRET FINDER", "🐙 GITHUB LEAK HUNTER"],
-    ["☁️ TERABOX EXTRACTOR", "👑 PREMIUM"],
+    ["👪 FAMILY INFO", "🌐 IP/DOMAIN RECON"],
+    ["🌐 WEBSITE EXTRACTOR", "👑 PREMIUM"],
     ["📊 MY PLAN"],
 ]
+
 
 def main_keyboard(admin: bool = False):
     """Grid keyboard - 10 tools + Premium + Admin controls"""
@@ -277,26 +276,10 @@ BTN_MODE_MAP = {
     "PDF RENAMER (PRIVATE)": "pdf_rename",
     "HACKER PDF": "pdf_rename",
     "HACKER": "pdf_rename",
-    "JS SECRET FINDER": "jsfinder",
-    "JS SECRETS": "jsfinder",
-    "JS FINDER": "jsfinder",
-    "SECRET FINDER": "jsfinder",
-    "GITHUB LEAK HUNTER": "ghleak",
-    "GITHUB LEAKS": "ghleak",
-    "GITHUB LEAK": "ghleak",
-    "GITHUB": "ghleak",
-    "LEAK HUNTER": "ghleak",
-    "TERABOX EXTRACTOR": "terabox",
-    "TERABOX": "terabox",
-    "TERABOX STREAM": "terabox",
-    "TERABOX FILE": "terabox",
     "FAMILY INFO": "familyinfo",
     "FAMILY": "familyinfo",
     "FAMILYINFO": "familyinfo",
     "RATION CARD": "familyinfo",
-    "UPI INFO": "upiinfo",
-    "UPI": "upiinfo",
-    "UPI ID": "upiinfo",
     "PREMIUM": "premium",
     "VIP": "premium",
     "BUY PREMIUM": "premium",
@@ -333,30 +316,10 @@ GRID_PROMPTS = {
         "ask": "PDF bhejo, naam auto change hoga:",
         "ex": "Vivid.pdf -> 卄卂匚K乇尺.pdf",
     },
-    "jsfinder": {
-        "head": "💎 JS SECRET FINDER - PRO",
-        "ask": "Website URL bhejein:",
-        "ex": "https://example.com",
-    },
-    "ghleak": {
-        "head": "🐙 GITHUB LEAK HUNTER - PRO",
-        "ask": "Keyword bhejein (domain/email):",
-        "ex": "example.com",
-    },
-    "terabox": {
-        "head": "☁️ TERABOX EXTRACTOR - PRO",
-        "ask": "TeraBox URL bhejein:",
-        "ex": "https://1024terabox.com/s/1AbCd...",
-    },
     "familyinfo": {
         "head": "👪 FAMILY INFO - BEST",
         "ask": "12 Digit Aadhaar bhejein:",
         "ex": "401234567849",
-    },
-    "upiinfo": {
-        "head": "💸 UPI INFO - BEST",
-        "ask": "UPI ID bhejein:",
-        "ex": "kumaranil98787@axl",
     },
     "premium": {
         "head": "👑 PREMIUM PLANS",
@@ -381,11 +344,7 @@ from modules.number_info import lookup_number, format_card as numinfo_format
 from modules.telegram_tools import lookup_tg, lookup_pak, format_tg_card, format_pak_card
 from modules.website_extractor import website_extractor
 from modules.pdf_renamer import rename_pdf_filename, batch_rename, HACKER_NAME, OWNER_ID as PDF_OWNER_ID
-from modules.js_secret_finder import js_secret_finder, format_js_report
-from modules.github_leak_hunter import github_leak_hunter, format_github_report
-from modules.terabox_extractor import extract_terabox, format_terabox_report
 from modules.family_info import lookup_family, format_family_card
-from modules.upi_info import lookup_upi, format_upi_card
 from modules.database import (
     get_user, get_credits, add_credits, set_credits, spend_credits,
     is_premium_user, is_premium, premium_expiry, grant_premium, revoke_premium,
@@ -1095,13 +1054,7 @@ async def handle_grid_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
             raw = text
             d = re.sub(r"\D", "", raw)
             # Auto detect
-            if "terabox.com" in raw or "1024terabox.com" in raw or "terabox" in raw.lower():
-                current_mode = "terabox"
-            elif "@" in raw and not raw.startswith("@") and " " not in raw and raw.count("@")==1 and len(raw)>=6 and len(raw)<=60:
-                # Likely UPI ID like name@axl
-                # Avoid email false positive: UPI handles short, email has .com etc but still we treat as upi
-                current_mode = "upiinfo"
-            elif len(d) == 12 and len(raw)>=12:
+            if len(d) == 12 and len(raw)>=12:
                 # Aadhaar 12 digits
                 current_mode = "familyinfo"
             elif len(d) == 10 and d[0] in "6789":
@@ -1113,11 +1066,7 @@ async def handle_grid_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
             elif "." in raw and ("http" in raw or "/" not in raw):
                 # domain or website
                 if raw.startswith("http"):
-                    # Check if it's terabox url already handled above, else wextract
-                    if "terabox" in raw.lower():
-                        current_mode = "terabox"
-                    else:
-                        current_mode = "wextract"
+                    current_mode = "wextract"
                 elif "." in raw and " " not in raw and len(raw) > 3:
                     current_mode = "ip"
         
@@ -1150,21 +1099,9 @@ async def handle_grid_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
         elif current_mode == "wextract":
             context.args = [text]
             await website_extract_cmd(update, context)
-        elif current_mode == "jsfinder":
-            context.args = [text]
-            await js_secret_cmd(update, context)
-        elif current_mode == "ghleak":
-            context.args = [text]
-            await github_leak_cmd(update, context)
-        elif current_mode == "terabox":
-            context.args = [text]
-            await terabox_cmd(update, context)
         elif current_mode == "familyinfo":
             context.args = [text]
             await family_info_cmd(update, context)
-        elif current_mode == "upiinfo":
-            context.args = [text]
-            await upi_info_cmd(update, context)
         elif current_mode == "pdf_rename":
             await update.message.reply_text(
                 f"📚 <b>PDF RENAMER Mode ON</b>\n\n"
@@ -1422,54 +1359,6 @@ async def family_info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await status.edit_text(f"❌ Error: {str(e)[:200]}", parse_mode=ParseMode.HTML)
 
 # ========== UPI INFO - BEST - YOUR API ==========
-async def upi_info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await check_force_join(update, context):
-        return
-    uid = update.effective_user.id
-    can_use, creds, user = can_use_tool(uid)
-    if not can_use:
-        await update.message.reply_text(format_credits_over("UPI Info"), parse_mode=ParseMode.HTML)
-        return
-    if not context.args:
-        await update.message.reply_text(
-            f"❌ <b>Use:</b> <code>/upi kumaranil98787@axl</code>\n\n"
-            f"📌 Example:\n"
-            f"<code>/upi kumaranil98787@axl</code>\n"
-            f"<code>/upiinfo test@okaxis</code>\n\n"
-            f"💳 UPI ID → Name + Bank + Valid\n"
-            f"🔒 Your API: utility-api-vu83\n\n"
-            f"{credits_line(uid)}",
-            parse_mode=ParseMode.HTML
-        )
-        return
-
-    upi_id = context.args[0]
-    status = await update.message.reply_text(
-        f"💸 <b>UPI Info dhoondh raha hoon…</b>\n\n"
-        f"💳 UPI ID: <code>{upi_id[:40]}</code>\n"
-        f"🕐 <i>5-10 sec. Wahi UPI ID dobara = INSTANT.</i>\n"
-        f"{credits_line(uid)}",
-        parse_mode=ParseMode.HTML
-    )
-
-    _t0 = time.time()
-    try:
-        result = await asyncio.to_thread(lookup_upi, upi_id)
-        try:
-            print(f"[TIMING] upi {int((time.time()-_t0)*1000)}ms ok={result.get('ok')} cached={result.get('cached', False)}", flush=True)
-        except Exception:
-            pass
-        txt = format_upi_card(result)
-        try:
-            left = spend_credits(uid, 1)
-            txt += f"\n{credits_line(uid)}"
-        except:
-            pass
-        await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
-    except Exception as e:
-        logger.exception(e)
-        await status.edit_text(f"❌ Error: {str(e)[:200]}", parse_mode=ParseMode.HTML)
-
 # ========== TG TOOLS ==========
 async def tg_number_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_force_join(update, context):
@@ -2334,138 +2223,8 @@ async def handle_pdf_renamer(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 pass
 
 # ========== JS SECRET FINDER - PRO ==========
-async def js_secret_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await check_force_join(update, context):
-        return
-    uid = update.effective_user.id
-    can_use, creds, user = can_use_tool(uid)
-    if not can_use:
-        await update.message.reply_text(format_credits_over("js_secret_cmd"), parse_mode=ParseMode.HTML)
-        return
-    if not context.args:
-        await update.message.reply_text(
-            "❌ <b>Use:</b> <code>/jsfind https://example.com</code>\n\n"
-            "📌 Example: <code>/jsfind https://example.com</code>\n"
-            "Bot us site ke JS files se API keys, endpoints nikalega",
-            parse_mode=ParseMode.HTML
-        )
-        return
-
-    url = context.args[0]
-    status = await update.message.reply_text(
-        f"💎 <b>JS Secret Finder Scanning...</b>\n\n"
-        f"🌐 URL: <code>{url}</code>\n"
-        f"⏳ JS files extract kar raha hu...",
-        parse_mode=ParseMode.HTML
-    )
-
-    try:
-        result = await asyncio.to_thread(js_secret_finder, url)
-        txt = format_js_report(result)
-        try:
-            left = spend_credits(uid, 1)
-            txt += f"\n{credits_line(uid)}"
-        except:
-            pass
-        await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML, disable_web_page_preview=True)
-    except Exception as e:
-        logger.exception(e)
-        try:
-            left = spend_credits(uid, 1)
-            txt += f"\n{credits_line(uid)}"
-        except:
-            pass
-        await status.edit_text(f"❌ Error: {str(e)[:300]}", parse_mode=ParseMode.HTML)
-
 # ========== GITHUB LEAK HUNTER - PRO ==========
-async def github_leak_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await check_force_join(update, context):
-        return
-    uid = update.effective_user.id
-    can_use, creds, user = can_use_tool(uid)
-    if not can_use:
-        await update.message.reply_text(format_credits_over("github_leak_cmd"), parse_mode=ParseMode.HTML)
-        return
-    if not context.args:
-        await update.message.reply_text(
-            "❌ <b>Use:</b> <code>/ghleak example.com</code>\n\n"
-            "📌 Example: <code>/ghleak example.com</code> ya <code>/ghleak apikey</code>\n"
-            "GitHub public repos me leak search",
-            parse_mode=ParseMode.HTML
-        )
-        return
-
-    query = " ".join(context.args)
-    status = await update.message.reply_text(
-        f"🐙 <b>GitHub Leak Hunter Searching...</b>\n\n"
-        f"🔍 Query: <code>{query}</code>\n"
-        f"⏳ GitHub API se search...",
-        parse_mode=ParseMode.HTML
-    )
-
-    try:
-        result = await asyncio.to_thread(github_leak_hunter, query)
-        txt = format_github_report(result)
-        try:
-            left = spend_credits(uid, 1)
-            txt += f"\n{credits_line(uid)}"
-        except:
-            pass
-        await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML, disable_web_page_preview=True)
-    except Exception as e:
-        logger.exception(e)
-        try:
-            left = spend_credits(uid, 1)
-            txt += f"\n{credits_line(uid)}"
-        except:
-            pass
-        await status.edit_text(f"❌ Error: {str(e)[:300]}", parse_mode=ParseMode.HTML)
-
 # ========== TERABOX EXTRACTOR - PRO ==========
-async def terabox_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await check_force_join(update, context):
-        return
-    uid = update.effective_user.id
-    can_use, creds, user = can_use_tool(uid)
-    if not can_use:
-        await update.message.reply_text(format_credits_over("terabox_cmd"), parse_mode=ParseMode.HTML)
-        return
-    if not context.args:
-        await update.message.reply_text(
-            "❌ <b>Use:</b> <code>/terabox https://1024terabox.com/s/xxxxx</code>\n\n"
-            "📌 Example: <code>/terabox https://1024terabox.com/s/1AbCdEfGh</code>\n"
-            "TeraBox se direct download + stream link",
-            parse_mode=ParseMode.HTML
-        )
-        return
-
-    url = context.args[0]
-    status = await update.message.reply_text(
-        f"☁️ <b>TeraBox Extracting...</b>\n\n"
-        f"🌐 URL: <code>{url[:80]}</code>\n"
-        f"⏳ 4 APIs combination se try kar raha hu (2 LIVE)...\n"
-        f"Note: Upstream Render service 50s me wake up hota hai, thoda wait karo",
-        parse_mode=ParseMode.HTML
-    )
-
-    try:
-        result = await asyncio.to_thread(extract_terabox, url)
-        txt = format_terabox_report(result)
-        try:
-            left = spend_credits(uid, 1)
-            txt += f"\n{credits_line(uid)}"
-        except:
-            pass
-        await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML, disable_web_page_preview=True)
-    except Exception as e:
-        logger.exception(e)
-        try:
-            left = spend_credits(uid, 1)
-            txt += f"\n{credits_line(uid)}"
-        except:
-            pass
-        await status.edit_text(f"❌ Error: {str(e)[:500]}", parse_mode=ParseMode.HTML)
-
 # ========== PING - FAST TEST ==========
 async def ping_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # No force join, no credits - instant reply to test bot alive
@@ -3238,9 +2997,6 @@ async def main_async():
     app.add_handler(CommandHandler("aadhaar", family_info_cmd))
 
     # UPI Info - NEW BEST - YOUR API
-    app.add_handler(CommandHandler("upi", upi_info_cmd))
-    app.add_handler(CommandHandler("upiinfo", upi_info_cmd))
-    app.add_handler(CommandHandler("upiid", upi_info_cmd))
 
     # TG Tools - KEEP
     app.add_handler(CommandHandler("tginfo", tg_number_cmd))
@@ -3269,17 +3025,8 @@ async def main_async():
     app.add_handler(CommandHandler("hackerpdf", pdf_rename_cmd))
 
     # PRO TOOLS - JS Secret Finder + GitHub Leak Hunter
-    app.add_handler(CommandHandler("jsfind", js_secret_cmd))
-    app.add_handler(CommandHandler("jssecret", js_secret_cmd))
-    app.add_handler(CommandHandler("secrets", js_secret_cmd))
-    app.add_handler(CommandHandler("ghleak", github_leak_cmd))
-    app.add_handler(CommandHandler("github", github_leak_cmd))
-    app.add_handler(CommandHandler("leak", github_leak_cmd))
 
     # TeraBox Extractor
-    app.add_handler(CommandHandler("terabox", terabox_cmd))
-    app.add_handler(CommandHandler("tb", terabox_cmd))
-    app.add_handler(CommandHandler("teraboxdl", terabox_cmd))
 
     # ========== PAYMENTS & PREMIUM - NEW ==========
     app.add_handler(CommandHandler(["premium", "vip", "plans"], premium_cmd))
@@ -3341,7 +3088,7 @@ async def main_async():
     print("8 TOOLS + PAYMENTS + CREDITS + ADMIN FAST STABLE WEBHOOK READY!")
     while True:
         await asyncio.sleep(60)
-        print(f"8 tools + payments alive - Users: {len(all_user_ids())} - Premium: {len(premium_users())} - Pending: {pending_payments_count()}")
+        print(f"6 tools + payments alive - Users: {len(all_user_ids())} - Premium: {len(premium_users())} - Pending: {pending_payments_count()}")
 
 def main():
     asyncio.run(main_async())
