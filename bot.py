@@ -48,7 +48,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 WAIT2 = ("⏳🔍 <b>Please wait a few seconds…</b> ⚡\n"
          "🚀 <i>Aapka result aa raha hai…</i>")
 NF2 = "❌ <b>Data not found in any database.</b>"
-BOT_VERSION = ("v2.5.4 — USER ORDER 18 Oct: simple wait note (user ka data echo NAHI), fail par sirf Data-not-found line, TG card sirf Number/TG-ID/Username/Country, t.me-public fallback PERMANENT BAND (sirf apna hub) | v2.5.3 — 4 tools PERMANENT DELETE (JS SECRET FINDER, TERABOX, GITHUB LEAK, UPI INFO — user order 18 Oct) | v2.5.2 — tg cache namespace bump (number wapas) | v2.5.1 — 🆩 TG NUMBER FIX: provider AB PAID (403 'CHALO AB BUY KRO') — ab t.me PUBLIC profile fallback (naam + link, ~0.5s) + honest note; FAIL par credit nahi katta (pehle kat jata tha — bug) + asli error dikhta hai | "
+BOT_VERSION = ("v2.5.4b — USER ORDER 18 Oct: simple wait note (user ka data echo NAHI), fail par sirf Data-not-found line, TG card sirf Number/TG-ID/Username/Country, t.me-public fallback PERMANENT BAND (sirf apna hub) | v2.5.3 — 4 tools PERMANENT DELETE (JS SECRET FINDER, TERABOX, GITHUB LEAK, UPI INFO — user order 18 Oct) | v2.5.2 — tg cache namespace bump (number wapas) | v2.5.1 — 🆩 TG NUMBER FIX: provider AB PAID (403 'CHALO AB BUY KRO') — ab t.me PUBLIC profile fallback (naam + link, ~0.5s) + honest note; FAIL par credit nahi katta (pehle kat jata tha — bug) + asli error dikhta hai | "
     "v2.4 — ⚡ SPEED FIX (asli wajah mili): PTB ke default settings khatarnak the — "
     "connection_pool_size=1 (Telegram ke liye sirf EK connection), read_timeout=5s, pool_timeout=1s, "
     "aur concurrent_updates OFF (saare updates ek-ek). Isse messages CHUP-CHAAP fail hote the "
