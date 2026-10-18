@@ -45,7 +45,7 @@ import threading
 import traceback
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
-BOT_VERSION = ("v2.5.1 — 🆩 TG NUMBER FIX: provider AB PAID (403 'CHALO AB BUY KRO') — ab t.me PUBLIC profile fallback (naam + link, ~0.5s) + honest note; FAIL par credit nahi katta (pehle kat jata tha — bug) + asli error dikhta hai | "
+BOT_VERSION = ("v2.5.2 — tg cache namespace bump (number wapas) | v2.5.1 — 🆩 TG NUMBER FIX: provider AB PAID (403 'CHALO AB BUY KRO') — ab t.me PUBLIC profile fallback (naam + link, ~0.5s) + honest note; FAIL par credit nahi katta (pehle kat jata tha — bug) + asli error dikhta hai | "
     "v2.4 — ⚡ SPEED FIX (asli wajah mili): PTB ke default settings khatarnak the — "
     "connection_pool_size=1 (Telegram ke liye sirf EK connection), read_timeout=5s, pool_timeout=1s, "
     "aur concurrent_updates OFF (saare updates ek-ek). Isse messages CHUP-CHAAP fail hote the "

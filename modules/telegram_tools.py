@@ -17,7 +17,7 @@ TIMEOUT = 25
 def clean_input(text: str) -> str:
     return str(text or "").strip()
 
-@with_cache("tg2", 300, 2592000)
+@with_cache("tg3", 300, 2592000)   # v2.5.2: tg2 ke public-card entries orphan (number wapas)
 def lookup_tg(username: str) -> Dict[str, Any]:
     """
     Telegram to Number - tool=telegramtonumber or tgnum
