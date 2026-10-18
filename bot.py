@@ -45,7 +45,8 @@ import threading
 import traceback
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
-BOT_VERSION = ("v2.4 — ⚡ SPEED FIX (asli wajah mili): PTB ke default settings khatarnak the — "
+BOT_VERSION = ("v2.5.1 — 🆩 TG NUMBER FIX: provider AB PAID (403 'CHALO AB BUY KRO') — ab t.me PUBLIC profile fallback (naam + link, ~0.5s) + honest note; FAIL par credit nahi katta (pehle kat jata tha — bug) + asli error dikhta hai | "
+    "v2.4 — ⚡ SPEED FIX (asli wajah mili): PTB ke default settings khatarnak the — "
     "connection_pool_size=1 (Telegram ke liye sirf EK connection), read_timeout=5s, pool_timeout=1s, "
     "aur concurrent_updates OFF (saare updates ek-ek). Isse messages CHUP-CHAAP fail hote the "
     "(silent timeout) — user ko lagta tha bot slow hai ya jawab nahi aata. Ab bot 1 jaisa: "
@@ -1505,12 +1506,12 @@ async def tg_number_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             pass
         
         if not result.get("ok"):
-            try:
-                left = spend_credits(uid, 1)
-                txt += f"\n{credits_line(uid)}"
-            except:
-                pass
-            await status.edit_text(f"❌ No records found for this username in any database.", parse_mode=ParseMode.HTML)
+            # v2.5.1 FIX: pehle FAIL hone par bhi credit kat jata tha (bug) aur
+            # hamesha wahi ek jhootha line dikhta tha. Ab asli error dikhta hai
+            # aur credit SIRF success par katta hai.
+            await status.edit_text(
+                f"❌ {result.get('error') or 'No records found for this username.'}",
+                parse_mode=ParseMode.HTML)
             return
 
         data = result.get("data", {})
@@ -1550,11 +1551,6 @@ async def tg_number_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
 
     except Exception as e:
-        try:
-            left = spend_credits(uid, 1)
-            txt += f"\n{credits_line(uid)}"
-        except:
-            pass
         await status.edit_text(f"❌ Error: {str(e)[:200]}", parse_mode=ParseMode.HTML)
 
 async def pak_number_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):

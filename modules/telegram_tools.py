@@ -58,7 +58,57 @@ def lookup_tg(username: str) -> Dict[str, Any]:
         except Exception as e:
             continue
 
-    return {"ok": False, "not_found": True, "error": "❌ No records found for this username in any database."}
+    # v2.5.1 — 18 Oct 2026: number-source PAID ho gaya (403 "CHALO AB BUY KRO"),
+    # isliye hub hamesha notfound deta tha aur user ko jhootha "no records"
+    # dikhta tha. Ab Telegram ki PUBLIC profile (t.me) se asli kaam hota hai:
+    # naam + profile link (~0.5s, free, legal) + honest note ki number-source
+    # paid hai. Username exist hi na kare to saaf "username check karo".
+    pub = _tme_public(term)
+    if pub and pub.get("exists"):
+        return {"ok": True, "term": term, "source": "t.me-public",
+                "data": {"👤 Naam": pub.get("name") or "",
+                         "👤 Username": "@" + term.lstrip("@"),
+                         "🔗 Profile": pub.get("url") or "",
+                         "⚠️ Number-source": _TME_NOTE},
+                "ms": 0}
+    if pub is not None and not pub.get("exists"):
+        return {"ok": False, "not_found": True,
+                "error": f"Telegram @{term.lstrip('@')} ka koi public account nahi mila — username check karo."}
+    return {"ok": False, "not_found": True,
+            "error": ("🆩 Telegram number-source ab PAID ho gaya hai "
+                      "(provider: 'CHALO AB BUY KRO') — aur t.me public profile bhi "
+                      "nahi khuli. Thodi der baad dobara try karo.")}
+
+
+_TME_NOTE = ("Mobile-number database ab PAID ho gaya hai (provider: 'CHALO AB BUY KRO') "
+             "- isliye number nahi mil sakta. Upar jo hai wo Telegram ki "
+             "PUBLIC profile info hai (t.me se).")
+
+
+def _tme_public(q: str, tmo: float = 8.0):
+    """t.me/<username> public preview: naam + photo + link (free + legal)."""
+    import html as _html
+    uname = str(q or "").strip().lstrip("@").strip()
+    if not uname or not re.match(r"^[A-Za-z0-9_]{3,32}$", uname):
+        return None
+    try:
+        from .fast_cache import get_session
+        r = get_session().get(f"https://t.me/{uname}", timeout=tmo,
+                              headers={"User-Agent": "Mozilla/5.0"})
+    except Exception:                                            # noqa: BLE001
+        return None
+    if getattr(r, "status_code", 0) != 200:
+        return None
+    body = r.text or ""
+    mt = re.search(r'<meta property="og:title" content="([^"]*)"', body)
+    mi = re.search(r'<meta property="og:image" content="([^"]*)"', body)
+    title = _html.unescape(mt.group(1)) if mt else ""
+    photo = mi.group(1) if mi else ""
+    if not title or title.startswith("Telegram: Contact @") or "t_logo" in photo:
+        return {"exists": False}
+    return {"exists": True, "name": title,
+            "photo": ("" if "t_logo" in photo else photo),
+            "url": f"https://t.me/{uname}"}
 
 @with_cache("pak", 300, 2592000)
 def lookup_pak(cnic_or_number: str) -> Dict[str, Any]:
