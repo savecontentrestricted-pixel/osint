@@ -9,13 +9,15 @@ from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 from modules import userapi as uapi
 from modules import bseb_result as bseb
 
+from modules.cardstyle import box, field, sep, footer, subhead, ubold
+from modules.gw_tools import echallan_section
+
 PCARD_MID = "━━━━━━━━━━━━━━━━━━━━━━"
 BRAND_LINK = '🔥 Powered by <a href="https://t.me/ANONYMOUS_XH">@ANONYMOUS_XH</a>'
 
 
 def to_bold(text: str) -> str:
-    return text
-
+    return ubold(text)
 
 
 PROMPT_DATA = {
@@ -54,21 +56,6 @@ PROMPT_DATA = {
         "tip": 'Aadhaar se jude mobile numbers ki list',
         "foot": 'Mobile numbers linked to Aadhaar',
     },
-    "tgnum": {
-        "head": "🆩 TELEGRAM NUMBER",
-        "ask": "Telegram username ya user ID bhejein:",
-        "ex": [('@Perfectamit65', 'Telegram username — @ ke saath (real example)')],
-        "tip": 'Username @ ke saath ya bina @ ke, ya numeric ID — jaise @Perfectamit65 ya 5685588580',
-        "foot": 'Username/ID se juda mobile number',
-    },
-    "paknum": {
-        "head": "🇵🇰 PAK NUMBER / CNIC",
-        "ask": "Pakistani mobile number YA 13-digit CNIC bhejein:",
-        "ex": [('03406955998', 'mobile — 03 se shuru, kul 11 digit'),
-               ('3520113625763', 'CNIC — poore 13 digit, bina dash')],
-        "tip": '+92 ya 0092 lagao to bhi chalega — bot khud 03... bana lega. CNIC se bhi wahi record milta hai.',
-        "foot": 'Naam · CNIC · number · address · operator',
-    },
     "result": {
         "head": "📋 RESULT CHECK — BSEB",
         "ask": "Pehle exam chuno (neeche button se):",
@@ -105,31 +92,30 @@ def pcard_sep() -> str:
 
 
 def vehicle_rc_card(res: dict) -> str:
-    """v2.6 — RC + CHALLAN full report (vehicle_full primary unmasked + fallback).
-    New fields: chassis, engine, owner_father, mobile, financer, insurance_company/policy, etc.
-    """
+    """🚗 RC + CHALLAN report — owner signature design + E-CHALLAN (Parivahan) section."""
     res = res if isinstance(res, dict) else {}
     data = res.get("data") or {}
     if not data:
         data = res
     if not data.get("owner_name") and not data.get("registration_number") and res.get("fields"):
-        cfg = {"icon": "🚗", "label": "RC + CHALLAN"}
-        L = [f"{cfg['icon']} <b>{cfg['label']} — {hesc(str(res.get('term') or ''))}</b>", PCARD_MID, ""]
+        L = [box("🚗", "RC + CHALLAN"), ""]
         for lbl, val in (res.get("fields") or []):
-            L.append(f"{lbl} <b>:</b> {hesc(str(val))}")
-        L.append("")
-        L.append(f"⚡ <b>Response:</b> {int(res.get('ms') or 0)}ms")
-        L.append(BRAND_LINK)
-        return "\n".join(L)
+            L.append(field("🔹", str(lbl).lstrip("🔹 ").strip(), val))
+        L.append(sep())
+        L.append(footer(res.get("ms") or 0))
+        return "".join([x for x in L if x])
+
     def _g(k, d=""):
         v = data.get(k)
         if v is None or v == "" or str(v).upper() == "NA":
             return d
         return str(v).strip()
+
     def _h(txt):
         return hesc(txt)
+
     reg = _g("registration_number") or _g("reg_no") or _g("term") or res.get("term") or ""
-    owner = _g("owner_name") or _g("owner") or "NA"
+    owner = _g("owner_name") or _g("owner") or ""
     owner_father = _g("owner_father_name") or _g("father_name") or ""
     model = _g("model") or _g("maker_model") or _g("vehicle") or ""
     maker = _g("manufacturer") or _g("maker") or ""
@@ -138,14 +124,14 @@ def vehicle_rc_card(res: dict) -> str:
     city = _g("city") or ""
     rto = _g("rto") or _g("rto_code") or ""
     addr = _g("address") or ""
-    phone = _g("mobile_number") or _g("mobile") or _g("phone") or "NA"
+    phone = _g("mobile_number") or _g("mobile") or _g("phone") or ""
     reg_date = _g("registration_date") or _g("reg_date") or ""
     fitness = _g("fitness_upto") or ""
     ins_upto = _g("insurance_upto") or ""
     ins_comp = _g("insurance_company") or ""
     ins_policy = _g("insurance_policy_number") or _g("insurance_policy") or ""
-    puc_upto = _g("pucc_upto") or _g("puc_upto") or ""
-    puc_no = _g("pucc_number") or _g("puc_number") or ""
+    puc_upto = _g("pucc_upto") or _g("puc_number") or ""
+    puc_no = _g("pucc_number") or ""
     engine = _g("engine_number") or _g("engine") or _g("engine_cc") or ""
     chassis = _g("chassis_number") or _g("chassis") or ""
     financer = _g("financer") or _g("financer_name") or ""
@@ -160,162 +146,107 @@ def vehicle_rc_card(res: dict) -> str:
     manu_month = _g("manufacturing_month_year") or ""
     challans = data.get("challan_details") or []
     summary = data.get("challan_summary") or {}
-    L = []
-    L.append("╔════════════════════════════╗")
-    L.append("🚘 <b>𝗩𝗘𝗛𝗜𝗖𝗟𝗘 𝗜𝗡𝗙𝗢 𝗥𝗘𝗣𝗢𝗥𝗧</b>")
-    L.append("╚════════════════════════════╝")
-    L.append("")
-    L.append("🚗 <b>VEHICLE INFORMATION</b>")
-    L.append(f"🔢 Number: <code>{_h(reg)}</code>")
-    L.append("━━━━━━━━━━━━━━━━━━━━")
-    L.append(f"├ 👤 Owner: {_h(owner)}")
-    if owner_father:
-        L.append(f"├ 👨 Father: {_h(owner_father)}")
+
+    L = [box("🚗", "RC + CHALLAN REPORT"), ""]
+    L.append(f"🔢 <b>Number:</b> <code>{_h(reg)}</code>\n\n")
+    L.append(subhead("VEHICLE INFORMATION"))
+    L.append(field("👤", "Owner", owner))
+    L.append(field("👨", "Father", owner_father))
     if model or maker:
-        _mm = f"{maker} {model}".strip()
-        L.append(f"├ 🚘 Model: {_h(_mm)}")
-    if variant:
-        L.append(f"├ 🏷️ Variant: {_h(variant)}")
-    if vclass:
-        L.append(f"├ 🏍️ Class: {_h(vclass)}")
-    if fuel:
-        L.append(f"├ ⛽ Fuel: {_h(fuel)}")
-    if city:
-        L.append(f"├ 🏙️ City: {_h(city)}")
-    L.append(f"📞 Phone: {_h(phone)}")
-    if rto:
-        L.append(f"📍 RTO: {_h(rto)}")
-    if addr:
-        L.append(f"🏠 Address:")
-        L.append(f"{_h(addr[:160])}")
-    L.append("━━━━━━━━━━━━━━━━━━━━")
-    L.append("")
-    L.append("🏍️ <b>Technical & RC Specifications</b>")
-    L.append(f"├ 🆔 RC Status : {'✅ ' + _h(rc_status) if 'ACTIVE' in rc_status.upper() else _h(rc_status)}")
-    if color:
-        L.append(f"├ 🎨 Color : {_h(color)}")
-    if chassis:
-        L.append(f"├ 🔧 Chassis : <code>{_h(chassis)}</code>")
-    if engine:
-        L.append(f"├ ⚙️ Engine : <code>{_h(engine)}</code>")
-    if cubic:
-        L.append(f"├ 🔩 CC : {_h(cubic)}")
-    if seat:
-        L.append(f"├ 💺 Seats : {_h(seat)}")
-    if norms:
-        L.append(f"├ 📏 Norms : {_h(norms)}")
-    if manu_month:
-        L.append(f"├ 📅 Mfg : {_h(manu_month)}")
-    if reg_date:
-        L.append(f"├ 📅 Reg Date : {_h(reg_date)}")
-    if ins_upto or ins_comp or ins_policy:
-        _ins = " ".join([x for x in [ins_comp, ins_policy, ins_upto] if x])[:180]
-        L.append(f"├ 🛡️ Insurance : {_h(_ins)}")
-    if puc_upto or puc_no:
-        _puc = " ".join([x for x in [puc_no, puc_upto] if x])[:120]
-        L.append(f"├ 🌫️ PUC : {_h(_puc)}")
-    if financer:
-        L.append(f"└ 🏦 Finance : {_h(financer)}")
-    else:
-        L.append(f"└ 🏦 Finance : NA")
-    if tax or age or fitness:
-        L.append("")
-        if tax:
-            L.append(f"💰 Tax Upto: {_h(tax)}")
-        if fitness:
-            L.append(f"📋 Fitness Upto: {_h(fitness)}")
-        if age:
-            L.append(f"⏳ Age: {_h(age)}")
-    L.append("")
-    L.append("━━━━━━━━━━━━━━━━━━━━")
-    L.append("")
-    L.append("🚨 <b>Challan Summary (Engine 1)</b>")
+        L.append(field("🚘", "Model", f"{maker} {model}".strip()))
+    L.append(field("🏷️", "Variant", variant))
+    L.append(field("🏍️", "Class", vclass))
+    L.append(field("⛽", "Fuel", fuel))
+    L.append(field("🏙️", "City", city))
+    L.append(field("📞", "Phone", phone))
+    L.append(field("📍", "RTO", rto))
+    L.append(field("🏠", "Address", str(addr)[:160]))
+    L.append(sep())
+    L.append(subhead("TECHNICAL & RC"))
+    L.append(field("🆔", "RC Status", ("✅ " + rc_status) if "ACTIVE" in rc_status.upper() else rc_status))
+    L.append(field("🎨", "Color", color))
+    L.append(field("🔧", "Chassis", chassis))
+    L.append(field("⚙️", "Engine", engine))
+    L.append(field("🔩", "CC", cubic))
+    L.append(field("💺", "Seats", seat))
+    L.append(field("📏", "Norms", norms))
+    L.append(field("📅", "Mfg", manu_month))
+    L.append(field("📅", "Reg Date", reg_date))
+    _ins = " ".join([x for x in [ins_comp, ins_policy, ins_upto] if x])[:180]
+    L.append(field("🛡️", "Insurance", _ins))
+    L.append(field("🌫️", "PUC", " ".join([x for x in [puc_no, puc_upto] if x])[:120]))
+    L.append(field("🏦", "Finance", financer))
+    L.append(field("💰", "Tax Upto", tax))
+    L.append(field("📋", "Fitness Upto", fitness))
+    L.append(field("⏳", "Age", age))
+    L.append(sep())
+    L.append(subhead("CHALLAN SUMMARY"))
     if summary:
-        total = summary.get("total_challans") or summary.get("challan_summary",{}).get("total_challans") or ""
-        amount = summary.get("total_amount") or summary.get("challan_summary",{}).get("total_amount") or ""
-        if total or amount:
-            if total:
-                L.append(f"📊 Total Challans: {_h(str(total))}")
-            if amount:
-                L.append(f"💰 Total Amount: ₹{_h(str(amount))}")
-        else:
-            L.append("⚠️ Challan details temporarily live track status failed.")
+        total = summary.get("total_challans") or (summary.get("challan_summary") or {}).get("total_challans") or ""
+        amount = summary.get("total_amount") or (summary.get("challan_summary") or {}).get("total_amount") or ""
+        if total:
+            L.append(f"📊 <b>Total Challans:</b> {_h(str(total))}\n\n")
+        if amount:
+            L.append(f"💰 <b>Total Amount:</b> ₹{_h(str(amount))}\n\n")
+        if not total and not amount:
+            L.append("⚠️ Challan details temporarily live track status failed.\n\n")
     else:
-        L.append("⚠️ Challan details temporarily live track status failed.")
-    L.append("")
-    L.append("━━━━━━━━━━━━━━━━━━━━")
+        L.append("⚠️ Challan details temporarily live track status failed.\n\n")
     if challans:
-        L.append("🚨 <b>CHALLAN INFO V2 (Backup Engine)</b>")
-        L.append("")
         for ch in challans[:5]:
             cn = ch.get("challan_number") or ch.get("challan_no") or ""
-            accused = ch.get("accused_name") or ""
+            if not cn:
+                continue
+            L.append(f"🔹 <b>Challan:</b> <code>{_h(cn)}</code>\n")
+            acc = ch.get("accused_name") or ""
+            if acc:
+                L.append(f"   👤 {_h(acc)}\n")
             amt = ch.get("amount") or ch.get("challan_amount") or ""
-            date = ch.get("challan_date") or ch.get("date") or ""
-            status = ch.get("challan_status") or ch.get("status") or ""
-            offence = ch.get("offense_details") or ch.get("offence") or ""
-            if cn:
-                L.append(f"🔹 Challan #: <code>{_h(cn)}</code>")
-            if accused:
-                L.append(f"   👤 Accused: {_h(accused)}")
             if amt:
                 try:
-                    amt_i = int(str(amt).replace(",",""))
-                    amt_fmt = f"{amt_i:,}"
-                except:
-                    amt_fmt = str(amt)
-                L.append(f"   💰 Amount: ₹{_h(amt_fmt)}")
+                    amt = f"{int(str(amt).replace(',', '')):,}"
+                except Exception:
+                    amt = str(amt)
+                L.append(f"   💰 ₹{_h(str(amt))}\n")
+            date = ch.get("challan_date") or ch.get("date") or ""
             if date:
-                L.append(f"   📅 Date: {_h(str(date))}")
+                L.append(f"   📅 {_h(str(date))}\n")
+            status = ch.get("challan_status") or ch.get("status") or ""
             if status:
-                L.append(f"   ❌ Status: {_h(str(status).upper())}")
-            if offence:
-                L.append(f"   🛑 Offence: {_h(str(offence).upper())}")
-            L.append("")
-        L.append("━━━━━━━━━━━━━━━━━━━━")
-    else:
-        L.append("🚨 <b>CHALLAN INFO V2 (Backup Engine)</b>")
-        L.append("")
-        L.append("✅ No pending challan found.")
-        L.append("")
-        L.append("━━━━━━━━━━━━━━━━━━━━")
+                L.append(f"   ❌ {_h(str(status).upper())}\n")
+            L.append("\n")
+    # 📑 E-CHALLAN (Parivahan) — owner order: RC ke andar hi challan details
+    L.append(echallan_section(res.get("e_challan") or {}))
+    L.append(sep())
     ms = int(res.get("ms") or res.get("response_time") or 0)
-    L.append(f"⚡ Response: {ms}ms" + (" · cached" if res.get("cached") else ""))
-    L.append(BRAND_LINK)
-    return "\n".join(L)
+    L.append(footer(ms, " · cached" if res.get("cached") else ""))
+    return "".join([x for x in L if x])
 
 
 def vehicletomobile_card(res: dict) -> str:
-    """📲 Vehicle → Mobile card (vehicle_to_number) v127.2 — shows RC details even when mobile not in DB."""
+    """📲 VEHICLE TO NUMBER — owner signature design."""
     res = res if isinstance(res, dict) else {}
     data = res.get("data") or res
     reg = str(data.get("registration_number") or data.get("reg_no") or res.get("term") or "").upper()
     mob = str(data.get("mobile_number") or data.get("mobile") or data.get("phone") or "").strip()
     owner = str(data.get("owner_name") or data.get("owner") or "").strip()
     model = str(data.get("model") or data.get("vehicle") or "").strip()
-    L = [f"📲 <b>VEHICLE TO NUMBER — {hesc(reg)}</b>", PCARD_MID, ""]
+    L = [box("📲", "VEHICLE TO NUMBER"), ""]
+    L.append(f"🔢 <b>RC:</b> <code>{hesc(reg)}</code>\n\n")
     if mob:
-        L.append(f"📱 <b>Mobile:</b> <code>{hesc(mob)}</code>")
+        L.append(f"📱 <b>Mobile:</b> <code>{hesc(mob)}</code>\n\n")
     else:
-        L.append(f"❌ <b>Mobile DB me nahi hai</b> (sarkari record me mobile nahi)")
-        if owner:
-            L.append(f"👤 <b>Owner:</b> {hesc(owner)}")
-        if model:
-            L.append(f"🚘 <b>Model:</b> {hesc(model)}")
-        if data.get("rto"):
-            L.append(f"🏢 <b>RTO:</b> {hesc(str(data.get('rto')))}")
-    L.append("")
-    L.append(f"🔢 <b>RC:</b> <code>{hesc(reg)}</code>")
-    if owner and mob:
-        L.append(f"👤 <b>Owner:</b> {hesc(owner)}")
-    L.append("")
-    L.append(f"⚡ <b>Response:</b> {int(res.get('ms') or 0)}ms")
-    L.append(BRAND_LINK)
-    return "\n".join(L)
+        L.append("❌ <b>Mobile DB me nahi hai</b> (sarkari record me mobile nahi)\n\n")
+    L.append(field("👤", "Owner", owner))
+    L.append(field("🚘", "Model", model))
+    L.append(field("🏢", "RTO", data.get("rto")))
+    L.append(sep())
+    L.append(footer(res.get("ms") or 0))
+    return "".join([x for x in L if x])
 
 
 def aadhaar2num_card(res: dict) -> str:
-    """🪪 Aadhaar → Mobile list card; Aadhaar identifiers are always masked."""
+    """🪪 AADHAAR TO NUMBER — owner signature design; Aadhaar hamesha masked."""
     import re
     def _mask_aadhaar(value):
         digits = re.sub(r"\D", "", str(value or ""))
@@ -326,43 +257,40 @@ def aadhaar2num_card(res: dict) -> str:
     records = data.get("data") or data.get("records") or []
     if isinstance(data, list):
         records = data
-    count = data.get("count") or len(records) if isinstance(records, list) else 0
-    L = [f"🪪 <b>AADHAAR TO NUMBER — {hesc(term)}</b>", PCARD_MID, ""]
-    L.append(f"📊 <b>Total Records:</b> {count}")
-    L.append("")
+    count = data.get("count") or (len(records) if isinstance(records, list) else 0)
+    L = [box("🪪", "AADHAAR TO NUMBER"), ""]
+    L.append(f"🔒 <b>Aadhaar:</b> <code>{hesc(term)}</code>\n\n")
+    L.append(f"📊 <b>Total Records:</b> {str(count)}\n\n")
     for i, rec in enumerate(records[:10], 1):
         if not isinstance(rec, dict):
             continue
         name = rec.get("name") or rec.get("fullName") or "—"
+        L.append(f"👤 <b>{i}. {hesc(str(name))}</b>\n\n")
         father = rec.get("fathersName") or rec.get("father") or ""
-        phone = rec.get("phoneNumber") or rec.get("mobile") or rec.get("phone") or ""
-        other = rec.get("otherNumber") or rec.get("alt") or ""
-        addr = rec.get("address") or rec.get("addr") or ""
-        aad = _mask_aadhaar(rec.get("aadharNumber") or rec.get("aadhaar") or term)
-        L.append(f"👤 <b>{i}. {hesc(str(name))}</b>")
         if father:
-            L.append(f"   👨 Father: {hesc(str(father))}")
+            L.append(f"   👨 Father: {hesc(str(father))}\n")
+        phone = rec.get("phoneNumber") or rec.get("mobile") or rec.get("phone") or ""
         if phone:
-            L.append(f"   📱 Phone: <code>{hesc(str(phone))}</code>")
+            L.append(f"   📱 Phone: <code>{hesc(str(phone))}</code>\n")
+        other = rec.get("otherNumber") or rec.get("alt") or ""
         if other:
-            L.append(f"   📱 Alt: <code>{hesc(str(other))}</code>")
-        if aad:
-            L.append(f"   🆔 Aadhaar: <code>{hesc(str(aad))}</code>")
+            L.append(f"   📱 Alt: <code>{hesc(str(other))}</code>\n")
+        aad = _mask_aadhaar(rec.get("aadharNumber") or rec.get("aadhaar") or term)
+        L.append(f"   🆔 Aadhaar: <code>{hesc(str(aad))}</code>\n")
+        addr = rec.get("address") or rec.get("addr") or ""
         if addr:
-            L.append(f"   🏠 {hesc(str(addr)[:160])}")
-        L.append("")
-    if count > len(records):
-        L.append(f"<i>…aur {count - len(records)} aur</i>")
-        L.append("")
-    L.append(f"⚡ <b>Response:</b> {int(res.get('ms') or 0)}ms")
-    L.append(BRAND_LINK)
-    return "\n".join(L)
+            L.append(f"   🏠 {hesc(str(addr)[:160])}\n")
+        L.append("\n")
+    if isinstance(records, list) and count and int(count) > len(records):
+        L.append(f"<i>…aur {int(count) - len(records)} aur</i>\n\n")
+    L.append(sep())
+    L.append(footer(res.get("ms") or 0))
+    return "".join([x for x in L if x])
 
 
 def userapi_card(res: dict, kind: str) -> str:
-    """🚗 RC + CHALLAN + new tools card."""
+    """Tool card dispatcher (rc/v2m/a2n ke dedicated cards + generic fallback)."""
     res = res if isinstance(res, dict) else {}
-    # v127: RC uses vehicle_rc_card
     if kind == "rc":
         try:
             return vehicle_rc_card(res)
@@ -379,88 +307,70 @@ def userapi_card(res: dict, kind: str) -> str:
         except Exception:
             pass
     cfg = uapi.TOOLS.get(kind, {"icon": "🔎", "label": "INFO"})
-    L = [f"{cfg['icon']} <b>{cfg['label']} — {hesc(str(res.get('term') or ''))}</b>",
-         PCARD_MID, ""]
+    L = [box(cfg.get("icon", "🔎"), cfg.get("label", "INFO")), ""]
+    L.append(f"🔍 <b>Query:</b> <code>{hesc(str(res.get('term') or ''))}</code>\n\n")
     for lbl, val in (res.get("fields") or []):
-        L.append(f"{lbl} <b>:</b> {hesc(str(val))}")
+        L.append(f"🔹 {hesc(str(lbl))} <b>:</b> {hesc(str(val))}\n\n")
     extra = res.get("extra") or {}
     if extra:
-        L.append("")
-        L.append("📋 <b>Baaki details:</b>")
+        L.append(subhead("BAAKI DETAILS"))
         for k, v in extra.items():
-            L.append(f"   • <b>{hesc(str(k))}:</b> {hesc(str(v))}")
+            L.append(f"   • <b>{hesc(str(k))}:</b> {hesc(str(v))}\n")
+        L.append("\n")
     _rawt = str(res.get("raw_text") or "").strip()
     if _rawt:
-        L.append("")
-        L.append(f"<pre>{hesc(_rawt[:1500])}</pre>")
-    L.append("")
-    L.append(f"⚡ <b>Response:</b> {int(res.get('ms') or 0)}ms"
-             + ("  ·  <i>cached</i>" if res.get("cached") else ""))
-    L.append(BRAND_LINK)
-    return "\n".join([x for x in L if x is not None])
+        L.append(f"<pre>{hesc(_rawt[:1500])}</pre>\n\n")
+    L.append(sep())
+    L.append(footer(res.get("ms") or 0, "  ·  <i>cached</i>" if res.get("cached") else ""))
+    return "".join([x for x in L if x is not None])
 
 
 def result_card(st: dict, exam_label: str, year) -> str:
-    """📋 RESULT CHECK — BSEB marksheet card (PDF ki jagah saaf text)."""
+    """📋 RESULT CHECK — BSEB marksheet card (owner signature design)."""
     st = st if isinstance(st, dict) else {}
-    L = [f"📋 <b>{hesc(str(exam_label))} — {hesc(str(year))}</b>",
-         PCARD_MID, ""]
-    for lbl, key in (("👤 <b>Naam:</b>", "name"),
-                     ("👨 <b>Pita:</b>", "father"),
-                     ("👩 <b>Mata:</b>", "mother"),
-                     ("🔢 <b>Roll Code:</b>", "roll_code"),
-                     ("🎫 <b>Roll No:</b>", "roll_no"),
-                     ("🪪 <b>Reg. No:</b>", "reg_no"),
-                     ("🏫 <b>School:</b>", "school"),
-                     ("📅 <b>DOB:</b>", "dob"),
-                     ("⚧ <b>Gender:</b>", "gender"),
-                     ("📚 <b>Faculty:</b>", "faculty")):
-        v = st.get(key)
-        if v:
-            L.append(f"{lbl} {hesc(str(v))}")
+    L = [box("📋", f"RESULT CHECK — {str(exam_label)}"), ""]
+    L.append(f"🎓 <b>Year:</b> {hesc(str(year))}\n\n")
+    for icon, lbl, key in (("👤", "Naam", "name"), ("👨", "Pita", "father"),
+                           ("👩", "Mata", "mother"), ("🔢", "Roll Code", "roll_code"),
+                           ("🎫", "Roll No", "roll_no"), ("🪪", "Reg. No", "reg_no"),
+                           ("🏫", "School", "school"), ("📅", "DOB", "dob"),
+                           ("⚧", "Gender", "gender"), ("📚", "Faculty", "faculty")):
+        L.append(field(icon, lbl, st.get(key)))
 
     subs = st.get("subjects") or []
     if subs:
-        L.append("")
-        L.append("📝 <b>SUBJECT-WISE MARKS</b>")
-        L.append(PCARD_MID)
-        for s in subs[:15]:
+        L.append(subhead("SUBJECT-WISE MARKS"))
+        for s_ in subs[:15]:
             try:
-                L.append(bseb._sub_line(s))
+                L.append(bseb._sub_line(s_) + "\n\n")
             except Exception:                                # noqa: BLE001
-                nm = hesc(str(s.get("name") or s.get("subject") or "—"))
-                L.append(f"   • {nm}: {hesc(str(s.get('total') or ''))}")
+                nm = hesc(str(s_.get("name") or s_.get("subject") or "—"))
+                L.append(f"   • {nm}: {hesc(str(s_.get('total') or ''))}\n\n")
 
     def _n(v):
-        """492.0 → 492 (marks me .0 bura lagta hai)."""
         try:
             f = float(v)
             return str(int(f)) if f == int(f) else str(f)
-        except Exception:                                        # noqa: BLE001
+        except Exception:                                    # noqa: BLE001
             return str(v)
 
-    L.append("")
     tot = st.get("total")
     if tot not in (None, ""):
         full = st.get("full_marks") or st.get("out_of")
-        L.append(f"🏆 <b>Total:</b>     {hesc(_n(tot))}"
-                 + (f" / {hesc(_n(full))}" if full else ""))
-    for lbl, key in (("📊 <b>Percent:</b>", "percent"),
-                     ("🥇 <b>Division:</b>", "division"),
-                     ("✅ <b>Result:</b>", "result_status")):
-        v = st.get(key)
-        if v:
-            L.append(f"{lbl}   {hesc(str(v))}")
+        L.append(f"🏆 <b>Total:</b> {_n(tot)}" + (f" / {_n(full)}" if full else "") + "\n\n")
+    for icon, lbl, key in (("📊", "Percent", "percent"), ("🥇", "Division", "division"),
+                           ("✅", "Result", "result_status")):
+        L.append(field(icon, lbl, st.get(key)))
     if st.get("is_topper"):
-        L.append("🌟 <b>TOPPER!</b> 🎉")
+        L.append("🌟 <b>TOPPER!</b> 🎉\n\n")
 
-    L.append("")
     try:
-        L.append(bseb.MEDIA_NOTE)
+        L.append(str(bseb.MEDIA_NOTE) + "\n\n")
     except Exception:                                        # noqa: BLE001
         pass
-    L.append(BRAND_LINK)
-    return "\n".join([x for x in L if x is not None])
+    L.append(sep())
+    L.append(footer(0))
+    return "".join([x for x in L if x])
 
 
 def result_pick_text() -> str:

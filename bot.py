@@ -1,32 +1,21 @@
 """
-🚀 OSINT Hunter Hub - @osint_hunter_hub_bot
-Advanced High-Level OSINT Tools Hub - 11 Tools
+🚀 OSINT Hunter Hub - @ANONYMOUS_XH (brand) / bot: OSINT Hunter Hub
+10 PRO TOOLS — sab apne OWN utility-api gateway se (never-expire, env-swappable)
 
 Owner: private admin account
 Force Channel: -1004393596502 @osint_xpert
 Repo: savecontentrestricted-pixel/osint
 
-This is ADVANCED version - no one's bot has this level code:
-- Max data extraction
-- Beautiful formatting with spaces, emojis, styles
-- Force join channel
-- FloodWait protection
-- Export JSON/CSV/PDF
-- 11 Tools in one bot
+Tools (menu = har row 2 buttons, DARK math-bold labels):
+ 1. 📱 NUMBER INFO         2. 🆔 TELEGRAM NUMBER
+ 3. 👪 FAMILY INFO         4. 🚗 RC + CHALLAN (E-CHALLAN merged inside)
+ 5. 📲 VEHICLE TO NUMBER   6. 🪪 AADHAAR TO NUMBER
+ 7. 📞 BUSINESS INFO       8. 📋 RESULT CHECK
+ 9. 🌐 WEBSITE EXTRACTOR  10. ❓ HELP (+ 👑 PREMIUM / 📊 MY PLAN non-tools)
 
-Tools:
-1. Telegram Channel Scraper (Advanced)
-2. Instagram OSINT
-3. Email OSINT
-4. IP & Domain Recon
-5. Image EXIF Forensics
-6. Social Media Security Checker
-7. Number Info (Same as utility-duniya-bot)
-8. TG Tools (Telegram + Pak Number)
-9. OCR Extractor (Image to Text)
-10. Website Extractor (Email/Phone/Links/Meta)
-11. Excel to PDF + File Converter Hub
+Design: modules/cardstyle.py — box ╔═╗ + mathematical bold + spaced fields.
 """
+
 
 import os
 import asyncio
@@ -234,15 +223,15 @@ from telegram.constants import ChatAction, ParseMode
 from telegram.error import BadRequest
 
 # ========== GRID MENU - 6 TOOLS + PREMIUM + ADMIN (v2.5.3: 4 tools DELETE) ==========
+from modules.cardstyle import ubold, from_bold   # stdlib-only — KB_BTNS labels yahin bante hain
+
 KB_BTNS = [
-    ["📱 NUMBER INFO", "🆔 TELEGRAM NUMBER"],
-    ["👪 FAMILY INFO", "🇵🇰 PAK NUMBER"],
-    ["🚗 RC + CHALLAN", "📲 VEHICLE TO NUMBER"],
-    ["🪪 AADHAAR TO NUMBER"],
-    ["🗼 TOWER LOCATION", "📑 E-CHALLAN", "🏷️ FASTAG"],
-    ["📋 RESULT CHECK", "🌐 IP/DOMAIN RECON"],
-    ["🌐 WEBSITE EXTRACTOR", "👑 PREMIUM"],
-    ["📊 MY PLAN"],
+    ["📱 " + ubold("NUMBER INFO"), "🆔 " + ubold("TELEGRAM NUMBER")],
+    ["👪 " + ubold("FAMILY INFO"), "🚗 " + ubold("RC + CHALLAN")],
+    ["📲 " + ubold("VEHICLE TO NUMBER"), "🪪 " + ubold("AADHAAR TO NUMBER")],
+    ["📞 " + ubold("BUSINESS INFO"), "📋 " + ubold("RESULT CHECK")],
+    ["🌐 " + ubold("WEBSITE EXTRACTOR"), "👑 " + ubold("PREMIUM")],
+    ["📊 " + ubold("MY PLAN"), "❓ " + ubold("HELP")],
 ]
 
 
@@ -273,13 +262,6 @@ def kb_for(uid: int):
 
 # Button text -> internal mode mapping - 9 TOOLS
 BTN_MODE_MAP = {
-    "IP/DOMAIN RECON": "ip",
-    "IP DOMAIN": "ip",
-    "IP RECON": "ip",
-    "DOMAIN RECON": "domain",
-    "DOMAIN": "domain",
-    "IP INFO": "ip",
-    "IP": "ip",
     "NUMBER INFO": "numinfo",
     "NUMBER INFO V2 ENGINE": "numinfo",
     "NUMBER": "numinfo",
@@ -305,6 +287,7 @@ BTN_MODE_MAP = {
     "BUY PREMIUM": "premium",
     "MY PLAN": "myplan",
     "MYPLAN": "myplan",
+    "HELP": "help", "❓ HELP": "help",
     "ADMIN PANEL": "admin_panel",
     "ADMIN": "admin_panel",
     # v2.6 — bot-1 se port tools
@@ -314,21 +297,12 @@ BTN_MODE_MAP = {
     "AADHAAR TO NUMBER": "a2n", "AADHAAR TO MOBILE": "a2n", "AADHAAR2NUM": "a2n",
     "AADHAR TO NUMBER": "a2n",
     "RESULT CHECK": "result", "RESULT": "result", "BSEB": "result",
-    "PAK NUMBER": "pak", "PAKISTAN NUMBER": "pak", "PAK NUM": "pak", "PAKNUM": "pak",
-    # v2.8 — gateway-first NEW tools (tower / e-challan / fastag)
-    "TOWER LOCATION": "tower", "TOWER TRACE": "tower", "TOWER": "tower",
-    "E-CHALLAN": "echallan", "ECHALLAN": "echallan", "E CHALLAN": "echallan",
-    "CHALLAN INFO": "echallan",
-    "FASTAG": "fastag", "FASTAG INFO": "fastag",
+    "BUSINESS INFO": "phonebiz", "BUSINESS": "phonebiz", "PHONE BUSINESS": "phonebiz",
+    "LANDLINE": "phonebiz", "PHONE INFO": "phonebiz",
 }
 
 # Prompt texts for grid tools - 9 TOOLS CLEAN, NO COMMANDS, ULTRA ADVANCED
 GRID_PROMPTS = {
-    "ip": {
-        "head": "🌐 IP/DOMAIN RECON",
-        "ask": "IP ya Domain bhejein:",
-        "ex": "8.8.8.8",
-    },
     "numinfo": {
         "head": "📱 NUMBER INFO V2 ENGINE",
         "ask": "10 Digit Number bhejein:",
@@ -385,39 +359,24 @@ GRID_PROMPTS = {
         "ask": "12-digit Aadhaar bhejein (Aadhaar → Mobile list):",
         "ex": "401635555849",
     },
-    "pak": {
-        "head": "🇵🇰 PAK NUMBER / CNIC",
-        "ask": "Pak mobile number ya 13-digit CNIC bhejein:",
-        "ex": "03406955998",
-    },
     # v2.8 — gateway-first NEW tools
-    "tower": {
-        "head": "🗼 TOWER LOCATION",
-        "ask": "10 Digit Mobile Number bhejein:",
-        "ex": "6205923286",
-    },
-    "echallan": {
-        "head": "📑 E-CHALLAN (Parivahan)",
-        "ask": "Gaadi ka number bhejein:",
-        "ex": "DL8CAB1234",
-    },
-    "fastag": {
-        "head": "🏷️ FASTAG INFO",
-        "ask": "Gaadi ka number bhejein:",
-        "ex": "RJ14CV0002",
+    "phonebiz": {
+        "head": "📞 BUSINESS INFO",
+        "ask": "Phone / Landline number bhejein:",
+        "ex": "01129523401",
     },
 }
 
 import config
-from modules.ip_domain_recon import ip_lookup, dns_lookup, whois_lookup, ssl_check, full_recon
 from modules.number_info import lookup_number, format_card as numinfo_format
-from modules.telegram_tools import lookup_tg, lookup_pak, format_tg_card, format_pak_card
+from modules.telegram_tools import lookup_tg, format_tg_card
 from modules.website_extractor import website_extractor
 from modules.pdf_renamer import rename_pdf_filename, batch_rename, HACKER_NAME, OWNER_ID as PDF_OWNER_ID
 from modules.family_info import lookup_family, format_family_card
-# v2.8 (USER ORDER 23 Oct): gateway-first NEW tools — tower / e-challan / fastag
-from modules.gw_tools import (lookup_tower, lookup_echallan, lookup_fastag,
-                              format_tower_card, format_echallan_card, format_fastag_card)
+# v2.12 — 10-tool hub: sab tools gateway-first (num/tg/family/rc/v2m/a2m/phonebiz)
+from modules.cardstyle import box, sep
+from modules.gw_tools import (lookup_echallan, lookup_phonebiz,
+                              format_phonebiz_card)
 # v2.6 — bot-1 (@utility_duniya_bot) se port: RC/CHALLAN, VEHICLE TO NUMBER,
 # AADHAAR TO NUMBER, BSEB RESULT CHECK
 from modules import userapi as uapi
@@ -979,7 +938,7 @@ async def handle_grid_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
         if not await check_force_join(update, context):
             return
         
-        text = update.message.text.strip()
+        text = from_bold(update.message.text or "").strip()
         print(f"GRID BUTTON PRESSED: '{text}' from user {update.effective_user.id}")
         # Clean emoji and get mode - robust for ALL emojis
         clean_text = text
@@ -1129,9 +1088,9 @@ async def handle_grid_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
             head = prompt['head']
             if " " in head:
                 icon, rest = head.split(" ", 1)
-                header_line = f"{icon} <b>{rest}</b>"
+                header_line = f"{icon} {ubold(rest)}"
             else:
-                header_line = f"<b>{head}</b>"
+                header_line = f"{ubold(head)}"
             
             txt = f"""
 {header_line}
@@ -1171,12 +1130,8 @@ async def handle_grid_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 # Could be telegram username
                 if raw.startswith("@"):
                     current_mode = "tgtools"
-            elif "." in raw and ("http" in raw or "/" not in raw):
-                # domain or website
-                if raw.startswith("http"):
-                    current_mode = "wextract"
-                elif "." in raw and " " not in raw and len(raw) > 3:
-                    current_mode = "ip"
+            elif raw.startswith("http") and "." in raw:
+                current_mode = "wextract"
         
         if not current_mode:
             # No mode and can't auto-detect, ignore (or show menu)
@@ -1196,14 +1151,6 @@ async def handle_grid_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
         elif current_mode == "tgtools":
             context.args = [text]
             await tg_number_cmd(update, context)
-        elif current_mode == "ip" or current_mode == "domain":
-            # Check if IP or domain
-            if "." in text and text.replace(".","").replace(":","").replace("/","").isdigit() or text.count(".")==3:
-                context.args = [text]
-                await ip_cmd(update, context)
-            else:
-                context.args = [text]
-                await domain_cmd(update, context)
         elif current_mode == "wextract":
             context.args = [text]
             await website_extract_cmd(update, context)
@@ -1215,18 +1162,9 @@ async def handle_grid_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await uapi_tool_cmd(current_mode, update, context)
         elif current_mode == "result":
             await bseb_step2(update, context, text)
-        elif current_mode == "pak":
+        elif current_mode == "phonebiz":
             context.args = [text]
-            await pak_number_cmd(update, context)
-        elif current_mode == "tower":
-            context.args = [text]
-            await tower_cmd(update, context)
-        elif current_mode == "echallan":
-            context.args = [text]
-            await echallan_cmd(update, context)
-        elif current_mode == "fastag":
-            context.args = [text]
-            await fastag_cmd(update, context)
+            await phonebiz_cmd(update, context)
         elif current_mode == "pdf_rename":
             await update.message.reply_text(
                 f"📚 <b>PDF RENAMER Mode ON</b>\n\n"
@@ -1252,57 +1190,21 @@ async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_force_join(update, context):
         return
 
-    txt = """
-╔══════════════════════════════════════╗
-║  📖 <b>OSINT Hunter Hub - 7 PRO TOOLS</b>  ║
-╚══════════════════════════════════════╝
-
-<b>━━━━━━━━ Tool 1: Number Info ━━━━━━━━</b>
-10 Digit Number bhejein: 7857843092
-→ Name, Father, Address, Circle, Aadhaar masked
-
-<b>━━━━━━━━ Tool 2: TG Tools ━━━━━━━━</b>
-Telegram username bhejein: @Perfectamit65
-→ Telegram ID + Mobile info
-
-<b>━━━━━━━━ Tool 3: IP/Domain ━━━━━━━━</b>
-IP ya Domain bhejein: 8.8.8.8
-→ IP + VPN + Maps + WHOIS + SSL
-
-<b>━━━━━━━━ Tool 4: Website Extractor ━━━━━━━━</b>
-Website URL bhejein: https://example.com
-→ Emails + Phones + Links + Meta
-
-<b>━━━━━━━━ Tool 5: JS Secret Finder (PRO) ━━━━━━━━</b>
-Website URL bhejein: https://example.com
-→ JS files se API keys, endpoints, secrets
-→ Bug bounty ke liye best, kisi bot me nahi!
-
-<b>━━━━━━━━ Tool 6: GitHub Leak Hunter (PRO) ━━━━━━━━</b>
-Keyword bhejein: example.com
-→ GitHub public repos me leak search
-→ API keys, passwords leak check
-
-<b>━━━━━━━━ Tool 7: PDF Renamer (Private) ━━━━━━━━</b>
-PDF bhejo, Vivid -> 卄卂匚K乇尺
-→ Batch 10 PDFs
-→ Owner only
-
-<b>━━━━━━━━ NEW: Gateway Pro ━━━━━━━━</b>
-🗼 <code>/tower 6205923286</code>
-→ Tower location + map (live track)
-📑 <code>/echallan DL8CAB1234</code>
-→ Parivahan challan list + total amount
-🏷 <code>/fastag RJ14CV0002</code>
-→ FASTAG tags — bank, status, issue date
-
-<b>🛡️ Safety:</b>
-• Force join: @osint_xpert
-• Owner: @ANONYMOUS_XH
-
-/start se grid dekho - Clean, no commands!
-"""
-
+    txt = box("📖", "OSINT HUNTER HUB — 10 PRO TOOLS")
+    txt += "📱 <b>NUMBER INFO</b> — <code>/numinfo 7857843092</code>\n\n"
+    txt += "🆔 <b>TELEGRAM NUMBER</b> — <code>/tgnum @username</code>\n\n"
+    txt += "👪 <b>FAMILY INFO</b> — <code>/family 401635555849</code>\n\n"
+    txt += "🚗 <b>RC + CHALLAN</b> — <code>/rc BR30AR0802</code>\n"
+    txt += "   ↳ E-Challan details bhi usi card mein\n\n"
+    txt += "📲 <b>VEHICLE TO NUMBER</b> — <code>/vehicle KL41V3504</code>\n\n"
+    txt += "🪪 <b>AADHAAR TO NUMBER</b> — <code>/aadhaar2num 401635555849</code>\n\n"
+    txt += "📑 <b>E-CHALLAN</b> — RC + CHALLAN ke andar (auto)\n\n"
+    txt += "📞 <b>BUSINESS INFO</b> — <code>/biz 01129523401</code>\n\n"
+    txt += "📋 <b>RESULT CHECK</b> — <code>/result</code> (BSEB)\n\n"
+    txt += "🌐 <b>WEBSITE EXTRACTOR</b> — <code>/wextract https://example.com</code>\n\n"
+    txt += sep()
+    txt += "<b>🛡️ Safety:</b>\n• Force join: @osint_xpert\n• Owner: @ANONYMOUS_XH\n\n"
+    txt += "/start se grid menu kholo."
     await update.message.reply_text(txt, parse_mode=ParseMode.HTML)
 
 # ========== NUMBER INFO ==========
@@ -1511,6 +1413,14 @@ async def uapi_tool_cmd(mode: str, update: Update, context: ContextTypes.DEFAULT
         # USER ORDER: fail = sirf ek line
         await status.edit_text(NF2, parse_mode=ParseMode.HTML)
         return
+    if mode == "rc" and isinstance(result, dict) and result.get("ok"):
+        # Owner order: RC + CHALLAN card ke ANDAR E-CHALLAN (Parivahan) details
+        try:
+            _cl = await _run_with_typing(update, context, asyncio.to_thread(lookup_echallan, term))
+            if isinstance(_cl, dict) and _cl.get("ok"):
+                result["e_challan"] = _cl.get("data") or {}
+        except Exception:
+            pass
     try:
         txt = userapi_card(result, kind)
     except Exception:
@@ -1681,82 +1591,11 @@ async def tg_number_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await status.edit_text(NF2, parse_mode=ParseMode.HTML)
 
-async def pak_number_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await check_force_join(update, context):
-        return
-    uid = update.effective_user.id
-    can_use, creds, user = can_use_tool(uid)
-    if not can_use:
-        await update.message.reply_text(format_credits_over("pak_number_cmd"), parse_mode=ParseMode.HTML)
-        return
-    if not context.args:
-        await update.message.reply_text("❌ Use: <code>/paknum 03001234567</code>", parse_mode=ParseMode.HTML)
-        return
-
-    num = context.args[0]
-    status = await update.message.reply_text(WAIT2, parse_mode=ParseMode.HTML)
-
-    _t0 = time.time()
-    try:
-        result = await _run_with_typing(update, context, asyncio.to_thread(lookup_pak, num))
-        try:
-            print(f"[TIMING] pak {int((time.time()-_t0)*1000)}ms ok={result.get('ok')} cached={result.get('cached', False)}", flush=True)
-        except Exception:
-            pass
-        if not result.get("ok"):
-            try:
-                left = spend_credits(uid, 1)
-                txt += f"\n{credits_line(uid)}"
-            except:
-                pass
-            await status.edit_text(NF2, parse_mode=ParseMode.HTML)
-            return
-
-        data = result.get("data", {})
-        ms = result.get("ms",0)
-
-        txt = f"""
-╔══════════════════════════════════════╗
-║  🇵🇰 <b>PAK NUMBER INFO</b>               ║
-╚══════════════════════════════════════╝
-
-📱 <b>Number:</b> <code>{num}</code>
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-"""
-
-        if isinstance(data, dict):
-            for k,v in list(data.items())[:15]:
-                if v and str(v).lower() not in ("na","none","null",""):
-                    txt += f"🔹 <b>{k}:</b> {str(v)[:200]}\n\n"
-
-        txt += f"""
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-⚡ <b>Response:</b> {ms}ms
-🔥 <b>Powered by @ANONYMOUS_XH</b>
-"""
-
-        try:
-            left = spend_credits(uid, 1)
-            txt += f"\n{credits_line(uid)}"
-        except:
-            pass
-        await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
-
-    except Exception as e:
-        try:
-            left = spend_credits(uid, 1)
-            txt += f"\n{credits_line(uid)}"
-        except:
-            pass
-        await status.edit_text(NF2, parse_mode=ParseMode.HTML)
 
 # ========== TELEGRAM SCRAPER ==========
 # ========== INSTAGRAM ==========
 # ========== EMAIL ==========
-# ========== v2.8 — TOWER / E-CHALLAN / FASTAG (own gateway first) ==========
+# ========== 📞 PHONE → BUSINESS (own gateway) ==========
 def _m(v) -> str:
     """Error message HTML-escape (ParseMode.HTML na toote)."""
     try:
@@ -1766,24 +1605,24 @@ def _m(v) -> str:
         return str(v or "")
 
 
-async def tower_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """🗼 Tower location — gateway tool=tower (viraj source, env-swappable)."""
+async def phonebiz_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """📞 Phone → Business — gateway tool=phonebiz (owner's local 1.72M index)."""
     if not await check_force_join(update, context):
         return
     uid = update.effective_user.id
     can_use, creds, user = can_use_tool(uid)
     if not can_use:
-        await update.message.reply_text(format_credits_over("Tower Location"), parse_mode=ParseMode.HTML)
+        await update.message.reply_text(format_credits_over("Business Info"), parse_mode=ParseMode.HTML)
         return
     if not context.args:
         try:
-            context.user_data["mode"] = "tower"
+            context.user_data["mode"] = "phonebiz"
         except Exception:
             pass
         await update.message.reply_text(
-            f"❌ <b>Use:</b> <code>/tower 6205923286</code>\n\n"
-            f"🗼 Mobile number se tower/tracking location + map\n"
-            f"🔗 Aliases: <code>/towerlocation</code> · <code>/trace</code>\n\n"
+            f"❌ <b>Use:</b> <code>/biz 01129523401</code>\n\n"
+            f"📞 Phone/landline → business: naam, address, city, email\n"
+            f"🔗 Aliases: <code>/phonebiz</code> · <code>/business</code> · <code>/landline</code>\n\n"
             f"{credits_line(uid)}",
             parse_mode=ParseMode.HTML
         )
@@ -1793,109 +1632,15 @@ async def tower_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     status = await update.message.reply_text(WAIT2, parse_mode=ParseMode.HTML)
     _t0 = time.time()
     try:
-        result = await _run_with_typing(update, context, asyncio.to_thread(lookup_tower, term))
+        result = await _run_with_typing(update, context, asyncio.to_thread(lookup_phonebiz, term))
         try:
-            print(f"[TIMING] tower {int((time.time()-_t0)*1000)}ms ok={result.get('ok')} cached={result.get('cached', False)}", flush=True)
+            print(f"[TIMING] phonebiz {int((time.time()-_t0)*1000)}ms ok={result.get('ok')} cached={result.get('cached', False)}", flush=True)
         except Exception:
             pass
         if not result.get("ok"):
             await status.edit_text(f"❌ {_m(result.get('error'))}", parse_mode=ParseMode.HTML)
             return
-        txt = format_tower_card(result)
-        try:
-            left = spend_credits(uid, 1)
-            txt += f"\n{credits_line(uid)}"
-        except Exception:
-            pass
-        await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
-    except Exception as e:
-        logger.exception(e)
-        await status.edit_text(NF2, parse_mode=ParseMode.HTML)
-
-
-async def echallan_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """📑 E-Challan (Parivahan) — gateway tool=challan (ansh source, env-swappable)."""
-    if not await check_force_join(update, context):
-        return
-    uid = update.effective_user.id
-    can_use, creds, user = can_use_tool(uid)
-    if not can_use:
-        await update.message.reply_text(format_credits_over("E-Challan"), parse_mode=ParseMode.HTML)
-        return
-    if not context.args:
-        try:
-            context.user_data["mode"] = "echallan"
-        except Exception:
-            pass
-        await update.message.reply_text(
-            f"❌ <b>Use:</b> <code>/echallan DL8CAB1234</code>\n\n"
-            f"📑 Gaadi number se saare Parivahan challan + amount\n"
-            f"🔗 Aliases: <code>/challaninfo</code>\n\n"
-            f"{credits_line(uid)}",
-            parse_mode=ParseMode.HTML
-        )
-        return
-
-    term = context.args[0]
-    status = await update.message.reply_text(WAIT2, parse_mode=ParseMode.HTML)
-    _t0 = time.time()
-    try:
-        result = await _run_with_typing(update, context, asyncio.to_thread(lookup_echallan, term))
-        try:
-            print(f"[TIMING] echallan {int((time.time()-_t0)*1000)}ms ok={result.get('ok')} cached={result.get('cached', False)}", flush=True)
-        except Exception:
-            pass
-        if not result.get("ok"):
-            await status.edit_text(f"❌ {_m(result.get('error'))}", parse_mode=ParseMode.HTML)
-            return
-        txt = format_echallan_card(result)
-        try:
-            left = spend_credits(uid, 1)
-            txt += f"\n{credits_line(uid)}"
-        except Exception:
-            pass
-        await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
-    except Exception as e:
-        logger.exception(e)
-        await status.edit_text(NF2, parse_mode=ParseMode.HTML)
-
-
-async def fastag_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """🏷️ FASTAG info — gateway tool=fastag (abhigyan source, env-swappable)."""
-    if not await check_force_join(update, context):
-        return
-    uid = update.effective_user.id
-    can_use, creds, user = can_use_tool(uid)
-    if not can_use:
-        await update.message.reply_text(format_credits_over("FASTAG Info"), parse_mode=ParseMode.HTML)
-        return
-    if not context.args:
-        try:
-            context.user_data["mode"] = "fastag"
-        except Exception:
-            pass
-        await update.message.reply_text(
-            f"❌ <b>Use:</b> <code>/fastag RJ14CV0002</code>\n\n"
-            f"🏷️ Gaadi number se FASTAG tags — bank, status, issue date\n"
-            f"🔗 Aliases: <code>/fastaginfo</code>\n\n"
-            f"{credits_line(uid)}",
-            parse_mode=ParseMode.HTML
-        )
-        return
-
-    term = context.args[0]
-    status = await update.message.reply_text(WAIT2, parse_mode=ParseMode.HTML)
-    _t0 = time.time()
-    try:
-        result = await _run_with_typing(update, context, asyncio.to_thread(lookup_fastag, term))
-        try:
-            print(f"[TIMING] fastag {int((time.time()-_t0)*1000)}ms ok={result.get('ok')} cached={result.get('cached', False)}", flush=True)
-        except Exception:
-            pass
-        if not result.get("ok"):
-            await status.edit_text(f"❌ {_m(result.get('error'))}", parse_mode=ParseMode.HTML)
-            return
-        txt = format_fastag_card(result)
+        txt = format_phonebiz_card(result)
         try:
             left = spend_credits(uid, 1)
             txt += f"\n{credits_line(uid)}"
@@ -1907,356 +1652,7 @@ async def fastag_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await status.edit_text(NF2, parse_mode=ParseMode.HTML)
 
 # ========== IP & DOMAIN ==========
-async def ip_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await check_force_join(update, context):
-        return
-    uid = update.effective_user.id
-    can_use, creds, user = can_use_tool(uid)
-    if not can_use:
-        await update.message.reply_text(format_credits_over("ip_cmd"), parse_mode=ParseMode.HTML)
-        return
-    if not context.args:
-        await update.message.reply_text("❌ Use: <code>/ip 8.8.8.8</code> or <code>/ip google.com</code>", parse_mode=ParseMode.HTML)
-        return
 
-    target = context.args[0]
-    status = await update.message.reply_text(WAIT2, parse_mode=ParseMode.HTML)
-
-    try:
-        result = await _run_with_typing(update, context, asyncio.to_thread(ip_lookup, target))
-        if not result.get("ok"):
-            try:
-                left = spend_credits(uid, 1)
-                txt += f"\n{credits_line(uid)}"
-            except:
-                pass
-            await status.edit_text(f"❌ {result.get('error')}", parse_mode=ParseMode.HTML)
-            return
-
-        txt = f"""
-╔══════════════════════════════════════╗
-║  🌐 <b>IP RECON</b>                      ║
-╚══════════════════════════════════════╝
-
-🌐 <b>IP:</b> <code>{result.get('ip')}</code>
-
-📍 <b>Location:</b>
-
-• City: {result.get('city')}
-
-• Region: {result.get('region')}
-
-• Country: {result.get('country')} ({result.get('continent')})
-
-• Zip: {result.get('zip')}
-
-• Timezone: {result.get('timezone')}
-
-🗺️ <b>Coords:</b> {result.get('lat')}, {result.get('lon')}
-
-🔗 <b>Google Maps:</b> {result.get('google_maps')}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-🏢 <b>ISP:</b> {result.get('isp')}
-
-🏛️ <b>Org:</b> {result.get('org')}
-
-🔢 <b>AS:</b> {result.get('as')}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-🛡️ <b>Security:</b>
-
-• Is Proxy: {result.get('is_proxy')}
-
-• Is Hosting: {result.get('is_hosting')}
-
-• VPN/Proxy Detected: {result.get('is_vpn_proxy')}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-🔁 <b>Reverse DNS:</b> {result.get('reverse_dns') or 'N/A'}
-
-🔥 Powered by @ANONYMOUS_XH
-"""
-
-        try:
-            left = spend_credits(uid, 1)
-            txt += f"\n{credits_line(uid)}"
-        except:
-            pass
-        await status.edit_text(txt, parse_mode=ParseMode.HTML)
-
-    except Exception as e:
-        try:
-            left = spend_credits(uid, 1)
-            txt += f"\n{credits_line(uid)}"
-        except:
-            pass
-        await status.edit_text(NF2, parse_mode=ParseMode.HTML)
-
-async def domain_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await check_force_join(update, context):
-        return
-    uid = update.effective_user.id
-    can_use, creds, user = can_use_tool(uid)
-    if not can_use:
-        await update.message.reply_text(format_credits_over("domain_cmd"), parse_mode=ParseMode.HTML)
-        return
-    if not context.args:
-        await update.message.reply_text("❌ Use: <code>/domain google.com</code>", parse_mode=ParseMode.HTML)
-        return
-
-    target = context.args[0]
-    status = await update.message.reply_text(WAIT2, parse_mode=ParseMode.HTML)
-
-    try:
-        result = await _run_with_typing(update, context, asyncio.to_thread(full_recon, target))
-        if result.get("type") == "ip":
-            ip_info = result.get("ip_info", {})
-            try:
-                left = spend_credits(uid, 1)
-                txt += f"\n{credits_line(uid)}"
-            except:
-                pass
-            await status.edit_text(f"IP detected, use /ip command. Info: {ip_info}", parse_mode=ParseMode.HTML)
-            return
-
-        dns_info = result.get("dns", {})
-        whois_info = result.get("whois", {})
-        ssl_info = result.get("ssl", {})
-        ip_info = result.get("ip_info", {})
-
-        txt = f"""
-╔══════════════════════════════════════╗
-║  🌐 <b>DOMAIN RECON</b>                  ║
-╚══════════════════════════════════════╝
-
-🌐 <b>Domain:</b> {result.get('target')}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-<b>--- DNS ---</b>
-
-• A: {', '.join(dns_info.get('records',{}).get('A',[])[:2]) if isinstance(dns_info.get('records',{}).get('A'), list) else dns_info.get('records',{}).get('A')}
-
-• MX: {', '.join(dns_info.get('records',{}).get('MX',[])[:2]) if isinstance(dns_info.get('records',{}).get('MX'), list) else 'N/A'}
-
-• NS: {', '.join(dns_info.get('records',{}).get('NS',[])[:2]) if isinstance(dns_info.get('records',{}).get('NS'), list) else 'N/A'}
-
-• IP: {dns_info.get('ip') or 'N/A'}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-<b>--- WHOIS ---</b>
-
-• Registrar: {whois_info.get('registrar') or 'N/A'}
-
-• Created: {whois_info.get('creation_date') or 'N/A'}
-
-• Expires: {whois_info.get('expiration_date') or 'N/A'}
-
-• NS: {', '.join(whois_info.get('name_servers',[])[:2]) if whois_info.get('name_servers') else 'N/A'}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-<b>--- SSL ---</b>
-
-• Issuer: {ssl_info.get('issuer') or 'N/A'}
-
-• Subject: {ssl_info.get('subject') or 'N/A'}
-
-• From: {ssl_info.get('not_before') or 'N/A'}
-
-• To: {ssl_info.get('not_after') or 'N/A'}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-<b>--- IP Info ---</b>
-
-• IP: {ip_info.get('ip') if ip_info and ip_info.get('ok') else 'N/A'}
-
-• Location: {ip_info.get('city') if ip_info and ip_info.get('ok') else 'N/A'}, {ip_info.get('country') if ip_info and ip_info.get('ok') else ''}
-
-• ISP: {ip_info.get('isp') if ip_info and ip_info.get('ok') else 'N/A'}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-🔥 Powered by @ANONYMOUS_XH
-"""
-
-        try:
-            left = spend_credits(uid, 1)
-            txt += f"\n{credits_line(uid)}"
-        except:
-            pass
-        await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
-
-    except Exception as e:
-        logger.exception(e)
-        try:
-            left = spend_credits(uid, 1)
-            txt += f"\n{credits_line(uid)}"
-        except:
-            pass
-        await status.edit_text(NF2, parse_mode=ParseMode.HTML)
-
-async def dns_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await check_force_join(update, context):
-        return
-    uid = update.effective_user.id
-    can_use, creds, user = can_use_tool(uid)
-    if not can_use:
-        await update.message.reply_text(format_credits_over("dns_cmd"), parse_mode=ParseMode.HTML)
-        return
-    if not context.args:
-        await update.message.reply_text("❌ Use: <code>/dns google.com</code>", parse_mode=ParseMode.HTML)
-        return
-
-    target = context.args[0]
-    status = await update.message.reply_text(WAIT2, parse_mode=ParseMode.HTML)
-
-    try:
-        result = await _run_with_typing(update, context, asyncio.to_thread(dns_lookup, target))
-        txt = f"🌐 <b>DNS for {result.get('domain')}</b>\n\n"
-        for k, v in result.get("records", {}).items():
-            txt += f"<b>{k}:</b> {', '.join(v) if isinstance(v, list) else v}\n\n"
-        try:
-            left = spend_credits(uid, 1)
-            txt += f"\n{credits_line(uid)}"
-        except:
-            pass
-        await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
-
-    except Exception as e:
-        try:
-            left = spend_credits(uid, 1)
-            txt += f"\n{credits_line(uid)}"
-        except:
-            pass
-        await status.edit_text(NF2, parse_mode=ParseMode.HTML)
-
-async def whois_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await check_force_join(update, context):
-        return
-    uid = update.effective_user.id
-    can_use, creds, user = can_use_tool(uid)
-    if not can_use:
-        await update.message.reply_text(format_credits_over("whois_cmd"), parse_mode=ParseMode.HTML)
-        return
-    if not context.args:
-        await update.message.reply_text("❌ Use: <code>/whois google.com</code>", parse_mode=ParseMode.HTML)
-        return
-
-    target = context.args[0]
-    status = await update.message.reply_text(WAIT2, parse_mode=ParseMode.HTML)
-
-    try:
-        result = await _run_with_typing(update, context, asyncio.to_thread(whois_lookup, target))
-        if not result.get("ok"):
-            try:
-                left = spend_credits(uid, 1)
-                txt += f"\n{credits_line(uid)}"
-            except:
-                pass
-            await status.edit_text(f"❌ {result.get('error')}", parse_mode=ParseMode.HTML)
-            return
-
-        if result.get("raw_whois"):
-            txt = f"📜 <b>WHOIS {target}</b>\n\n<pre>{result.get('raw_whois')[:3000]}</pre>"
-        else:
-            txt = f"""
-📜 <b>WHOIS {target}</b>
-
-• Registrar: {result.get('registrar')}
-
-• Created: {result.get('creation_date')}
-
-• Expires: {result.get('expiration_date')}
-
-• Updated: {result.get('updated_date')}
-
-• NS: {result.get('name_servers')}
-
-• Status: {result.get('status')}
-
-• Org: {result.get('org')}
-
-• Country: {result.get('country')}
-"""
-
-        try:
-            left = spend_credits(uid, 1)
-            txt += f"\n{credits_line(uid)}"
-        except:
-            pass
-        await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
-
-    except Exception as e:
-        try:
-            left = spend_credits(uid, 1)
-            txt += f"\n{credits_line(uid)}"
-        except:
-            pass
-        await status.edit_text(NF2, parse_mode=ParseMode.HTML)
-
-async def ssl_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await check_force_join(update, context):
-        return
-    uid = update.effective_user.id
-    can_use, creds, user = can_use_tool(uid)
-    if not can_use:
-        await update.message.reply_text(format_credits_over("ssl_cmd"), parse_mode=ParseMode.HTML)
-        return
-    if not context.args:
-        await update.message.reply_text("❌ Use: <code>/ssl google.com</code>", parse_mode=ParseMode.HTML)
-        return
-
-    target = context.args[0]
-    status = await update.message.reply_text(WAIT2, parse_mode=ParseMode.HTML)
-
-    try:
-        result = await _run_with_typing(update, context, asyncio.to_thread(ssl_check, target))
-        if not result.get("ok"):
-            try:
-                left = spend_credits(uid, 1)
-                txt += f"\n{credits_line(uid)}"
-            except:
-                pass
-            await status.edit_text(f"❌ {result.get('error')}", parse_mode=ParseMode.HTML)
-            return
-
-        txt = f"""
-🔒 <b>SSL for {target}</b>
-
-• Issuer: {result.get('issuer')}
-
-• Subject: {result.get('subject')}
-
-• From: {result.get('not_before')}
-
-• To: {result.get('not_after')}
-
-• Serial: {result.get('serial_number')}
-
-• SAN: {', '.join(result.get('san',[])[:5])}
-"""
-
-        try:
-            left = spend_credits(uid, 1)
-            txt += f"\n{credits_line(uid)}"
-        except:
-            pass
-        await status.edit_text(txt, parse_mode=ParseMode.HTML)
-
-    except Exception as e:
-        try:
-            left = spend_credits(uid, 1)
-            txt += f"\n{credits_line(uid)}"
-        except:
-            pass
-        await status.edit_text(NF2, parse_mode=ParseMode.HTML)
 
 # ========== EXIF ==========
 # ========== OCR ==========
@@ -2292,7 +1688,7 @@ async def website_extract_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         txt = f"""
 ╔══════════════════════════════════════╗
-║  🌐 <b>WEBSITE EXTRACTOR</b>             ║
+║  🌐 𝐖𝐄𝐁𝐒𝐈𝐓𝐄 𝐄𝐗𝐓𝐑𝐀𝐂𝐓𝐎𝐑              ║
 ╚══════════════════════════════════════╝
 
 🌐 <b>URL:</b> {result.get('url')}
@@ -2607,9 +2003,6 @@ async def handle_pdf_renamer(update: Update, context: ContextTypes.DEFAULT_TYPE)
             except:
                 pass
 
-# ========== JS SECRET FINDER - PRO ==========
-# ========== GITHUB LEAK HUNTER - PRO ==========
-# ========== TERABOX EXTRACTOR - PRO ==========
 # ========== PING - FAST TEST ==========
 async def ping_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # No force join, no credits - instant reply to test bot alive
@@ -3412,13 +2805,8 @@ async def main_async():
     app.add_handler(CommandHandler("tginfo", tg_number_cmd))
     app.add_handler(CommandHandler("tgnum", tg_number_cmd))
     app.add_handler(CommandHandler("telegram", tg_number_cmd))
-    app.add_handler(CommandHandler("paknum", pak_number_cmd))
-    app.add_handler(CommandHandler("pak", pak_number_cmd))
-    # v2.8 — NEW gateway tools (USER ORDER: pehle gateway, phir bots)
-    app.add_handler(CommandHandler("tower", tower_cmd))
-    app.add_handler(CommandHandler(["towerlocation", "trace"], tower_cmd))
-    app.add_handler(CommandHandler(["echallan", "challaninfo"], echallan_cmd))
-    app.add_handler(CommandHandler(["fastag", "fastaginfo"], fastag_cmd))
+    app.add_handler(CommandHandler(["phonebiz", "biz"], phonebiz_cmd))
+    app.add_handler(CommandHandler(["business", "landline"], phonebiz_cmd))
     # v2.6 — bot-1 port tools
     app.add_handler(CommandHandler("rc", rc_cmd))
     app.add_handler(CommandHandler("challan", rc_cmd))
@@ -3430,12 +2818,6 @@ async def main_async():
     app.add_handler(CommandHandler("bseb", result_cmd))
 
     # IP/Domain - KEEP
-    app.add_handler(CommandHandler("ip", ip_cmd))
-    app.add_handler(CommandHandler("domain", domain_cmd))
-    app.add_handler(CommandHandler("dns", dns_cmd))
-    app.add_handler(CommandHandler("whois", whois_cmd))
-    app.add_handler(CommandHandler("ssl", ssl_cmd))
-    app.add_handler(CommandHandler("recon", domain_cmd))
 
     # Website Extractor - KEEP
     app.add_handler(CommandHandler("wextract", website_extract_cmd))
@@ -3447,10 +2829,6 @@ async def main_async():
     app.add_handler(CommandHandler("pdf_rename", pdf_rename_cmd))
     app.add_handler(CommandHandler("hacker", pdf_rename_cmd))
     app.add_handler(CommandHandler("hackerpdf", pdf_rename_cmd))
-
-    # PRO TOOLS - JS Secret Finder + GitHub Leak Hunter
-
-    # TeraBox Extractor
 
     # ========== PAYMENTS & PREMIUM - NEW ==========
     app.add_handler(CommandHandler(["premium", "vip", "plans"], premium_cmd))
@@ -3502,7 +2880,7 @@ async def main_async():
         try:
             requests.post(f'https://api.telegram.org/bot{BOT_TOKEN}/sendMessage', 
                          data={'chat_id': str(config.ADMIN_ID),
-                               'text': f'✅ 8 TOOLS + PAYMENTS + CREDITS LIVE!\n\n💰 UPI: {UPI_ID}\n🎁 Free: {FREE_CREDITS} credits\n👑 Premium: 30d ₹49 - 365d ₹299\n🛠️ Admin: Full controls\n⚡ Fast: No delay fix\n\nGrid: Number, TG, IP, Website, JS, GitHub, TeraBox, PDF\nPayments: /premium /myplan /buy\nAdmin: /admin'}, timeout=5)
+                               'text': f'✅ 10 TOOLS LIVE!\n\n💰 UPI: {UPI_ID}\n🎁 Free: {FREE_CREDITS} credits\n👑 Premium: 30d ₹49 - 365d ₹299\n🛠️ Admin: Full controls\n⚡ Fast: No delay fix\n\nGrid: Number, TG, Family, RC+Challan, V2M, A2M, Business, Result, Web, Help\nPayments: /premium /myplan /buy\nAdmin: /admin'}, timeout=5)
         except:
             pass
     except Exception as e:

@@ -164,37 +164,29 @@ def lookup_number(number: str) -> Dict[str, Any]:
             pass
         return {"ok": False, "error": f"Lookup error: {str(e)[:100]}"}
 
+from modules.cardstyle import box, field, sep, footer
+
 def format_card(result: Dict[str, Any]) -> str:
+    """📱 NUMBER INFO — owner signature design (box + bold title + spaced fields)."""
     if not result.get("ok"):
         return result.get("error", "❌ No records found for this number in any database.")
 
     owner = result.get("owner", {})
     num = result.get("number")
-    circle = result.get("circle") or result.get("owner",{}).get("circle","")
-    ms = result.get("ms",0)
-    rec = result.get("records",1)
+    circle = result.get("circle") or owner.get("circle", "")
+    ms = result.get("ms", 0)
+    rec = result.get("records", 1)
 
-    # Same format as utility-duniya-bot numinfo_card but simplified
-    txt = f"📱 <b>Phone:</b> {num}\n"
-    if circle:
-        txt += f"🌐 <b>Circle:</b> {circle}\n"
-    if owner.get("name"):
-        txt += f"👤 <b>Name:</b> {owner.get('name')}\n"
-    if owner.get("father"):
-        txt += f"👨‍👦 <b>Father:</b> {owner.get('father')}\n"
-    if owner.get("phone"):
-        txt += f"📞 <b>Mobile:</b> {owner.get('phone')}\n"
-    if owner.get("alt_phone"):
-        txt += f"📞 <b>Alt Mobile:</b> {owner.get('alt_phone')}\n"
-    if owner.get("address"):
-        txt += f"🏠 <b>Address:</b> {owner.get('address')[:200]}\n"
-    if owner.get("aadhaar"):
-        txt += f"🆔 <b>Aadhaar:</b> {owner.get('aadhaar')}\n"
-
-    txt += f"\n📡 <b>Source:</b> utility-api\n"
-    txt += f"⚡ <b>Response:</b> {ms}ms"
-    if rec > 1:
-        txt += f" • 📑 {rec} records"
-    txt += f"\n\n🔥 <b>Powered by @ANONYMOUS_XH</b>"
-
-    return txt
+    L = [box("📱", "NUMBER INFO"), ""]
+    L.append(field("🔢", "Phone", num))
+    L.append(field("🌐", "Circle", circle))
+    L.append(field("👤", "Name", owner.get("name")))
+    L.append(field("👨‍👦", "Father", owner.get("father")))
+    L.append(field("📞", "Mobile", owner.get("phone")))
+    L.append(field("📞", "Alt Mobile", owner.get("alt_phone")))
+    L.append(field("🏠", "Address", str(owner.get("address") or "")[:200]))
+    L.append(field("🆔", "Aadhaar", owner.get("aadhaar")))
+    L.append(sep())
+    extra = f" · 📑 {rec} records" if rec and rec > 1 else ""
+    L.append(footer(ms, extra))
+    return "".join([x for x in L if x])

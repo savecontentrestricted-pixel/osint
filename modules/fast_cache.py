@@ -172,7 +172,7 @@ def api_cache_set(tool: str, term: str, data: Dict, ttl: int = 300, db_ttl: int 
 #  Repeat query = 0 ms instant; fail/HTTP error cache NAHI hota.
 # ======================================================================
 def with_cache(tool: str, mem_ttl: int = 300, db_ttl: int = None):
-    """@with_cache("ip", 1800, 21600) — bas yahi ek line, poori speed."""
+    """@with_cache("num", 1800, 21600) — bas yahi ek line, poori speed."""
     def _deco(fn):
         @functools.wraps(fn)
         def _wrap(term, *a, **kw):

@@ -1,13 +1,13 @@
 """
-Telegram Tools - TG Number, Pak Number, etc.
-Same gateway as utility bot: utility-api-vu83
+Telegram Tools — TELEGRAM NUMBER (owner signature design)
+Gateway: utility-api-vu83 (owner ka apna local dataset)
 """
 
 import os
 import re
 import time
-import requests
-from .fast_cache import with_cache, api_cache_get, api_cache_set
+from modules.cardstyle import box, field, sep, footer
+from .fast_cache import with_cache
 from typing import Dict, Any
 
 API_URL = os.getenv("MYNUM_API_URL", "https://utility-api-vu83.onrender.com/api")
@@ -65,150 +65,24 @@ def lookup_tg(username: str) -> Dict[str, Any]:
             "error": "Data not found in any database."}
 
 
-_TME_NOTE = ("Mobile-number database ab PAID ho gaya hai (provider: 'CHALO AB BUY KRO') "
-             "- isliye number nahi mil sakta. Upar jo hai wo Telegram ki "
-             "PUBLIC profile info hai (t.me se).")
-
-
-def _tme_public(q: str, tmo: float = 8.0):
-    """t.me/<username> public preview: naam + photo + link (free + legal)."""
-    import html as _html
-    uname = str(q or "").strip().lstrip("@").strip()
-    if not uname or not re.match(r"^[A-Za-z0-9_]{3,32}$", uname):
-        return None
-    try:
-        from .fast_cache import get_session
-        r = get_session().get(f"https://t.me/{uname}", timeout=tmo,
-                              headers={"User-Agent": "Mozilla/5.0"})
-    except Exception:                                            # noqa: BLE001
-        return None
-    if getattr(r, "status_code", 0) != 200:
-        return None
-    body = r.text or ""
-    mt = re.search(r'<meta property="og:title" content="([^"]*)"', body)
-    mi = re.search(r'<meta property="og:image" content="([^"]*)"', body)
-    title = _html.unescape(mt.group(1)) if mt else ""
-    photo = mi.group(1) if mi else ""
-    if not title or title.startswith("Telegram: Contact @") or "t_logo" in photo:
-        return {"exists": False}
-    return {"exists": True, "name": title,
-            "photo": ("" if "t_logo" in photo else photo),
-            "url": f"https://t.me/{uname}"}
-
-@with_cache("pak", 300, 2592000)
-def _sarkari_pak(term: str):
-    """v2.8: sarkari ?=paknum fallback. {} = not-found, None = network fail, dict = data."""
-    try:
-        url = f"https://api.sarkariallupdates.com/api?=paknum&key=30day&q={term}&xr={term}&term={term}"
-        r = requests.get(url, timeout=15)
-        if r.status_code != 200:
-            return None
-        j = r.json()
-        if not isinstance(j, dict):
-            return None
-        st = str(j.get("status", "")).lower()
-        if st in ("error", "false") or "no records" in str(j.get("message", "")).lower():
-            return {}
-        d = j.get("data") or j.get("result")
-        if isinstance(d, list):
-            d = d[0] if d else None
-        if isinstance(d, dict) and d:
-            return d
-        if st in ("success", "true") and j.get("count"):
-            return j
-        return None
-    except Exception:
-        return None
-
-def lookup_pak(cnic_or_number: str) -> Dict[str, Any]:
-    term = re.sub(r'\D', '', clean_input(cnic_or_number))
-    if len(term) < 10:
-        term = clean_input(cnic_or_number)
-    if not term:
-        return {"ok": False, "error": "CNIC ya Pak number bhejo"}
-
-    # v2.8: mem+DB cache — repeat queries INSTANT
-    try:
-        from .fast_cache import api_cache_get, api_cache_set
-        hit = api_cache_get("pak", term)
-        if hit:
-            h = hit.copy()
-            h["ms"] = 0
-            h["cached"] = True
-            return h
-    except Exception:
-        pass
-
-    try:
-        t0 = time.time()
-        from .fast_cache import get_session
-        r = get_session().get(
-            API_URL,
-            params={"key": API_KEY, "tool": "paknum", "term": term},
-            timeout=TIMEOUT
-        )
-        ms = int((time.time()-t0)*1000)
-        if r.status_code == 200:
-            data = r.json()
-            # v2.8 FIX: gateway fail {ok:false, why:upstream} ko data mat maano
-            gw_fail = isinstance(data, dict) and (data.get("ok") is False or bool(data.get("why")))
-            d = (data.get("data") or data) if isinstance(data, dict) else None
-            if not gw_fail and d and not (isinstance(d, dict) and not d):
-                res = {"ok": True, "data": d, "ms": ms, "raw": data}
-                try:
-                    api_cache_set("pak", term, res, ttl=3600)
-                except Exception:
-                    pass
-                return res
-        # gateway fail/not-found → sarkari ?=paknum fallback
-        fb = _sarkari_pak(term)
-        if isinstance(fb, dict) and fb:
-            res = {"ok": True, "data": fb, "ms": int((time.time()-t0)*1000), "source": "sarkari-api"}
-            try:
-                api_cache_set("pak", term, res, ttl=3600)
-            except Exception:
-                pass
-            return res
-        if fb is None and r.status_code == 200:
-            # network fail dono jagah → error dikhao
-            return {"ok": False, "error": "❌ No records found for this number in any database."}
-        return {"ok": False, "not_found": True, "error": "❌ No records found for this number in any database."}
-    except Exception as e:
-        return {"ok": False, "error": f"Error: {str(e)[:100]}"}
-
 def format_tg_card(result: Dict[str, Any]) -> str:
+    """🆔 TELEGRAM NUMBER — owner signature design."""
     if not result.get("ok"):
         return result.get("error", "❌ No records found")
 
     data = result.get("data", {})
-    ms = result.get("ms",0)
-    
-    # Try to parse common fields
-    txt = f"🆔 <b>Telegram OSINT: {result.get('term')}</b>\n\n"
-    
+    ms = result.get("ms", 0)
+    L = [box("🆔", "TELEGRAM NUMBER"), ""]
+    L.append(field("🔍", "Query", result.get("term")))
     if isinstance(data, dict):
-        # Flatten
-        for k,v in list(data.items())[:20]:
-            if v and str(v).lower() not in ("na","none","null"):
-                txt += f"• <b>{k}:</b> {str(v)[:200]}\n"
+        for k, v in list(data.items())[:20]:
+            if str(k).lower() in ("source",):
+                L.append(field("📡", str(k), v))
+            else:
+                L.append(field("🔹", str(k).replace("_", " ").title(), v))
     else:
-        txt += f"{str(data)[:1000]}\n"
+        L.append(f"{str(data)[:1000]}\n\n")
+    L.append(sep())
+    L.append(footer(ms))
+    return "".join([x for x in L if x])
 
-    txt += f"\n⚡ Response: {ms}ms"
-    return txt
-
-def format_pak_card(result: Dict[str, Any]) -> str:
-    if not result.get("ok"):
-        return result.get("error", "❌ No records found")
-    
-    data = result.get("data", {})
-    ms = result.get("ms",0)
-    txt = f"🇵🇰 <b>Pak Number Info</b>\n\n"
-    if isinstance(data, dict):
-        for k,v in list(data.items())[:20]:
-            if v and str(v).lower() not in ("na","none","null"):
-                txt += f"• <b>{k}:</b> {str(v)[:200]}\n"
-    else:
-        txt += f"{str(data)[:1000]}\n"
-    txt += f"\n⚡ Response: {ms}ms"
-    return txt

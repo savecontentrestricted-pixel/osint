@@ -10,6 +10,8 @@ import time
 import requests
 from .fast_cache import get_session, api_cache_get, api_cache_set
 
+from modules.cardstyle import box, field, sep, footer
+
 API_URL = os.getenv("FAMINFO_API_URL", "https://utility-api-vu83.onrender.com/api").strip()
 API_KEY = os.getenv("FAMINFO_API_KEY", "").strip()
 TIMEOUT = int(os.getenv("FAMINFO_API_TIMEOUT", "25") or 25)  # Reduced for speed
@@ -200,32 +202,22 @@ def lookup_family(aadhaar: str) -> dict:
     }
 
 def format_family_card(result: dict) -> str:
-    """Format family info card - BEST"""
+    """👪 FAMILY INFO — owner signature design (box + bold title + spaced fields)."""
     import html
-    
     if not result.get("ok"):
         masked = result.get("masked", "XXXX-XXXX-XXXX")
-        return f"""
-╔══════════════════════════════════════╗
-║  👪 <b>FAMILY INFO - No Data</b>        ║
-╚══════════════════════════════════════╝
+        L = [box("👪", "FAMILY INFO"), ""]
+        L.append(f"🔒 <b>Aadhaar:</b> <code>{html.escape(str(masked))}</code>\n\n")
+        L.append("❌ No records found for this Aadhaar in any database.\n\n")
+        L.append("📭 Database me iska koi record nahi hai.\n\n")
+        L.append(sep())
+        L.append(footer(result.get("ms", 0)))
+        return "".join(L)
 
-🔒 <b>Aadhaar:</b> <code>{html.escape(masked)}</code>
-
-❌ No records found for this Aadhaar in any database.
-
-📭 Database me iska koi record nahi hai.
-
-⏱️ Response: {result.get('ms',0)}ms
-🔥 @ANONYMOUS_XH | 📢 @osint_xpert
-"""
-    
     data = result.get("data", {})
     masked = result.get("masked", "XXXX-XXXX-XXXX")
     ms = result.get("ms", 0)
-    source = result.get("source", "api")
-    
-    # Extract fields
+
     card_number = data.get("card_number") or data.get("rc_number") or data.get("ration_card") or ""
     card_type = data.get("card_type") or data.get("cardtype") or ""
     state_dist = data.get("statedist") or data.get("state_dist") or data.get("district") or ""
@@ -234,70 +226,39 @@ def format_family_card(result: dict) -> str:
     family_count = data.get("family_count") or data.get("members") or ""
     full_address = data.get("full_address") or data.get("address") or ""
     ekyc = data.get("ekyc_status") or data.get("ekyc") or ""
-    
-    # Members - name, name_, name__, etc
+
     members = []
     for k in sorted(data.keys()):
         if k.startswith("name"):
             v = data.get(k)
             if v and str(v).strip() and str(v).lower() not in ["", "na", "n/a", "none"]:
-                # Avoid duplicates
                 if str(v).strip() not in members:
                     members.append(str(v).strip())
-    
-    # Also check member_id pattern
     if not members and data.get("name"):
         members = [str(data.get("name")).strip()]
-    
-    txt = f"""
-╔══════════════════════════════════════╗
-║  👪 <b>FAMILY INFO - Ration Card</b>    ║
-╚══════════════════════════════════════╝
 
-🔒 <b>Aadhaar:</b> <code>{html.escape(masked)}</code>
-
-"""
-    
-    if card_number:
-        txt += f"💳 <b>Ration Card No:</b> <code>{html.escape(str(card_number)[:30])}</code>\n\n"
-    
-    if card_type:
-        txt += f"📋 <b>Card Type:</b> {html.escape(str(card_type))}\n\n"
-    
-    if state_dist:
-        txt += f"🌍 <b>State/District:</b> {html.escape(str(state_dist)[:100])}\n\n"
-    
+    L = [box("👪", "FAMILY INFO — RATION CARD"), ""]
+    L.append(f"🔒 <b>Aadhaar:</b> <code>{html.escape(str(masked))}</code>\n\n")
+    L.append(field("💳", "Ration Card No", str(card_number)[:30]))
+    L.append(field("📋", "Card Type", card_type))
+    L.append(field("🌍", "State/District", str(state_dist)[:100]))
     if fps_id or fps_name:
-        txt += f"🏪 <b>FPS Shop:</b>\n"
+        fps = ""
         if fps_id:
-            txt += f"   ID: <code>{html.escape(str(fps_id)[:20])}</code>\n"
+            fps += f"ID: {html.escape(str(fps_id)[:20])}"
         if fps_name:
-            txt += f"   Name: {html.escape(str(fps_name)[:80])}\n"
-        txt += "\n"
-    
-    if family_count:
-        txt += f"👥 <b>Family Members:</b> {html.escape(str(family_count))}\n\n"
-    
-    if full_address:
-        txt += f"🏠 <b>Address:</b>\n{html.escape(str(full_address)[:300])}\n\n"
-    
+            fps += (f" · {html.escape(str(fps_name)[:80])}" if fps_id else html.escape(str(fps_name)[:80]))
+        L.append(field("🏪", "FPS Shop", fps))
+    L.append(field("👥", "Family Members", family_count))
+    L.append(field("🏠", "Address", str(full_address)[:300]))
     if members:
-        txt += f"👨‍👩‍👧‍👦 <b>Members ({len(members)}):</b>\n"
+        L.append(f"👨‍👩‍👧‍👦 <b>Members ({len(members)}):</b>\n\n")
         for i, m in enumerate(members[:10], 1):
-            txt += f"   {i}. {html.escape(m[:60])}\n"
-        txt += "\n"
-    
-    if ekyc:
-        txt += f"✅ <b>eKYC:</b> {html.escape(str(ekyc)[:50])}\n\n"
-    
-    txt += f"""
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-📡 <b>Source:</b> {html.escape(source)}
-⚡ <b>Response:</b> {ms}ms
-🔒 <b>Privacy:</b> Full Aadhaar never shown, only {html.escape(masked)}
-
-🔥 <b>Powered by @ANONYMOUS_XH</b>
-"""
-    
-    return txt
+            L.append(f"   {i}. {html.escape(m[:60])}\n")
+        L.append("\n")
+    L.append(field("✅", "eKYC", str(ekyc)[:50]))
+    L.append(sep())
+    L.append(f"📡 <b>Source:</b> {html.escape(str(result.get('source', 'api')))}\n")
+    L.append(f"🔒 <b>Privacy:</b> Full Aadhaar never shown, only {html.escape(str(masked))}\n\n")
+    L.append(footer(ms))
+    return "".join([x for x in L if x])

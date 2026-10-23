@@ -94,8 +94,6 @@ _NOTFOUND_RE = re.compile(r"no\s+[a-z ]{1,24}?\s*found", re.I)
 
 # Har tool ka apna pehchaan-chinh (11 Oct 2026 ko live naapa hua).
 _SIG = {
-    "paknum":     re.compile(r"pakistan|\bcnic\b", re.I),
-    "tgnum":      re.compile(r"telegram", re.I),
     # Ye do userapi ke tools nahi hain, par provider inhe bhi serve karta
     # hai — isliye inke chinh bhi jaanna zaroori hai, warna inka data
     # chupke se kisi aur tool ke card me ghus sakta hai.
@@ -173,26 +171,6 @@ TOOLS = {
         "key": _BUILTIN_KEY,
         "example": "BR30AR0802",
         "what": "gaadi number",
-    },
-    "paknum": {
-        "env": "PAKNUM",
-        "icon": "🇵🇰",
-        "label": "PAK NUMBER",
-        "tool": "paknum",
-        "url": _BUILTIN_URL,
-        "key": "Demo",
-        "example": "03406955998",
-        "what": "Pakistani mobile number",
-    },
-    "tgnum": {
-        "env": "TGNUM",
-        "icon": "🆩",
-        "label": "TELEGRAM NUMBER",
-        "tool": "telegramtonumber",
-        "url": _BUILTIN_URL,
-        "key": "Demo",
-        "example": "5685588580",
-        "what": "Telegram user ID",
     },
     # v127 — NEW TOOLS via own gateway (vehicle_full primary)
     "vehicletomobile": {
@@ -272,10 +250,6 @@ def validate_plate(text) -> tuple:
     return True, c, ""
 
 
-
-
-
-
 try:
     from modules.core.nodata import no_data as _no_data
 except Exception:                                                # noqa: BLE001
@@ -297,132 +271,9 @@ def validate_vehicletomobile(text) -> tuple:
     """Vehicle RC number validation (same as plate)"""
     return validate_plate(text)
 
-def validate_paknum(text) -> tuple:
-    """Pakistan lookup — ab DO cheezein chalti hain:
-
-      1. Mobile number → hamesha LOCAL format 03XXXXXXXXX me badlo
-      2. CNIC (13 digit) → jaisa hai waisa bhej do
-
-    ⚠️ Provider ko mobile ke liye sirf local format pasand hai.
-    Probe (11 Oct 2026):
-        03001234567    → ✅ chalta hai
-        3406955998     → ✅ (bot khud 0 laga deta hai)
-        923001234567   → ❌ "API Error: 'list' object has no attribute 'get'"
-        3520113625763  → ✅ CNIC se bhi poora record aata hai (13 digit)
-    Isliye +92 / 0092 / 92 sab yahan 0 me badal dete hain, aur 13 digit
-    ko CNIC maan kar seedha aage bhej dete hain.
-
-    13 digit kisi mobile format se nahi takrata:
-        mobile 03xxxxxxxxx = 11 | 92xxxxxxxxxx = 12 | 0092xxxxxxxxxx = 14
-    """
-    d = _digits(text)
-    if not d:
-        return False, d, ("Pakistani number ya CNIC bhejo.\n"
-                          "📌 Number jaise: <code>03001234567</code>\n"
-                          "📌 CNIC jaise: <code>3520112345678</code>")
-
-    # 🪪 CNIC — 13 digit. Provider isse bhi poora record de deta hai.
-    if len(d) == 13:
-        return True, d, ""
-
-    if d.startswith("0092"):
-        d = "0" + d[4:]
-    elif d.startswith("92") and len(d) >= 12:
-        d = "0" + d[2:]
-    elif d.startswith("3") and len(d) == 10:
-        d = "0" + d
-    if not re.match(r"^03[0-9]{9}$", d):
-        return False, d, ("Format galat hai.\n"
-                          "📌 Mobile: <b>03</b> + 9 digit (kul 11)\n"
-                          "   jaise <code>03001234567</code> ya "
-                          "<code>+923001234567</code>\n"
-                          "📌 Ya CNIC: poore <b>13</b> digit (bina dash)\n"
-                          f"Aapne bheja: <code>{d}</code> ({len(d)} digit)")
-    return True, d, ""
-
-
-def validate_upi(text) -> tuple:
-    """UPI ID = kuch@handle (jaise name@okaxis, 98765@ybl)."""
-    c = str(text or "").strip().replace(" ", "")
-    if not c:
-        return False, c, "UPI ID bhejo.\n📌 Jaise: <code>name@okaxis</code>"
-    if "@" not in c:
-        return False, c, ("UPI ID me <b>@</b> hona zaroori hai.\n"
-                          "📌 Jaise: <code>name@okaxis</code> · "
-                          "<code>98765@ybl</code>")
-    if not re.match(r"^[A-Za-z0-9._\-]{2,64}@[A-Za-z][A-Za-z0-9.\-]{1,30}$", c):
-        return False, c, ("UPI ID ka format galat hai.\n"
-                          "📌 Sahi: <b>naam@bank</b>\n"
-                          "📌 Jaise: <code>name@okaxis</code> · "
-                          "<code>98765@ybl</code> · <code>abc@paytm</code>\n"
-                          f"Aapne bheja: <code>{_esc(c[:40])}</code>")
-    return True, c, ""
-
-
-def validate_tgnum(text) -> tuple:
-    """v2.5 — Telegram username ya numeric ID (new API sarkariallupdates ?=tg).
-    Username: @Perfectamit65 / Perfectamit65 (3-32 char, letter/digit/_)
-    ID: 5685588580 (5-15 digit)
-    """
-    raw = str(text or "").strip()
-    if not raw:
-        return False, raw, ("Telegram username ya ID bhejo.\n"
-                          "📌 Jaise: <code>@Perfectamit65</code> ya <code>5685588580</code>")
-    # Username with @
-    if raw.startswith("@"):
-        uname = raw[1:]
-        if re.match(r"^[A-Za-z0-9_]{3,32}$", uname):
-            return True, raw, ""
-        return False, raw, ("Telegram username 3-32 char ka hota hai (letter/digit/_).\n"
-                          f"📌 Jaise: <code>@Perfectamit65</code>\nAapne bheja: <code>{_esc(raw[:40])}</code>")
-    # Username without @ (Perfectamit65)
-    if re.match(r"^[A-Za-z][A-Za-z0-9_]{2,31}$", raw):
-        return True, raw, ""
-    # Numeric ID
-    c = _digits(raw)
-    if c and 5 <= len(c) <= 15:
-        return True, c, ""
-    return False, raw, ("Telegram username ya ID ka format galat hai.\n"
-                      "📌 Username: <code>@Perfectamit65</code>\n"
-                      "📌 ID: <code>5685588580</code>\n"
-                      f"Aapne bheja: <code>{_esc(raw[:40])}</code>")
-
-
-def validate_ip(text) -> tuple:
-    """IPv4 ya IPv6. IPv4 me har octet 0-255 hona chahiye."""
-    c = str(text or "").strip().split("/")[0].strip()
-    if not c:
-        return False, c, ("IP address bhejo.\n📌 Jaise: <code>8.8.8.8</code>")
-    # IPv4
-    if re.match(r"^\d{1,3}(\.\d{1,3}){3}$", c):
-        parts = c.split(".")
-        if all(0 <= int(p) <= 255 for p in parts):
-            return True, c, ""
-        return False, c, ("IPv4 me har hissa 0 se 255 ke beech hona chahiye.\n"
-                          f"📌 Jaise: <code>8.8.8.8</code>\nAapne bheja: <code>{_esc(c)}</code>")
-    # IPv6 (saada check — hex aur colon)
-    if ":" in c and re.match(r"^[0-9A-Fa-f:]{2,45}$", c) and c.count(":") >= 2:
-        return True, c.lower(), ""
-    # v126: domain / website bhi chalega (google.com, https://x.in/page)
-    try:
-        from modules import ipinfo_free as _ipf
-        ok, host, _err = _ipf.validate(c)
-        if ok:
-            return True, host, ""
-    except Exception:
-        pass
-    return False, c, ("IP ya domain ka format galat hai.\n"
-                      "📌 IPv4: <code>8.8.8.8</code>\n"
-                      "📌 IPv6: <code>2001:4860:4860::8888</code>\n"
-                      "📌 Domain: <code>google.com</code>\n"
-                      f"Aapne bheja: <code>{_esc(c[:40])}</code>")
-
 
 _VALIDATORS = {
     "rc": validate_plate,
-    "paknum": validate_paknum,
-    "upi": validate_upi,
-    "tgnum": validate_tgnum,
     "vehicletomobile": validate_vehicletomobile,
     "aadhaar2num": validate_aadhaar2num,
 }
@@ -528,38 +379,6 @@ _RC_FIELDS = [
 #    • field na bane to lookup() `raw_text` laut deta hai, jise card
 #      <pre> block me dikha deta hai — data kabhi gayab nahi hota.
 # =====================================================================
-_PAK_FIELDS = [
-    ("mobile",   "📱 Number",       ("mobile", "mobileno", "number", "phone", "phoneno", "msisdn", "contact", "mobile_no")),
-    ("name",     "👤 Naam",         ("name", "fullname", "ownername", "owner_name", "subscriber", "subscribername")),
-    ("father",   "👨 Pita",         ("father", "fathername", "father_name")),
-    ("cnic",     "🪪 CNIC",         ("cnic", "cnicno", "nic", "idcard", "idcardno", "nationalid")),
-    ("address",  "🏠 Address",      ("address", "addr", "fulladdress", "location")),
-    ("operator", "📡 Operator",     ("operator", "network", "company", "sim", "telco")),
-    ("city",     "📍 City",         ("city", "region", "circle", "province", "area")),
-    ("status",   "✅ Status",       ("status", "simstatus", "active")),
-]
-
-_UPI_FIELDS = [
-    ("vpa",      "💸 UPI ID",       ("upi", "upiid", "vpa", "virtualaddress", "payeeaddress", "number", "address")),
-    ("name",     "👤 Naam",         ("name", "fullname", "ownername", "owner_name", "payeename", "accountname", "merchantname", "customername")),
-    ("bank",     "🏦 Bank",         ("bank", "bankname", "psp", "handle", "provider", "issuer")),
-    ("mobile",   "📱 Mobile",       ("mobile", "mobileno", "phone", "phoneno", "contact", "mobile_no")),
-    ("ifsc",     "🏧 IFSC",         ("ifsc", "ifsccode")),
-    ("account",  "🔢 Account",      ("account", "accountno", "accountnumber", "acno")),
-    ("branch",   "🏢 Branch",       ("branch", "branchname")),
-    ("status",   "✅ Status",       ("status", "vpastatus", "valid", "active", "verified")),
-]
-
-_TGNUM_FIELDS = [
-    ("tgid",     "🆔 Telegram ID",  ("telegramid", "tgid", "userid", "id", "telegram", "chatid")),
-    ("mobile",   "📱 Number",       ("mobile", "mobileno", "number", "phone", "phoneno", "contact", "mobile_no", "msisdn")),
-    ("name",     "👤 Naam",         ("name", "fullname", "ownername", "owner_name", "firstname", "username")),
-    ("father",   "👨 Pita",         ("father", "fathername", "father_name")),
-    ("circle",   "📍 Circle",       ("circle", "state", "region", "location")),
-    ("operator", "📡 Operator",     ("operator", "network", "sim", "telco", "carrier")),
-    ("address",  "🏠 Address",      ("address", "addr", "fulladdress")),
-]
-
 _VEHICLETOMOBILE_FIELDS = [
     ("mobile",   "📱 Number",       ("mobile", "mobileno", "number", "phone", "phoneno", "mobile_number")),
     ("reg",      "🔢 RC",           ("registration_number", "reg_no", "rc", "vehicle_number")),
@@ -573,9 +392,6 @@ _AADHAAR2NUM_FIELDS = [
 
 FIELD_MAP = {
     "rc": _RC_FIELDS,
-    "paknum": _PAK_FIELDS,
-    "upi": _UPI_FIELDS,
-    "tgnum": _TGNUM_FIELDS,
     "vehicletomobile": _VEHICLETOMOBILE_FIELDS,
     "aadhaar2num": _AADHAAR2NUM_FIELDS,
 }
@@ -632,16 +448,7 @@ def lookup(kind: str, term) -> dict:
     # hue the (30 din TTL). Kuch me src="t.me-public" hai, KUCH me src=None —
     # isliye pakka rule: tgnum cache hit tabhi valid jab usme "📱 Number" field
     # ho. Warna STALE maano aur dobara fetch karo.
-    if kind == "tgnum" and hit:
-        _fl = [str(a) for a, _ in (hit.get("fields") or [])]
-        if hit.get("src") == "t.me-public" or not any(x.startswith("📱 Number") for x in _fl):
-            hit = None
     if hit is not None:
-        if kind == "tgnum":
-            # v127.13: purane cached cards me label "🆔 Telegram ID" tha —
-            # naye user-order format (🆩) me render karo.
-            hit = {**hit, "fields": [("🆩 Telegram ID" if str(a) == "🆔 Telegram ID" else a, bb)
-                                     for a, bb in (hit.get("fields") or [])]}
         return {**hit, "cached": True}
 
     # 🚘 v126.9 — RC ab apne gateway se (BR30AR0802 real example fix)
@@ -651,14 +458,6 @@ def lookup(kind: str, term) -> dict:
             if _rg.get("ok"):
                 _cput_k(kind, clean, _rg)
             return _rg
-
-    # 🆔 v126.12 — TG ab apne gateway se (sarkariallupdates ?=tg — @Perfectamit65 real)
-    if kind == "tgnum":
-        _tg = _tgnum_gateway(clean)
-        if _tg is not None:
-            if _tg.get("ok"):
-                _cput_k(kind, clean, _tg)
-            return _tg
 
     # 📲 v127 — Vehicle to Number via gateway
     if kind == "vehicletomobile":
@@ -1006,117 +805,6 @@ def _rc_gateway(clean: str):
 #  isliye card me SAAF likha hota hai ki source paid hai — user ko bewajah
 #  "record nahi mila" nahi dikhta.
 # ======================================================================
-_TME_NOTE = ("Mobile-number database ab PAID ho gaya hai (provider: 'CHALO AB BUY KRO') "
-             "- isliye number nahi mil sakta. Upar jo hai wo Telegram ki "
-             "PUBLIC profile info hai (t.me se).")
-
-
-def _tgnum_public_or_honest(clean: str, ms: int):
-    """t.me public profile do; wo bhi fail ho to ASLI wajah wala error."""
-    pub = _tme_public(clean)
-    if pub and pub.get("exists"):
-        fields = [("👤 Naam", pub.get("name") or ""),
-                  ("👤 Username", "@" + str(clean).lstrip("@")),
-                  ("🔗 Profile", pub.get("url") or ""),
-                  ("⚠️ Number-source", _TME_NOTE)]
-        fields = [(a, b) for a, b in fields if b]
-        return {"ok": True, "term": clean,
-                "data": {"name": pub.get("name"), "username": clean,
-                         "profile_url": pub.get("url"), "source": "t.me-public",
-                         "note": _TME_NOTE},
-                "fields": fields, "extra": {}, "raw_text": "",
-                "ms": ms, "src": "t.me-public"}
-    if pub is not None and not pub.get("exists"):
-        return {"ok": False, "notfound": True,
-                "error": (f"Telegram <code>@{str(clean).lstrip('@')}</code> ka koi public "
-                          "account nahi mila — username check karo."), "ms": ms}
-    return {"ok": False, "notfound": True,
-            "error": ("🆩 Telegram number-source ab PAID ho gaya hai "
-                      "(provider: 'CHALO AB BUY KRO') — aur t.me public profile bhi "
-                      "nahi khuli. Thodi der baad dobara try karo."), "ms": ms}
-
-
-def _tme_public(q: str, tmo: float = 8.0):
-    """t.me/<username> ka public preview: naam + photo + link.
-    Lautata hai: dict(exists=True/False) ya None (network fail)."""
-    import html as _html
-    uname = str(q or "").strip().lstrip("@").strip()
-    if not uname or not re.match(r"^[A-Za-z0-9_]{3,32}$", uname):
-        return None                      # numeric ID se t.me public page nahi banta
-    try:
-        r = http_get(f"https://t.me/{uname}", timeout=tmo, retries=0)
-    except Exception:                                            # noqa: BLE001
-        return None
-    if getattr(r, "status_code", 0) != 200:
-        return None
-    body = r.text or ""
-    mt = re.search(r'<meta property="og:title" content="([^"]*)"', body)
-    mi = re.search(r'<meta property="og:image" content="([^"]*)"', body)
-    title = _html.unescape(mt.group(1)) if mt else ""
-    photo = mi.group(1) if mi else ""
-    # non-existent username par t.me default logo + "Telegram: Contact @x" deta hai
-    if not title or title.startswith("Telegram: Contact @") or "t_logo" in photo:
-        return {"exists": False}
-    return {"exists": True, "name": title,
-            "photo": ("" if "t_logo" in photo else photo),
-            "url": f"https://t.me/{uname}"}
-
-
-def _tgnum_gateway(clean: str):
-    """
-    🆔 Telegram username/ID -> mobile via apna gateway (v2.5 new API sarkariallupdates ?=tg)
-    Example: @Perfectamit65 -> 9310837765
-    """
-    import time as _t
-    t0 = _t.time()
-    try:
-        url = f"{_GATEWAY_BASE}/api"
-        params = {"key": _GATEWAY_KEY, "tool": "tgnum", "term": clean}
-        with _provider_slot():
-            r = http_get(url, params=params, headers=dict(UA_HEADERS), timeout=20, retries=0)
-    except Exception:
-        return {"ok": False, "notfound": True,
-                "error": "❌ <b>Data not found in any database.</b>", "ms": 0}
-    ms = int((_t.time() - t0) * 1000)
-    if r.status_code != 200:
-        return None
-    try:
-        j = r.json()
-    except Exception:
-        return None
-    if not isinstance(j, dict):
-        return None
-    if not j.get("ok") or not (j.get("data") or {}):
-        # v127.13 (USER ORDER): fail = sirf "data not found in any database".
-        return {"ok": False, "notfound": True,
-                "error": "❌ <b>Data not found in any database.</b>", "ms": ms}
-    data = j.get("data") or {}
-    # v127.13 (USER ORDER): t.me PUBLIC-profile card ab NAHI dikhana — TG tool
-    # me sirf NUMBER card (4 fields) ya data-not-found.
-    if data.get("source") == "t.me-public" or not (data.get("mobile") or data.get("owner_number")):
-        return {"ok": False, "notfound": True,
-                "error": "❌ <b>Data not found in any database.</b>", "ms": ms}
-    # Build fields — USER ORDER 18 Oct: SIRF ye 4
-    fields = []
-    fields.append(("📱 Number", str(data.get("mobile") or data.get("owner_number"))))
-    if data.get("telegram_id") or data.get("tg_id"):
-        fields.append(("🆩 Telegram ID", str(data.get("telegram_id") or data.get("tg_id"))))
-    if data.get("username"):
-        fields.append(("👤 Username", str(data.get("username"))))
-    if data.get("country_code") or data.get("country"):
-        fields.append(("🌍 Country", str(data.get("country_code") or data.get("country"))))
-    return {
-        "ok": True,
-        "term": clean,
-        "data": data,
-        "fields": fields,
-        "extra": {},
-        "raw_text": "",
-        "ms": ms,
-        "src": "gateway",
-        "gateway": True,
-    }
-
 
 
 def _vehicletomobile_gateway(clean: str):
