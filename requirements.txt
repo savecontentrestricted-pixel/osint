@@ -1,11 +1,8 @@
-# SUPER SLIM for Render Free - 100% build in 1-2 min
+# SUPER SLIM (v2.12 clean) — dead deps (whois/dns/telethon = deleted tools) removed
 python-telegram-bot==21.6
-telethon==1.41.2
 python-dotenv==1.0.1
 requests==2.32.3
 Pillow==11.1.0
 beautifulsoup4==4.12.3
-python-whois==0.9.5
-dnspython==2.7.0
 qrcode[pil]==8.0
 phonenumbers>=8.13,<10
