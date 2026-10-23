@@ -34,7 +34,7 @@ from .fast_cache import with_cache, get_session
 
 API_URL = os.getenv("MYNUM_API_URL", "https://utility-api-vu83.onrender.com/api").strip()
 API_KEY = os.getenv("MYNUM_API_KEY", "").strip()
-TIMEOUT = 30
+TIMEOUT = 25
 
 # Gateway / tool infra keys — user ko nahi dikhani (noise ya secret)
 
@@ -51,7 +51,7 @@ def _call(tool: str, term: str) -> Dict[str, Any]:
         r = get_session().get(
             API_URL,
             params={"key": API_KEY, "tool": tool, "term": term},
-            timeout=TIMEOUT,
+            timeout=(5, TIMEOUT),
         )
         ms = int((time.time() - t0) * 1000)
         if r.status_code != 200:

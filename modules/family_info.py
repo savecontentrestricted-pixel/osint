@@ -14,7 +14,7 @@ from modules.cardstyle import box, field, sep, footer
 
 API_URL = os.getenv("FAMINFO_API_URL", "https://utility-api-vu83.onrender.com/api").strip()
 API_KEY = os.getenv("FAMINFO_API_KEY", "").strip()
-TIMEOUT = int(os.getenv("FAMINFO_API_TIMEOUT", "25") or 25)  # Reduced for speed
+TIMEOUT = (5, 20)  # (connect5s, read20s) — SPEED v2.12.2
 
 BUILTIN_URL = "https://jgvicvhgfwcfndgookul.supabase.co/functions/v1/bot-api"
 BUILTIN_KEY = "Demo"
@@ -113,6 +113,12 @@ def lookup_family(aadhaar: str) -> dict:
         if resp.status_code == 200:
             try:
                 data = resp.json()
+                # SPEED v2.12.2: gateway honest notfound → sarkari fallback MATT (double query)
+                if isinstance(data, dict) and not data.get("success") and str(data.get("why") or "").lower() in ("notfound", "not_found"):
+                    nf = {"ok": False, "not_found": True, "error": "No family data found",
+                          "masked": masked, "ms": int((time.time() - start) * 1000), "source": "utility-api"}
+                    api_cache_set("family", aadhaar_clean, nf, ttl=1800)
+                    return nf
                 # Check if data has family info
                 if data.get("success") and data.get("data"):
                     d = data["data"]
@@ -175,7 +181,7 @@ def lookup_family(aadhaar: str) -> dict:
         session = get_session()
         url = (f"https://api.sarkariallupdates.com/api?=ration&key=30day"
                f"&q={aadhaar_clean}&xr={aadhaar_clean}&term={aadhaar_clean}")
-        resp = session.get(url, timeout=20)
+        resp = session.get(url, timeout=15)
         if resp.status_code == 200:
             j = resp.json()
             d0 = j.get("data") if isinstance(j, dict) else None

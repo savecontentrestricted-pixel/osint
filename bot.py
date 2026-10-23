@@ -104,7 +104,7 @@ class WebhookHandler(BaseHTTPRequestHandler):
             elif self.path == '/webhook':
                 self.wfile.write(b'Webhook endpoint - POST only')
             else:
-                html = b"<html><body><h1>OSINT Hunter Hub - 11 TOOLS FAST STABLE LIVE</h1><p>Webhook: /webhook | Health: /health | Ping: /ping</p></body></html>"
+                html = b"<html><body><h1>OSINT Hunter Hub - 10 TOOLS FAST STABLE LIVE</h1><p>Webhook: /webhook | Health: /health | Ping: /ping</p></body></html>"
                 self.wfile.write(html)
         except:
             pass
@@ -2887,10 +2887,10 @@ async def main_async():
         print(f"Webhook set error: {e}")
         traceback.print_exc()
 
-    print("8 TOOLS + PAYMENTS + CREDITS + ADMIN FAST STABLE WEBHOOK READY!")
+    print("10 TOOLS + PAYMENTS + CREDITS + ADMIN FAST STABLE WEBHOOK READY!")
     while True:
         await asyncio.sleep(60)
-        print(f"6 tools + payments alive - Users: {len(all_user_ids())} - Premium: {len(premium_users())} - Pending: {pending_payments_count()}")
+        print(f"10 tools + payments alive - Users: {len(all_user_ids())} - Premium: {len(premium_users())} - Pending: {pending_payments_count()}")
 
 def main():
     asyncio.run(main_async())

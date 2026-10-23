@@ -12,7 +12,7 @@ from .fast_cache import get_session, api_cache_get, api_cache_set
 
 API_URL = os.getenv("MYNUM_API_URL", "https://utility-api-vu83.onrender.com/api")
 API_KEY = os.getenv("MYNUM_API_KEY", "")
-TIMEOUT = 25  # Reduced from 40 for speed, with retry
+TIMEOUT = (5, 25)  # (connect5s, read25s) — connect turant fail, read bounded
 
 def clean_number(num: str) -> str:
     d = re.sub(r'\D', '', str(num))
@@ -117,6 +117,14 @@ def lookup_number(number: str) -> Dict[str, Any]:
         data = r.json()
         d = data.get("data", {}) if isinstance(data, dict) else {}
 
+        # SPEED v2.12.2: gateway NE KHUD sarkari chala (native) — honest notfound
+        # par WAPAS sarkari fallback = double query (~1.5s waste). Seedha return + cache.
+        if isinstance(data, dict) and data.get("ok") is False and str(data.get("why") or "").lower() in ("notfound", "not_found"):
+            nf = {"ok": False, "not_found": True,
+                  "error": "❌ No records found for this number in any database.", "ms": ms}
+            api_cache_set("num", digits, nf, ttl=1800)
+            return nf
+
         if not d or not isinstance(d, dict) or not any(str(k).startswith("owner_name") for k in d.keys()):
             # v2.8: utility-api upstream down (why=upstream) ya shape alag → sarkari ?=num fallback
             fb = _sarkari_num(digits)
@@ -124,7 +132,9 @@ def lookup_number(number: str) -> Dict[str, Any]:
                 fb["ms"] = int((time.time() - t0) * 1000)
                 api_cache_set("num", digits, fb, ttl=3600)
                 return fb
-            return {"ok": False, "not_found": True, "error": "❌ No records found for this number in any database.", "ms": ms}
+            nf = {"ok": False, "not_found": True, "error": "❌ No records found for this number in any database.", "ms": ms}
+            api_cache_set("num", digits, nf, ttl=1800)
+            return nf
 
         owner = {
             "name": (d.get("owner_name") or "").strip(),
