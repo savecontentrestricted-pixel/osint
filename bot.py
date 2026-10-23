@@ -239,6 +239,7 @@ KB_BTNS = [
     ["👪 FAMILY INFO", "🇵🇰 PAK NUMBER"],
     ["🚗 RC + CHALLAN", "📲 VEHICLE TO NUMBER"],
     ["🪪 AADHAAR TO NUMBER"],
+    ["🗼 TOWER LOCATION", "📑 E-CHALLAN", "🏷️ FASTAG"],
     ["📋 RESULT CHECK", "🌐 IP/DOMAIN RECON"],
     ["🌐 WEBSITE EXTRACTOR", "👑 PREMIUM"],
     ["📊 MY PLAN"],
@@ -314,6 +315,11 @@ BTN_MODE_MAP = {
     "AADHAR TO NUMBER": "a2n",
     "RESULT CHECK": "result", "RESULT": "result", "BSEB": "result",
     "PAK NUMBER": "pak", "PAKISTAN NUMBER": "pak", "PAK NUM": "pak", "PAKNUM": "pak",
+    # v2.8 — gateway-first NEW tools (tower / e-challan / fastag)
+    "TOWER LOCATION": "tower", "TOWER TRACE": "tower", "TOWER": "tower",
+    "E-CHALLAN": "echallan", "ECHALLAN": "echallan", "E CHALLAN": "echallan",
+    "CHALLAN INFO": "echallan",
+    "FASTAG": "fastag", "FASTAG INFO": "fastag",
 }
 
 # Prompt texts for grid tools - 9 TOOLS CLEAN, NO COMMANDS, ULTRA ADVANCED
@@ -384,6 +390,22 @@ GRID_PROMPTS = {
         "ask": "Pak mobile number ya 13-digit CNIC bhejein:",
         "ex": "03406955998",
     },
+    # v2.8 — gateway-first NEW tools
+    "tower": {
+        "head": "🗼 TOWER LOCATION",
+        "ask": "10 Digit Mobile Number bhejein:",
+        "ex": "6205923286",
+    },
+    "echallan": {
+        "head": "📑 E-CHALLAN (Parivahan)",
+        "ask": "Gaadi ka number bhejein:",
+        "ex": "DL8CAB1234",
+    },
+    "fastag": {
+        "head": "🏷️ FASTAG INFO",
+        "ask": "Gaadi ka number bhejein:",
+        "ex": "RJ14CV0002",
+    },
 }
 
 import config
@@ -393,6 +415,9 @@ from modules.telegram_tools import lookup_tg, lookup_pak, format_tg_card, format
 from modules.website_extractor import website_extractor
 from modules.pdf_renamer import rename_pdf_filename, batch_rename, HACKER_NAME, OWNER_ID as PDF_OWNER_ID
 from modules.family_info import lookup_family, format_family_card
+# v2.8 (USER ORDER 23 Oct): gateway-first NEW tools — tower / e-challan / fastag
+from modules.gw_tools import (lookup_tower, lookup_echallan, lookup_fastag,
+                              format_tower_card, format_echallan_card, format_fastag_card)
 # v2.6 — bot-1 (@utility_duniya_bot) se port: RC/CHALLAN, VEHICLE TO NUMBER,
 # AADHAAR TO NUMBER, BSEB RESULT CHECK
 from modules import userapi as uapi
@@ -1193,6 +1218,15 @@ async def handle_grid_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
         elif current_mode == "pak":
             context.args = [text]
             await pak_number_cmd(update, context)
+        elif current_mode == "tower":
+            context.args = [text]
+            await tower_cmd(update, context)
+        elif current_mode == "echallan":
+            context.args = [text]
+            await echallan_cmd(update, context)
+        elif current_mode == "fastag":
+            context.args = [text]
+            await fastag_cmd(update, context)
         elif current_mode == "pdf_rename":
             await update.message.reply_text(
                 f"📚 <b>PDF RENAMER Mode ON</b>\n\n"
@@ -1253,6 +1287,14 @@ Keyword bhejein: example.com
 PDF bhejo, Vivid -> 卄卂匚K乇尺
 → Batch 10 PDFs
 → Owner only
+
+<b>━━━━━━━━ NEW: Gateway Pro ━━━━━━━━</b>
+🗼 <code>/tower 6205923286</code>
+→ Tower location + map (live track)
+📑 <code>/echallan DL8CAB1234</code>
+→ Parivahan challan list + total amount
+🏷 <code>/fastag RJ14CV0002</code>
+→ FASTAG tags — bank, status, issue date
 
 <b>🛡️ Safety:</b>
 • Force join: @osint_xpert
@@ -1714,6 +1756,156 @@ async def pak_number_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ========== TELEGRAM SCRAPER ==========
 # ========== INSTAGRAM ==========
 # ========== EMAIL ==========
+# ========== v2.8 — TOWER / E-CHALLAN / FASTAG (own gateway first) ==========
+def _m(v) -> str:
+    """Error message HTML-escape (ParseMode.HTML na toote)."""
+    try:
+        import html as _html
+        return _html.escape(str(v or ""))
+    except Exception:
+        return str(v or "")
+
+
+async def tower_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """🗼 Tower location — gateway tool=tower (viraj source, env-swappable)."""
+    if not await check_force_join(update, context):
+        return
+    uid = update.effective_user.id
+    can_use, creds, user = can_use_tool(uid)
+    if not can_use:
+        await update.message.reply_text(format_credits_over("Tower Location"), parse_mode=ParseMode.HTML)
+        return
+    if not context.args:
+        try:
+            context.user_data["mode"] = "tower"
+        except Exception:
+            pass
+        await update.message.reply_text(
+            f"❌ <b>Use:</b> <code>/tower 6205923286</code>\n\n"
+            f"🗼 Mobile number se tower/tracking location + map\n"
+            f"🔗 Aliases: <code>/towerlocation</code> · <code>/trace</code>\n\n"
+            f"{credits_line(uid)}",
+            parse_mode=ParseMode.HTML
+        )
+        return
+
+    term = context.args[0]
+    status = await update.message.reply_text(WAIT2, parse_mode=ParseMode.HTML)
+    _t0 = time.time()
+    try:
+        result = await _run_with_typing(update, context, asyncio.to_thread(lookup_tower, term))
+        try:
+            print(f"[TIMING] tower {int((time.time()-_t0)*1000)}ms ok={result.get('ok')} cached={result.get('cached', False)}", flush=True)
+        except Exception:
+            pass
+        if not result.get("ok"):
+            await status.edit_text(f"❌ {_m(result.get('error'))}", parse_mode=ParseMode.HTML)
+            return
+        txt = format_tower_card(result)
+        try:
+            left = spend_credits(uid, 1)
+            txt += f"\n{credits_line(uid)}"
+        except Exception:
+            pass
+        await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
+    except Exception as e:
+        logger.exception(e)
+        await status.edit_text(NF2, parse_mode=ParseMode.HTML)
+
+
+async def echallan_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """📑 E-Challan (Parivahan) — gateway tool=challan (ansh source, env-swappable)."""
+    if not await check_force_join(update, context):
+        return
+    uid = update.effective_user.id
+    can_use, creds, user = can_use_tool(uid)
+    if not can_use:
+        await update.message.reply_text(format_credits_over("E-Challan"), parse_mode=ParseMode.HTML)
+        return
+    if not context.args:
+        try:
+            context.user_data["mode"] = "echallan"
+        except Exception:
+            pass
+        await update.message.reply_text(
+            f"❌ <b>Use:</b> <code>/echallan DL8CAB1234</code>\n\n"
+            f"📑 Gaadi number se saare Parivahan challan + amount\n"
+            f"🔗 Aliases: <code>/challaninfo</code>\n\n"
+            f"{credits_line(uid)}",
+            parse_mode=ParseMode.HTML
+        )
+        return
+
+    term = context.args[0]
+    status = await update.message.reply_text(WAIT2, parse_mode=ParseMode.HTML)
+    _t0 = time.time()
+    try:
+        result = await _run_with_typing(update, context, asyncio.to_thread(lookup_echallan, term))
+        try:
+            print(f"[TIMING] echallan {int((time.time()-_t0)*1000)}ms ok={result.get('ok')} cached={result.get('cached', False)}", flush=True)
+        except Exception:
+            pass
+        if not result.get("ok"):
+            await status.edit_text(f"❌ {_m(result.get('error'))}", parse_mode=ParseMode.HTML)
+            return
+        txt = format_echallan_card(result)
+        try:
+            left = spend_credits(uid, 1)
+            txt += f"\n{credits_line(uid)}"
+        except Exception:
+            pass
+        await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
+    except Exception as e:
+        logger.exception(e)
+        await status.edit_text(NF2, parse_mode=ParseMode.HTML)
+
+
+async def fastag_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """🏷️ FASTAG info — gateway tool=fastag (abhigyan source, env-swappable)."""
+    if not await check_force_join(update, context):
+        return
+    uid = update.effective_user.id
+    can_use, creds, user = can_use_tool(uid)
+    if not can_use:
+        await update.message.reply_text(format_credits_over("FASTAG Info"), parse_mode=ParseMode.HTML)
+        return
+    if not context.args:
+        try:
+            context.user_data["mode"] = "fastag"
+        except Exception:
+            pass
+        await update.message.reply_text(
+            f"❌ <b>Use:</b> <code>/fastag RJ14CV0002</code>\n\n"
+            f"🏷️ Gaadi number se FASTAG tags — bank, status, issue date\n"
+            f"🔗 Aliases: <code>/fastaginfo</code>\n\n"
+            f"{credits_line(uid)}",
+            parse_mode=ParseMode.HTML
+        )
+        return
+
+    term = context.args[0]
+    status = await update.message.reply_text(WAIT2, parse_mode=ParseMode.HTML)
+    _t0 = time.time()
+    try:
+        result = await _run_with_typing(update, context, asyncio.to_thread(lookup_fastag, term))
+        try:
+            print(f"[TIMING] fastag {int((time.time()-_t0)*1000)}ms ok={result.get('ok')} cached={result.get('cached', False)}", flush=True)
+        except Exception:
+            pass
+        if not result.get("ok"):
+            await status.edit_text(f"❌ {_m(result.get('error'))}", parse_mode=ParseMode.HTML)
+            return
+        txt = format_fastag_card(result)
+        try:
+            left = spend_credits(uid, 1)
+            txt += f"\n{credits_line(uid)}"
+        except Exception:
+            pass
+        await status.edit_text(txt[:4000], parse_mode=ParseMode.HTML)
+    except Exception as e:
+        logger.exception(e)
+        await status.edit_text(NF2, parse_mode=ParseMode.HTML)
+
 # ========== IP & DOMAIN ==========
 async def ip_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_force_join(update, context):
@@ -3222,6 +3414,11 @@ async def main_async():
     app.add_handler(CommandHandler("telegram", tg_number_cmd))
     app.add_handler(CommandHandler("paknum", pak_number_cmd))
     app.add_handler(CommandHandler("pak", pak_number_cmd))
+    # v2.8 — NEW gateway tools (USER ORDER: pehle gateway, phir bots)
+    app.add_handler(CommandHandler("tower", tower_cmd))
+    app.add_handler(CommandHandler(["towerlocation", "trace"], tower_cmd))
+    app.add_handler(CommandHandler(["echallan", "challaninfo"], echallan_cmd))
+    app.add_handler(CommandHandler(["fastag", "fastaginfo"], fastag_cmd))
     # v2.6 — bot-1 port tools
     app.add_handler(CommandHandler("rc", rc_cmd))
     app.add_handler(CommandHandler("challan", rc_cmd))
