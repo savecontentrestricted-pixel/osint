@@ -104,6 +104,48 @@ def dns_lookup(domain: str) -> Dict[str, Any]:
 
     return result
 
+def _rdap_whois(domain: str):
+    """v2.8: RDAP fallback (free, unlimited) — python-whois/hackertarget fail ya
+    rate-limit hone par. dict = ok, None = fail."""
+    try:
+        r = requests.get(
+            f"https://rdap.org/domain/{domain}",
+            timeout=10,
+            headers={"Accept": "application/rdap+json, application/json"},
+        )
+        if r.status_code != 200:
+            return None
+        j = r.json()
+        if not isinstance(j, dict):
+            return None
+        lines = [f"Domain Name: {str(j.get('ldhName') or domain).upper()}"]
+        for ent in j.get("entities") or []:
+            if not isinstance(ent, dict):
+                continue
+            if "registrar" in (ent.get("roles") or []):
+                va = ent.get("vcardArray")
+                items = va[1] if isinstance(va, list) and len(va) > 1 else []
+                for it in items:
+                    if isinstance(it, (list, tuple)) and it and it[0] == "fn" and len(it) > 3:
+                        lines.append(f"Registrar: {it[3]}")
+                        break
+        ev = {}
+        for e in j.get("events") or []:
+            if isinstance(e, dict):
+                ev[str(e.get("eventAction", "")).lower()] = e.get("eventDate")
+        for k, label in (("registration", "Creation Date"), ("expiration", "Registry Expiry Date"), ("last changed", "Updated Date")):
+            if ev.get(k):
+                lines.append(f"{label}: {ev[k]}")
+        st = j.get("status") or []
+        if st:
+            lines.append("Domain Status: " + ", ".join(map(str, st)))
+        ns = [n.get("ldhName") for n in (j.get("nameservers") or []) if isinstance(n, dict) and n.get("ldhName")]
+        if ns:
+            lines.append("Name Server: " + ", ".join(ns))
+        return {"ok": True, "domain": domain, "raw_whois": "\n".join(lines)[:3000], "source": "rdap"}
+    except Exception:
+        return None
+
 @with_cache("whois", 3600, 43200)
 def whois_lookup(domain: str) -> Dict[str, Any]:
     """WHOIS lookup - tries python-whois, fallback to API"""
@@ -142,10 +184,10 @@ def whois_lookup(domain: str) -> Dict[str, Any]:
         r = requests.get(f"https://api.hackertarget.com/whois/?q={domain}", timeout=10)
         if r.status_code == 200 and "error" not in r.text.lower()[:100]:
             return {"ok": True, "domain": domain, "raw_whois": r.text[:3000], "source": "hackertarget"}
-        else:
-            return {"ok": False, "error": f"WHOIS failed: {r.text[:200]}"}
+        # v2.8: rate-limit/fail → RDAP fallback (free, unlimited)
+        return _rdap_whois(domain) or {"ok": False, "error": f"WHOIS failed: {r.text[:200]}"}
     except Exception as e:
-        return {"ok": False, "error": f"WHOIS error: {str(e)}"}
+        return _rdap_whois(domain) or {"ok": False, "error": f"WHOIS error: {str(e)}"}
 
 @with_cache("ssl", 3600, 43200)
 def ssl_check(domain: str) -> Dict[str, Any]:

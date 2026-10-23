@@ -7,7 +7,7 @@ import os
 import re
 import time
 import requests
-from .fast_cache import with_cache
+from .fast_cache import with_cache, api_cache_get, api_cache_set
 from typing import Dict, Any
 
 API_URL = os.getenv("MYNUM_API_URL", "https://utility-api-vu83.onrender.com/api")
@@ -96,12 +96,48 @@ def _tme_public(q: str, tmo: float = 8.0):
             "url": f"https://t.me/{uname}"}
 
 @with_cache("pak", 300, 2592000)
+def _sarkari_pak(term: str):
+    """v2.8: sarkari ?=paknum fallback. {} = not-found, None = network fail, dict = data."""
+    try:
+        url = f"https://api.sarkariallupdates.com/api?=paknum&key=30day&q={term}&xr={term}&term={term}"
+        r = requests.get(url, timeout=15)
+        if r.status_code != 200:
+            return None
+        j = r.json()
+        if not isinstance(j, dict):
+            return None
+        st = str(j.get("status", "")).lower()
+        if st in ("error", "false") or "no records" in str(j.get("message", "")).lower():
+            return {}
+        d = j.get("data") or j.get("result")
+        if isinstance(d, list):
+            d = d[0] if d else None
+        if isinstance(d, dict) and d:
+            return d
+        if st in ("success", "true") and j.get("count"):
+            return j
+        return None
+    except Exception:
+        return None
+
 def lookup_pak(cnic_or_number: str) -> Dict[str, Any]:
     term = re.sub(r'\D', '', clean_input(cnic_or_number))
     if len(term) < 10:
         term = clean_input(cnic_or_number)
     if not term:
         return {"ok": False, "error": "CNIC ya Pak number bhejo"}
+
+    # v2.8: mem+DB cache — repeat queries INSTANT
+    try:
+        from .fast_cache import api_cache_get, api_cache_set
+        hit = api_cache_get("pak", term)
+        if hit:
+            h = hit.copy()
+            h["ms"] = 0
+            h["cached"] = True
+            return h
+    except Exception:
+        pass
 
     try:
         t0 = time.time()
@@ -112,13 +148,31 @@ def lookup_pak(cnic_or_number: str) -> Dict[str, Any]:
             timeout=TIMEOUT
         )
         ms = int((time.time()-t0)*1000)
-        if r.status_code != 200:
-            return {"ok": False, "error": f"API HTTP {r.status_code}"}
-        data = r.json()
-        d = data.get("data") or data
-        if not d or (isinstance(d, dict) and not d):
-            return {"ok": False, "not_found": True, "error": "❌ No records found for this number in any database."}
-        return {"ok": True, "data": d, "ms": ms, "raw": data}
+        if r.status_code == 200:
+            data = r.json()
+            # v2.8 FIX: gateway fail {ok:false, why:upstream} ko data mat maano
+            gw_fail = isinstance(data, dict) and (data.get("ok") is False or bool(data.get("why")))
+            d = (data.get("data") or data) if isinstance(data, dict) else None
+            if not gw_fail and d and not (isinstance(d, dict) and not d):
+                res = {"ok": True, "data": d, "ms": ms, "raw": data}
+                try:
+                    api_cache_set("pak", term, res, ttl=3600)
+                except Exception:
+                    pass
+                return res
+        # gateway fail/not-found → sarkari ?=paknum fallback
+        fb = _sarkari_pak(term)
+        if isinstance(fb, dict) and fb:
+            res = {"ok": True, "data": fb, "ms": int((time.time()-t0)*1000), "source": "sarkari-api"}
+            try:
+                api_cache_set("pak", term, res, ttl=3600)
+            except Exception:
+                pass
+            return res
+        if fb is None and r.status_code == 200:
+            # network fail dono jagah → error dikhao
+            return {"ok": False, "error": "❌ No records found for this number in any database."}
+        return {"ok": False, "not_found": True, "error": "❌ No records found for this number in any database."}
     except Exception as e:
         return {"ok": False, "error": f"Error: {str(e)[:100]}"}
 

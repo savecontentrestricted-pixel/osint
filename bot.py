@@ -1356,7 +1356,7 @@ async def number_info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         txt += f"""
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-📡 <b>Source:</b> utility-api-vu83
+📡 <b>Source:</b> {result.get('source', 'utility-api-vu83')}
 
 ⚡ <b>Response:</b> {ms}ms
 """

@@ -106,6 +106,9 @@ def website_extractor(url: str) -> Dict[str, Any]:
             return {"ok": False, "error": f"HTTP {r.status_code} - Site not accessible"}
 
         html = r.text
+        # v2.8 ultra-fast: 3MB+ pages ka parse cap (bade pages pe BS4 slow hota hai)
+        if len(html) > 3_000_000:
+            html = html[:3_000_000]
         text = BeautifulSoup(html, 'html.parser').get_text()
 
         emails = extract_emails(html + " " + text)

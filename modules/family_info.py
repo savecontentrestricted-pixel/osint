@@ -29,6 +29,54 @@ def _mask_aadhaar(aadhaar: str) -> str:
         return f"XXXX-XXXX-{d[-4:]}"
     return "XXXX-XXXX-XXXX"
 
+def _normalize_ration(d: dict) -> dict:
+    """v2.8: sarkari ?=ration data -> format_family_card ka contract.
+    Khaali/fake aadhaar (sab N/A + 0 members) par {} (not found)."""
+    def clean(v):
+        s = str(v or "").strip()
+        return "" if s.lower() in ("n/a", "na", "none", "null", "-", "0") else s
+    out = {}
+    card = clean(d.get("ration_card_number"))
+    scheme = clean(d.get("scheme"))
+    st = clean(d.get("state"))
+    dist = clean(d.get("district"))
+    fps = clean(d.get("fps_id"))
+    sd = " / ".join(x for x in (st, dist) if x)
+    try:
+        tm = int(d.get("total_members") or 0)
+    except Exception:
+        tm = 0
+    names = []
+    mem = d.get("members")
+    if isinstance(mem, list):
+        for m in mem:
+            if isinstance(m, dict):
+                nm = clean(m.get("name") or m.get("member_name") or m.get("full_name") or m.get("member_name_english"))
+            else:
+                nm = clean(m)
+            if nm and nm not in names:
+                names.append(nm)
+    head = clean(d.get("head_of_family"))
+    if head and head not in names:
+        names.insert(0, head)
+    # fake aadhaar = members empty + state/district/fps sab N/A
+    if not names and tm <= 0 and not sd and not fps:
+        return {}
+    if card:
+        out["card_number"] = card
+    if scheme:
+        out["card_type"] = scheme
+    if sd:
+        out["state_dist"] = sd
+    if fps:
+        out["fps_id"] = fps
+    if names:
+        out["name"] = names[0]
+        for i, nm in enumerate(names[1:9], 1):
+            out[f"name_{i}"] = nm
+    out["family_count"] = tm if tm > 0 else len(names)
+    return out
+
 def lookup_family(aadhaar: str) -> dict:
     start = time.time()
     aadhaar_clean = _clean_aadhaar(aadhaar)
@@ -79,13 +127,15 @@ def lookup_family(aadhaar: str) -> dict:
                                 "raw": data
                             }
                     # Found data
-                    return {
+                    result = {
                         "ok": True,
                         "data": d,
                         "masked": masked,
                         "ms": int((time.time() - start) * 1000),
                         "source": "utility-api"
                     }
+                    api_cache_set("family", aadhaar_clean, result, ttl=3600)
+                    return result
                 else:
                     if isinstance(data, dict) and data.get("data"):
                         result = {
@@ -95,7 +145,7 @@ def lookup_family(aadhaar: str) -> dict:
                             "ms": int((time.time() - start) * 1000),
                             "source": "utility-api"
                         }
-                        api_cache_set("family", aadhaar_clean, result, ttl=300)
+                        api_cache_set("family", aadhaar_clean, result, ttl=3600)
                         return result
             except Exception as e:
                 print(f"Family primary JSON parse error: {e}")
@@ -111,48 +161,36 @@ def lookup_family(aadhaar: str) -> dict:
                     "ms": int((time.time() - start) * 1000),
                     "source": "utility-api"
                 }
-                api_cache_set("family", aadhaar_clean, result, ttl=300)
+                api_cache_set("family", aadhaar_clean, result, ttl=3600)
                 return result
         except:
             pass
     except Exception as e:
         print(f"Family primary API error: {e}")
     
-    # Fallback to supabase with session pooling
+    # v2.8: purana supabase fallback BAND (host NXDOMAIN/mar chuka) → sarkari ?=ration direct
     try:
         session = get_session()
-        params = {
-            "key": BUILTIN_KEY,
-            "tool": "familyinfo",
-            "term": aadhaar_clean
-        }
-        resp = session.get(BUILTIN_URL, params=params, timeout=20)
+        url = (f"https://api.sarkariallupdates.com/api?=ration&key=30day"
+               f"&q={aadhaar_clean}&xr={aadhaar_clean}&term={aadhaar_clean}")
+        resp = session.get(url, timeout=20)
         if resp.status_code == 200:
-            try:
-                data = resp.json()
-                if data.get("success") and data.get("data"):
-                    d = data["data"]
-                    if "not_found" in str(d).lower() or "family_info_not_found" in str(d).lower():
-                        return {
-                            "ok": False,
-                            "error": "No family data found",
-                            "masked": masked,
-                            "ms": int((time.time() - start) * 1000),
-                            "raw": data
-                        }
+            j = resp.json()
+            d0 = j.get("data") if isinstance(j, dict) else None
+            if isinstance(j, dict) and j.get("status") and isinstance(d0, dict) and d0:
+                out = _normalize_ration(d0)
+                if out:
                     result = {
                         "ok": True,
-                        "data": d,
+                        "data": out,
                         "masked": masked,
                         "ms": int((time.time() - start) * 1000),
-                        "source": "supabase"
+                        "source": "sarkari-api"
                     }
-                    api_cache_set("family", aadhaar_clean, result, ttl=300)
+                    api_cache_set("family", aadhaar_clean, result, ttl=3600)
                     return result
-            except Exception as e:
-                print(f"Family fallback JSON error: {e}")
     except Exception as e:
-        print(f"Family fallback error: {e}")
+        print(f"Family sarkari fallback error: {e}")
     
     return {
         "ok": False,

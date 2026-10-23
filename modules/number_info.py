@@ -32,6 +32,52 @@ def mask_aadhaar(v: str) -> str:
         return "XXXX-XXXX-" + d[-4:]
     return "X"*(len(d)-4) + d[-4:]
 
+def _sarkari_num(digits: str):
+    """v2.8 fallback: sarkariallupdates ?=num direct — utility-api upstream down rahe toh.
+    None = fail/milta nahi, dict = success result (number_info ke contract mein)."""
+    try:
+        url = (f"https://api.sarkariallupdates.com/api?=num&key=30day"
+               f"&q={digits}&xr={digits}&num={digits}&term={digits}")
+        r = get_session().get(url, timeout=15)
+        if r.status_code != 200:
+            return None
+        j = r.json()
+        lst = j.get("data") if isinstance(j, dict) else None
+        if not isinstance(lst, list) or not lst or not isinstance(lst[0], dict):
+            return None
+        first = lst[0]
+        def g(*names):
+            for n in names:
+                v = first.get(n)
+                if v is not None and str(v).strip() and str(v).strip().lower() not in ("n/a", "na", "none", "null", "-", "0"):
+                    return str(v).strip()
+            return ""
+        owner = {}
+        for k, names in {
+            "name": ("name",), "father": ("fname", "father_name"),
+            "phone": ("mobile", "mobile_no"), "alt_phone": ("alt", "alt_mobile"),
+            "address": ("address",), "circle": ("circle",),
+            "aadhaar": ("id", "aadhar_card_no", "aadhaar"),
+        }.items():
+            v = g(*names)
+            if v:
+                owner[k] = v
+        if "aadhaar" in owner:
+            owner["aadhaar"] = mask_aadhaar(owner["aadhaar"])
+        if not owner.get("name") and not owner.get("phone"):
+            return None
+        try:
+            rec = int(j.get("count") or len(lst))
+        except Exception:
+            rec = len(lst)
+        return {
+            "ok": True, "number": digits, "owner": owner,
+            "circle": owner.get("circle", ""), "records": max(1, rec),
+            "ms": 0, "source": "sarkari-api", "raw": first,
+        }
+    except Exception:
+        return None
+
 def lookup_number(number: str) -> Dict[str, Any]:
     digits = clean_number(number)
     if not digits:
@@ -55,20 +101,29 @@ def lookup_number(number: str) -> Dict[str, Any]:
         )
         ms = int((time.time() - t0)*1000)
 
-        if r.status_code in (401,403):
-            return {"ok": False, "error": f"API key reject (HTTP {r.status_code})"}
-        if r.status_code == 429:
-            return {"ok": False, "error": "API limit khatam (429), thodi der baad try karo"}
-        if r.status_code >= 400:
+        if r.status_code in (401,403) or r.status_code >= 400:
+            # v2.8: gateway auth/rate/HTTP fail par bhi sarkari fallback try karo
+            fb = _sarkari_num(digits)
+            if fb is not None:
+                fb["ms"] = int((time.time() - t0) * 1000)
+                api_cache_set("num", digits, fb, ttl=3600)
+                return fb
+            if r.status_code in (401,403):
+                return {"ok": False, "error": f"API key reject (HTTP {r.status_code})"}
+            if r.status_code == 429:
+                return {"ok": False, "error": "API limit khatam (429), thodi der baad try karo"}
             return {"ok": False, "error": f"API HTTP {r.status_code}"}
 
         data = r.json()
         d = data.get("data", {}) if isinstance(data, dict) else {}
 
-        if not d or not isinstance(d, dict):
-            return {"ok": False, "not_found": True, "error": "❌ No records found for this number in any database.", "ms": ms}
-
-        if not any(k.startswith("owner_name") for k in d.keys()):
+        if not d or not isinstance(d, dict) or not any(str(k).startswith("owner_name") for k in d.keys()):
+            # v2.8: utility-api upstream down (why=upstream) ya shape alag → sarkari ?=num fallback
+            fb = _sarkari_num(digits)
+            if fb is not None:
+                fb["ms"] = int((time.time() - t0) * 1000)
+                api_cache_set("num", digits, fb, ttl=3600)
+                return fb
             return {"ok": False, "not_found": True, "error": "❌ No records found for this number in any database.", "ms": ms}
 
         owner = {
@@ -93,11 +148,20 @@ def lookup_number(number: str) -> Dict[str, Any]:
             "ms": ms,
             "raw": d
         }
-        # Cache success for 5 min
-        api_cache_set("num", digits, result, ttl=300)
+        # Cache success for 1 hour (ultra-fast repeat)
+        api_cache_set("num", digits, result, ttl=3600)
         return result
 
     except Exception as e:
+        # v2.8: network/parse fail par bhi sarkari fallback
+        try:
+            fb = _sarkari_num(digits)
+            if fb is not None:
+                fb["ms"] = int((time.time() - t0) * 1000)
+                api_cache_set("num", digits, fb, ttl=3600)
+                return fb
+        except Exception:
+            pass
         return {"ok": False, "error": f"Lookup error: {str(e)[:100]}"}
 
 def format_card(result: Dict[str, Any]) -> str:
