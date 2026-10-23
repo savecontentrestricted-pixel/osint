@@ -20,9 +20,9 @@ services:
       - key: FORCE_CHANNEL_USERNAME
         value: osint_xpert
       - key: OWNER_USERNAME
-        value: "@Osint_boom_bot"
+        value: "@ANONYMOUS_XH"
       - key: BRAND_TAG
-        value: "@Osint_boom_bot"
+        value: "@ANONYMOUS_XH"
       - key: MYNUM_API_URL
         value: https://utility-api-vu83.onrender.com/api
       - key: MYNUM_API_KEY

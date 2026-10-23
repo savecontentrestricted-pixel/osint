@@ -8,7 +8,7 @@
     "ADMIN_ID": {"required": true, "value": "YOUR_NUMERIC_ADMIN_ID"},
     "FORCE_CHANNEL": {"required": true, "value": "-1004393596502"},
     "FORCE_CHANNEL_LINK": {"required": true, "value": "https://t.me/osint_xpert"},
-    "OWNER_USERNAME": {"required": false, "value": "@Osint_boom_bot"},
+    "OWNER_USERNAME": {"required": false, "value": "@ANONYMOUS_XH"},
     "MYNUM_API_URL": {"required": false, "value": "https://utility-api-vu83.onrender.com/api"},
     "MYNUM_API_KEY": {"required": true}
   }

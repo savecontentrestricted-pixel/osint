@@ -88,7 +88,7 @@ def format_plans() -> str:
 4️⃣ Owner 5-10 min me approve karega
 5️⃣ Premium chalu!
 
-📢 @osint_xpert | 👑 @Osint_boom_bot
+📢 @osint_xpert | 👑 @ANONYMOUS_XH
 """
     return txt
 

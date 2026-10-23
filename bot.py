@@ -86,7 +86,7 @@ async def _run_with_typing(update, context, work):
             await task
         except asyncio.CancelledError:
             pass
-BOT_VERSION = ("v2.6.3 — user-facing contact/brand is @Osint_boom_bot; admin ID is private Render config")
+BOT_VERSION = ("v2.6.3 — user-facing contact/brand is @ANONYMOUS_XH; admin ID is private Render config")
 # v2.0 SECURITY: token sirf Render env se (pehle public repo me hardcoded tha!)
 BOT_TOKEN = os.getenv('BOT_TOKEN', '').strip()
 PORT = int(os.getenv('PORT','10000'))
@@ -881,7 +881,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 💡 Neeche menu se tool chuno, ya /help bhejo.
 
 📢 Update ke liye: @osint_xpert
-👑 Owner: @Osint_boom_bot
+👑 Owner: @ANONYMOUS_XH
 """
 
         # Try to send photo banner + caption + grid - NO WHITE LINING MESSAGE
@@ -936,7 +936,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"/ip 8.8.8.8\n"
                 f"/domain google.com\n\n"
                 f"Grid menu loading... /help for all commands\n\n"
-                f"👑 @Osint_boom_bot | 📢 @osint_xpert",
+                f"👑 @ANONYMOUS_XH | 📢 @osint_xpert",
                 parse_mode=ParseMode.HTML
             )
         except Exception as e2:
@@ -1250,7 +1250,7 @@ PDF bhejo, Vivid -> 卄卂匚K乇尺
 
 <b>🛡️ Safety:</b>
 • Force join: @osint_xpert
-• Owner: @Osint_boom_bot
+• Owner: @ANONYMOUS_XH
 
 /start se grid dekho - Clean, no commands!
 """
@@ -1368,7 +1368,7 @@ async def number_info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         txt += f"""
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-🔥 <b>Powered by @Osint_boom_bot</b>
+🔥 <b>Powered by @ANONYMOUS_XH</b>
 """
 
         await status.edit_text(txt, parse_mode=ParseMode.HTML)
@@ -1621,7 +1621,7 @@ async def tg_number_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if _ctry:
             _L.append(f"🌍 Country : {_ctry}")
         _L += ["", f"⚡ <b>Response:</b> {ms}ms",
-               "🔥 <b>Powered by @Osint_boom_bot</b>"]
+               "🔥 <b>Powered by @ANONYMOUS_XH</b>"]
         txt = "\n".join(_L)
         try:
             left = spend_tg_credits(uid, 1)   # v2.5.5: TG pool se kato
@@ -1687,7 +1687,7 @@ async def pak_number_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ⚡ <b>Response:</b> {ms}ms
-🔥 <b>Powered by @Osint_boom_bot</b>
+🔥 <b>Powered by @ANONYMOUS_XH</b>
 """
 
         try:
@@ -1780,7 +1780,7 @@ async def ip_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 🔁 <b>Reverse DNS:</b> {result.get('reverse_dns') or 'N/A'}
 
-🔥 Powered by @Osint_boom_bot
+🔥 Powered by @ANONYMOUS_XH
 """
 
         try:
@@ -1885,7 +1885,7 @@ async def domain_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-🔥 Powered by @Osint_boom_bot
+🔥 Powered by @ANONYMOUS_XH
 """
 
         try:
@@ -2135,7 +2135,7 @@ async def website_extract_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 📊 <b>Size:</b> HTML {result.get('html_length')} chars | Text {result.get('text_length')} chars
 
-🔥 Powered by @Osint_boom_bot
+🔥 Powered by @ANONYMOUS_XH
 """
 
         try:
@@ -2778,7 +2778,7 @@ async def reject_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     set_payment_status(pid, "rejected", update.effective_user.id, reason)
     await update.message.reply_text(f"❌ Payment {pid} rejected - {reason}", parse_mode=ParseMode.HTML)
     try:
-        await context.bot.send_message(chat_id=pay['user_id'], text=f"❌ <b>Payment Rejected</b>\n\nID: {pid}\nReason: {reason}\n\nContact @Osint_boom_bot\n💳 UPI: {UPI_ID}", parse_mode=ParseMode.HTML)
+        await context.bot.send_message(chat_id=pay['user_id'], text=f"❌ <b>Payment Rejected</b>\n\nID: {pid}\nReason: {reason}\n\nContact @ANONYMOUS_XH\n💳 UPI: {UPI_ID}", parse_mode=ParseMode.HTML)
     except:
         pass
 
@@ -3108,7 +3108,7 @@ async def help_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         pay = get_payment(pid)
         if pay:
             try:
-                await context.bot.send_message(chat_id=pay['user_id'], text=f"❌ Payment {pid} rejected. Contact @Osint_boom_bot", parse_mode=ParseMode.HTML)
+                await context.bot.send_message(chat_id=pay['user_id'], text=f"❌ Payment {pid} rejected. Contact @ANONYMOUS_XH", parse_mode=ParseMode.HTML)
             except:
                 pass
     elif data == "adm_payments":

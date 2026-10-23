@@ -31,8 +31,8 @@ FORCE_CHANNEL = os.getenv("FORCE_CHANNEL", "-1004393596502").strip()
 FORCE_CHANNEL_LINK = os.getenv("FORCE_CHANNEL_LINK", "https://t.me/osint_xpert").strip()
 FORCE_CHANNEL_USERNAME = os.getenv("FORCE_CHANNEL_USERNAME", "osint_xpert").strip()
 
-OWNER_USERNAME = os.getenv("OWNER_USERNAME", "@Osint_boom_bot").strip()   # v2.6: naya admin
-BRAND_TAG = os.getenv("BRAND_TAG", "@Osint_boom_bot").strip()
+OWNER_USERNAME = os.getenv("OWNER_USERNAME", "@ANONYMOUS_XH").strip()   # v2.6: naya admin
+BRAND_TAG = os.getenv("BRAND_TAG", "@ANONYMOUS_XH").strip()
 
 # APIs
 MYNUM_API_URL = os.getenv("MYNUM_API_URL", "https://utility-api-vu83.onrender.com/api").strip()
