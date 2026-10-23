@@ -43,6 +43,8 @@ services:
         value: 10
       - key: TG_CREDITS
         value: 3
+      - key: FREE_FOR_ALL
+        value: "1"   # 1 = sab tools FREE (premium off) | 0 = premium/paywall ON
       - key: FAMINFO_API_URL
         value: https://utility-api-vu83.onrender.com/api
       - key: FAMINFO_API_KEY

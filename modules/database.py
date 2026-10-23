@@ -29,6 +29,9 @@ def _get_db_path():
 DB_PATH = _get_db_path()
 FREE_CREDITS = int(os.getenv("FREE_CREDITS", "10"))   # v2.5.5: bot-1 jaisa SAME system (10)
 TG_CREDITS = int(os.getenv("TG_CREDITS", "3"))        # v2.5.5: TG tool ka ALAG pool (3) — bot-1 jaisa
+# v2.7 FREE FOR ALL — 1k users / 3-4 months tak sab tools FREE (premium off).
+# Premium wapas chahiye toh Render me FREE_FOR_ALL=0 karke redeploy.
+FREE_FOR_ALL = str(os.getenv("FREE_FOR_ALL", "1")).strip().lower() in ("1", "true", "yes", "on")
 
 # Thread-local connection reuse for speed
 _threads = threading.local()
@@ -265,6 +268,8 @@ def spend_tg_credits(uid: int, n: int = 1) -> int:
     """TG credits kam karta hai (0 se neeche nahi). Premium/admin se nahi kat-te."""
     try:
         n = max(0, int(n))
+        if FREE_FOR_ALL:
+            return get_tg_credits(uid)   # v2.7: free mode — deduction band
         if is_premium_user(uid):
             return get_tg_credits(uid)
         from config import is_admin
@@ -448,6 +453,8 @@ def set_credits(uid: int, n: int) -> int:
 
 def spend_credits(uid: int, n: int = 1) -> int:
     try:
+        if FREE_FOR_ALL:
+            return get_credits(uid)   # v2.7: free mode — deduction band
         # Check if premium or admin - don't spend
         if is_premium_user(uid):
             return get_credits(uid)

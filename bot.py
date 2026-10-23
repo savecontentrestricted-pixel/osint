@@ -406,7 +406,7 @@ from modules.database import (
     create_payment, get_payment, set_payment_status, set_payment_admin_msg,
     utr_exists, pending_payments_count, pending_payments, recent_payments,
     user_payments, all_user_ids, premium_users, recent_users, credits_stats, payment_stats,
-    is_banned, set_ban, FREE_CREDITS,
+    is_banned, set_ban, FREE_CREDITS, FREE_FOR_ALL,
     get_tg_credits, set_tg_credits, spend_tg_credits, apply_credits_config, TG_CREDITS
 )
 from modules.payments import PLANS, UPI_ID, UPI_NAME, get_upi_link, format_plans, format_plan_detail, format_myplan, format_credits_over
@@ -606,6 +606,9 @@ def can_use_tool(uid: int, tool: str = "") -> tuple:
         if is_banned(uid):
             return False, 0, {}
         u = get_user(uid)
+        if FREE_FOR_ALL:
+            # v2.7: FREE FOR ALL — sab tools free, koi credit/TG-pool check nahi
+            return True, u.get("credits", FREE_CREDITS), u
         if is_premium(u):
             return True, u.get("credits", FREE_CREDITS), u
         if str(tool).lower() == "tg":
@@ -626,6 +629,9 @@ def credits_line(uid: int) -> str:
         if config.is_admin(uid):
             return "👑 <i>Admin - Unlimited</i>\n"
         u = get_user(uid)
+        if FREE_FOR_ALL:
+            # v2.7: free mode footer — koi "credits khatam /premium" nudge nahi
+            return "🆓 <i>Free Mode — sab tools free!</i>\n"
         if is_premium(u):
             exp = premium_expiry(u)
             return f"👑 <i>Premium - {exp}</i>\n"
